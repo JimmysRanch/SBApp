@@ -1,20 +1,14 @@
 "use client";
-import { useEffect, useState, FormEvent } from "react";
+import { Suspense, useEffect, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-/*
- * ResetPassword
- *
- * This page handles Supabase password recovery links.
- * It exchanges the one-time code for a session and then lets
- * the user set a new password.
- */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function ResetPassword() {
+function ResetInner() {
   const router = useRouter();
   const sp = useSearchParams();
-
   const [ready, setReady] = useState(false);
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -27,10 +21,7 @@ export default function ResetPassword() {
     }
     (async () => {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) {
-        setErr(error.message);
-        return;
-      }
+      if (error) { setErr(error.message); return; }
       setReady(true);
     })();
   }, [router, sp]);
@@ -38,10 +29,7 @@ export default function ResetPassword() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     const { error } = await supabase.auth.updateUser({ password: pw });
-    if (error) {
-      setErr(error.message);
-      return;
-    }
+    if (error) { setErr(error.message); return; }
     router.replace("/dashboard");
   }
 
@@ -67,5 +55,13 @@ export default function ResetPassword() {
       <button type="submit">Save password</button>
       {err && <p style={{ color: "red" }}>{err}</p>}
     </form>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p style={{ padding: 24 }}>Loading…</p>}>
+      <ResetInner />
+    </Suspense>
   );
 }

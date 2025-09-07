@@ -28,7 +28,7 @@ export default function AuthCallback() {
     }
     // Exchange the one-time code from the URL for a valid session
     (async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession({ code });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         // If something goes wrong, send the user back to login with an error
         router.replace(`/login?error=${encodeURIComponent(error.message)}`);

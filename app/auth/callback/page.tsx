@@ -3,8 +3,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const dynamic = "force-dynamic"; // don't prerender
 
 function CallbackInner() {
   const router = useRouter();
@@ -19,13 +18,11 @@ function CallbackInner() {
       return;
     }
 
-    // Password reset links go to /reset-password
     if (type === "recovery") {
       router.replace(`/reset-password?code=${encodeURIComponent(code)}`);
       return;
     }
 
-    // Normal magic link / signup: exchange and go to dashboard
     (async () => {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       router.replace(

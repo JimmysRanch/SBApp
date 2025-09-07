@@ -28,7 +28,7 @@ export default function ResetPassword() {
     }
     // Exchange code for session
     (async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession({ code });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         setError(error.message);
         return;

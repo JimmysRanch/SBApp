@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -7,75 +6,66 @@ import { supabase } from "@/lib/supabaseClient";
 /*
  * ResetPassword
  *
- * Supabase sends password reset links with a one-time code as a query
- * parameter. This page exchanges that code for a session and then
- * provides a form for the user to set a new password. Upon successful
- * password update, the user is redirected to the dashboard.
+ * This page handles Supabase password recovery links.
+ * It exchanges the one-time code for a session and then lets
+ * the user set a new password.
  */
+
 export default function ResetPassword() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const sp = useSearchParams();
+
   const [ready, setReady] = useState(false);
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    // If there is no code, redirect to login
+    const code = sp.get("code");
     if (!code) {
       router.replace("/login");
       return;
     }
-    // Exchange code for session
     (async () => {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
-        setError(error.message);
+        setErr(error.message);
         return;
       }
       setReady(true);
     })();
-  }, [router, searchParams]);
+  }, [router, sp]);
 
-  const handleSubmit = async (e: FormEvent) => {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password: pw });
     if (error) {
-      setError(error.message);
+      setErr(error.message);
       return;
     }
-    // Redirect to dashboard after successful password update
     router.replace("/dashboard");
-  };
+  }
 
   if (!ready) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-lg">Preparing reset… {error && `Error: ${error}`}</p>
-      </div>
+      <p style={{ padding: 24 }}>
+        {err ? `Error: ${err}` : "Preparing password reset…"}
+      </p>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-primary-light">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-80">
-        <h2 className="text-xl font-semibold mb-4 text-center">Set a New Password</h2>
-        {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
-        <div className="mb-4">
-          <label htmlFor="password" className="block text-sm mb-1">New Password</label>
-          <input
-            id="password"
-            type="password"
-            className="w-full border rounded px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="w-full bg-primary-dark text-white py-2 rounded hover:bg-primary-dark/90 transition">
-          Save Password
-        </button>
-      </form>
-    </div>
+    <form onSubmit={submit} style={{ padding: 24, maxWidth: 360 }}>
+      <h1>Set a new password</h1>
+      <input
+        type="password"
+        placeholder="New password"
+        value={pw}
+        onChange={(e) => setPw(e.target.value)}
+        required
+        style={{ width: "100%", padding: 8, margin: "12px 0" }}
+      />
+      <button type="submit">Save password</button>
+      {err && <p style={{ color: "red" }}>{err}</p>}
+    </form>
   );
 }

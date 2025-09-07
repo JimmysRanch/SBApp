@@ -8,7 +8,12 @@ interface Client { id: string; full_name: string; }
 interface Pet { id: string; name: string; }
 interface Employee { id: string; name: string; }
 
-export default function Book() {
+/**
+ * Booking page.  Provides a form for creating new appointments by
+ * selecting a client, pet, groomer, date/time and service.  On
+ * submission, inserts an appointment into the `appointments` table.
+ */
+export default function BookPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -60,6 +65,7 @@ export default function Book() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const start = new Date(`${date}T${time}`);
+    // Auto-calc a one hour end time.  Could make this configurable later.
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     await supabase.from('appointments').insert({
       client_id: clientId,

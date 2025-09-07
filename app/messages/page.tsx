@@ -3,25 +3,32 @@ import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-type Msg = {
+// Message record type.  Adjust fields to match your Supabase schema.
+interface Msg {
   id: string;
   to_employee: string | null;
   from_name: string | null;
   body: string | null;
   created_at: string;
-};
+}
 
+/**
+ * Messages page lists recent messages from the `messages` table.  This
+ * could later be expanded to allow replying or filtering by employee.
+ */
 export default function MessagesPage() {
   const [rows, setRows] = useState<Msg[]>([]);
+
   useEffect(() => {
     supabase
       .from("messages")
-      .select("*")
+      .select("id, to_employee, from_name, body, created_at")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        setRows(data || []);
+        setRows((data || []) as Msg[]);
       });
   }, []);
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />

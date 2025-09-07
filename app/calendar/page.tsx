@@ -3,6 +3,9 @@ import Sidebar from "@/components/Sidebar";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+// Appointment type including joined pet and client names.  The Supabase
+// query uses `pets(name)` and `clients(full_name)` to join in these
+// fields via foreign keys on the appointments table.
 type Appt = {
   id: string;
   start_time: string;
@@ -12,6 +15,10 @@ type Appt = {
   clients: { full_name: string }[];
 };
 
+/**
+ * Calendar page showing all appointments.  Appointments are loaded
+ * from the `appointments` table along with pet and client names.
+ */
 export default function CalendarPage() {
   const [rows, setRows] = useState<Appt[]>([]);
 
@@ -22,6 +29,9 @@ export default function CalendarPage() {
         .select("id, start_time, service, status, pets(name), clients(full_name)")
         .order("start_time");
       if (!error && data) {
+        // Cast through unknown to satisfy TypeScript since Supabase types
+        // are generated as any when joined.  See build error logs for
+        // details.
         setRows(data as unknown as Appt[]);
       }
     };

@@ -1,17 +1,20 @@
-"use client";
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
 
+// Define the navigation items shown in the sidebar. The Agreement page
+// is now managed under the Settings section, so it has been removed
+// from this list. An Employees entry has been added so staff can
+// manage their colleagues. Feel free to reorder or extend this list
+// as more pages are added to the app.
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/book', label: 'Book' },
   { href: '/calendar', label: 'Calendar' },
   { href: '/clients', label: 'Clients' },
-    { href: '/employees', label: 'Employees' },
+  { href: '/employees', label: 'Employees' },
   { href: '/reports', label: 'Reports' },
   { href: '/messages', label: 'Messages' },
-  { href: '/agreement', label: 'Agreement' },
   { href: '/settings', label: 'Settings' },
 ]
 

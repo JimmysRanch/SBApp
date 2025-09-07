@@ -8,8 +8,8 @@ type Appt = {
   start_time: string;
   service: string | null;
   status: string;
-  pets: { name: string } | null;
-  clients: { full_name: string } | null;
+  pets: { name: string }[];
+  clients: { full_name: string }[];
 };
 
 export default function CalendarPage() {
@@ -19,10 +19,10 @@ export default function CalendarPage() {
     const fetchData = async () => {
       const { data, error } = await supabase
         .from("appointments")
-        .select("id,start_time,service,status,pets(name),clients(full_name)")
+        .select("id, start_time, service, status, pets(name), clients(full_name)")
         .order("start_time");
       if (!error && data) {
-        setRows(data as Appt[]);
+        setRows(data as unknown as Appt[]);
       }
     };
     fetchData();
@@ -35,8 +35,8 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-bold mb-4">Calendar</h1>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left border-b">
-              <th className="p-3">Date & Time</th>
+            <tr className="border-b">
+              <th className="p-2 text-left">Date &amp; Time</th>
               <th>Pet</th>
               <th>Client</th>
               <th>Service</th>
@@ -46,10 +46,12 @@ export default function CalendarPage() {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="border-b">
-                <td className="p-3">{new Date(row.start_time).toLocaleString()}</td>
-                <td>{row.pets?.name || "—"}</td>
-                <td>{row.clients?.full_name || "—"}</td>
-                <td>{row.service || "—"}</td>
+                <td className="p-2">
+                  {new Date(row.start_time).toLocaleString()}
+                </td>
+                <td>{row.pets?.[0]?.name ?? "-"}</td>
+                <td>{row.clients?.[0]?.full_name ?? "-"}</td>
+                <td>{row.service ?? "-"}</td>
                 <td>{row.status}</td>
               </tr>
             ))}

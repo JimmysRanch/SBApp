@@ -3,8 +3,7 @@ import { Suspense, useEffect, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const dynamic = "force-dynamic"; // don't prerender
 
 function ResetInner() {
   const router = useRouter();

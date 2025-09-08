@@ -3,83 +3,67 @@
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
-import { Suspense, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-function ResetInner() {
-  const search = useSearchParams();
+export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const code = searchParams.get('code'); // magic link code
   const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [pw1, setPw1] = useState('');
-  const [pw2, setPw2] = useState('');
-  const [error, setError] = useState<string>('');
-  const [ok, setOk] = useState<string>('');
 
-  // If the email link includes a one-time code (?code=...), exchange it first.
-  useEffect(() => {
-    const code = search.get('code');
-    (async () => {
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setError(error.message);
-          return;
-        }
-      }
-      setReady(true);
-    })();
-  }, [search]);
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
+  const requestReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setOk('');
-    if (pw1 !== pw2) return setError('Passwords do not match.');
-    const { error } = await supabase.auth.updateUser({ password: pw1 });
-    if (error) setError(error.message);
-    else {
-      setOk('Password updated. Redirecting to login…');
-      setTimeout(() => router.replace('/login'), 1200);
-    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setMessage(error ? error.message : 'Reset link sent to your email.');
   };
 
-  if (!ready) return <div className="p-6">Loading…</div>;
+  const setPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setMessage(error ? error.message : 'Password updated, redirecting…');
+    if (!error) router.replace('/login');
+  };
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-4">Set a new password</h1>
-      {error && <div className="mb-3 text-red-600">{error}</div>}
-      {ok && <div className="mb-3 text-green-600">{ok}</div>}
-      <form onSubmit={submit} className="space-y-3">
-        <input
-          className="w-full border rounded px-3 py-2"
-          type="password"
-          placeholder="New password"
-          value={pw1}
-          onChange={e => setPw1(e.target.value)}
-          required
-        />
-        <input
-          className="w-full border rounded px-3 py-2"
-          type="password"
-          placeholder="Confirm new password"
-          value={pw2}
-          onChange={e => setPw2(e.target.value)}
-          required
-        />
-        <button className="w-full rounded bg-blue-600 text-white py-2" type="submit">
-          Update password
-        </button>
-      </form>
+    <div className="mx-auto mt-20 max-w-md rounded border p-6 shadow">
+      <h1 className="mb-4 text-xl font-semibold">Reset Password</h1>
+      {!code ? (
+        <form onSubmit={requestReset} className="flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="rounded border p-2"
+            required
+          />
+          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
+            Send Reset Link
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={setPassword} className="flex flex-col gap-4">
+          <input
+            type="password"
+            placeholder="Enter new password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            className="rounded border p-2"
+            required
+          />
+          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
+            Update Password
+          </button>
+        </form>
+      )}
+      {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
     </div>
-  );
-}
-
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <ResetInner />
-    </Suspense>
   );
 }

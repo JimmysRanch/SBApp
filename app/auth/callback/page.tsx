@@ -1,43 +1,31 @@
-"use client";
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+'use client';
 
-export const dynamic = "force-dynamic"; // don't prerender
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
-function CallbackInner() {
+import { useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+
+export default function AuthCallbackPage() {
+  const searchParams = useSearchParams();
+  const code = searchParams.get('code');
   const router = useRouter();
-  const sp = useSearchParams();
 
   useEffect(() => {
-    const code = sp.get("code");
-    const type = sp.get("type"); // signup | magiclink | recovery
-
-    if (!code) {
-      router.replace("/login");
-      return;
+    if (code) {
+      (async () => {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          router.replace(`/login?error=${encodeURIComponent(error.message)}`);
+        } else {
+          router.replace('/dashboard');
+        }
+      })();
+    } else {
+      router.replace('/login');
     }
+  }, [code, router]);
 
-    if (type === "recovery") {
-      router.replace(`/reset-password?code=${encodeURIComponent(code)}`);
-      return;
-    }
-
-    (async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      router.replace(
-        error ? `/login?error=${encodeURIComponent(error.message)}` : "/dashboard"
-      );
-    })();
-  }, [router, sp]);
-
-  return <p style={{ padding: 24 }}>Signing you in…</p>;
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<p style={{ padding: 24 }}>Loading…</p>}>
-      <CallbackInner />
-    </Suspense>
-  );
+  return <p className="p-4">Completing sign-in…</p>;
 }

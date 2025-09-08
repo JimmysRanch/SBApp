@@ -39,3 +39,8 @@ export default function Sidebar() {
     </nav>
   )
 }
+// components/Sidebar.tsx (or wherever)
+import LogoutButton from '@/components/LogoutButton';
+
+// ...inside the JSX, maybe at the bottom:
+<LogoutButton className="mt-4 w-full rounded bg-gray-200 px-3 py-2 text-sm" />

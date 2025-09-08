@@ -50,3 +50,7 @@ export default function LoginPage() {
     </div>
   )
 }
+<div className="mt-4 flex justify-between text-sm">
+  <a className="text-blue-600 underline" href="/signup">Create account</a>
+  <a className="text-blue-600 underline" href="/forgot-password">Forgot password?</a>
+</div>

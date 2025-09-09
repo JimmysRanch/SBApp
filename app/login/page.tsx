@@ -1,7 +1,7 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = false;
+export const dynamic = 'force-dynamic';  // ensures runtime rendering
+export const revalidate = 0;             // must be a number or false, not boolean literal
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';

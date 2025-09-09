@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client"; 
 import Link from "next/link";
 
-// Type definition for an employee record
+// Type definition for an employee records
 interface Employee {
   id: string;
   name: string;

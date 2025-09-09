@@ -1,28 +1,37 @@
-'use client';
+'use client'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabaseClient'
 
-function LoginInner() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const presetEmail = params.get('email') || '';
+export default function LoginPage() {
+  const router = useRouter()
+  const params = useSearchParams()
+  const presetEmail = params.get('email') || ''
 
-  const [email, setEmail] = useState(presetEmail);
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [email, setEmail] = useState(presetEmail)
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null);
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return setErr(error.message);
-    router.replace('/dashboard');
-  };
+    e.preventDefault()
+    setErr(null)
+    setLoading(true)
+    try {
+      // sanity log to confirm click works
+      // console.log('signing in…', email)
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      router.replace('/dashboard')
+    } catch (e: any) {
+      setErr(e?.message || 'Sign-in failed')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-[70vh] grid place-items-center px-6">
@@ -65,17 +74,9 @@ function LoginInner() {
 
         <div className="mt-4 flex justify-between text-sm">
           <a className="text-blue-600 underline" href="/signup">Create account</a>
-          <a className="text-blue-600 underline" href="/forgot-password">Forgot password?</a>
+          <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
         </div>
       </form>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <LoginInner />
-    </Suspense>
-  );
+  )
 }

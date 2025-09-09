@@ -1,7 +1,7 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase/client";
 
 // Appointment type including joined pet and client names.  The Supabase
 // query uses `pets(name)` and `clients(full_name)` to join in these

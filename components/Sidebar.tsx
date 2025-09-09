@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
-
+import LogoutButton from '@/components/LogoutButton';
 // Define the navigation items shown in the sidebar. The Agreement page
 // is now managed under the Settings section, so it has been removed
 // from this list. An Employees entry has been added so staff can
@@ -40,7 +40,6 @@ export default function Sidebar() {
   )
 }
 // components/Sidebar.tsx (or wherever)
-import LogoutButton from '@/components/LogoutButton';
-
-// ...inside the JSX, maybe at the bottom:
-<LogoutButton className="mt-4 w-full rounded bg-gray-200 px-3 py-2 text-sm" />
+<div className="mt-6 border-t pt-4">
+  <LogoutButton />
+</div>

@@ -1,13 +1,10 @@
 'use client';
 
-export const dynamic = 'force-dynamic';  // ensures runtime rendering
-export const revalidate = 0;             // must be a number or false, not boolean literal
-
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const presetEmail = params.get('email') || '';
@@ -23,10 +20,7 @@ export default function LoginPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) {
-      setErr(error.message);
-      return;
-    }
+    if (error) return setErr(error.message);
     router.replace('/dashboard');
   };
 
@@ -75,5 +69,13 @@ export default function LoginPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading…</div>}>
+      <LoginInner />
+    </Suspense>
   );
 }

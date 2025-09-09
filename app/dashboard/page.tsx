@@ -1,6 +1,8 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { createServerClient } from '@supabase/ssr';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 import Sidebar from '@/components/Sidebar';
 import Widget from '@/components/Widget';
@@ -10,32 +12,26 @@ import Revenue from '@/components/dashboard/Revenue';
 import Alerts from '@/components/dashboard/Alerts';
 import Messages from '@/components/dashboard/Messages';
 
-export const dynamic = 'force-dynamic';
+export default function DashboardPage() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
 
-export default async function DashboardPage() {
-  const cookieStore = cookies();
+  useEffect(() => {
+    // 1) Gate on client session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.replace('/login');
+      else setReady(true);
+    });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+    // 2) React to logout from anywhere
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) router.replace('/login');
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [router]);
 
-  // Protect the dashboard – redirect if no user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/login');
-  }
+  if (!ready) return null; // or a loading skeleton
 
-  // If user is logged in, render the dashboard
   return (
     <div className="flex min-h-screen">
       <Sidebar />

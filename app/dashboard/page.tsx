@@ -1,22 +1,41 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+
+import Sidebar from '@/components/Sidebar';
+import Widget from '@/components/Widget';
+import TodaysAppointments from '@/components/dashboard/TodaysAppointments';
+import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload';
+import Revenue from '@/components/dashboard/Revenue';
+import Alerts from '@/components/dashboard/Alerts';
+import Messages from '@/components/dashboard/Messages';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const cookieStore = cookies();
-  const supabase = createClient(
+
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${cookieStore.get('sb-access-token')?.value ?? ''}` } } }
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  // Protect the dashboard – redirect if no user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect('/login');
+  }
 
-  // ...your existing dashboard JSX below
-}
+  // If user is logged in, render the dashboard
   return (
     <div className="flex min-h-screen">
       <Sidebar />

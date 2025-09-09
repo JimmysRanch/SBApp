@@ -1,52 +1,54 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function CallbackPage() {
   const router = useRouter();
+  const params = useSearchParams();
 
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-
-    // Also handle magic-link / recovery links that put tokens in the URL hash
-    const hash = url.hash || '';
-    const accessTokenMatch = hash.match(/access_token=([^&]+)/);
-    const refreshTokenMatch = hash.match(/refresh_token=([^&]+)/);
-
     (async () => {
       try {
+        // OAuth (PKCE) flow: `?code=...`
+        const code = params.get('code');
         if (code) {
-          // NOTE: pass the string, not { code }
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
           router.replace('/dashboard');
           return;
         }
 
-        if (accessTokenMatch) {
-          const access_token = decodeURIComponent(accessTokenMatch[1]);
-          const refresh_token = decodeURIComponent(refreshTokenMatch?.[1] ?? '');
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-          if (error) throw error;
-          router.replace('/dashboard');
-          return;
+        // Magic link / recovery flow: tokens in URL hash
+        const url = window.location.href;
+        if (url.includes('#')) {
+          const hash = url.split('#')[1];
+          const qp = new URLSearchParams(hash);
+          const access_token = qp.get('access_token');
+          const refresh_token = qp.get('refresh_token');
+          if (access_token && refresh_token) {
+            const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (error) throw error;
+            router.replace('/dashboard');
+            return;
+          }
         }
 
-        // No code/tokens — send them to login
-        router.replace('/login');
-      } catch {
-        router.replace('/login?error=auth');
+        // Fallback
+        router.replace('/login?error=Missing+auth+code');
+      } catch (e: any) {
+        router.replace('/login?error=' + encodeURIComponent(e?.message || 'Auth error'));
       }
     })();
-  }, [router]);
+  }, [params, router]);
 
-  return null;
+  return (
+    <div className="min-h-[60vh] grid place-items-center p-6 text-sm">
+      Signing you in…
+    </div>
+  );
 }

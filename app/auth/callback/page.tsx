@@ -1,18 +1,19 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-function CallbackInner() {
+export default function CallbackPage() {
   const router = useRouter();
-  const params = useSearchParams();
 
   useEffect(() => {
     (async () => {
       try {
-        // OAuth (PKCE): ?code=...
-        const code = params.get('code');
+        const url = new URL(window.location.href);
+
+        // OAuth (PKCE) code in query
+        const code = url.searchParams.get('code');
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
@@ -20,13 +21,11 @@ function CallbackInner() {
           return;
         }
 
-        // Magic link / recovery: tokens in URL hash
-        const url = window.location.href;
-        if (url.includes('#')) {
-          const hash = url.split('#')[1];
-          const qp = new URLSearchParams(hash);
-          const access_token = qp.get('access_token');
-          const refresh_token = qp.get('refresh_token');
+        // Magic link / recovery tokens in hash
+        if (url.hash.includes('access_token')) {
+          const hash = new URLSearchParams(url.hash.slice(1));
+          const access_token = hash.get('access_token') || '';
+          const refresh_token = hash.get('refresh_token') || '';
           if (access_token && refresh_token) {
             const { error } = await supabase.auth.setSession({ access_token, refresh_token });
             if (error) throw error;
@@ -35,20 +34,12 @@ function CallbackInner() {
           }
         }
 
-        router.replace('/login?error=Missing+auth+code');
+        router.replace('/login?error=Missing+auth+params');
       } catch (e: any) {
         router.replace('/login?error=' + encodeURIComponent(e?.message || 'Auth error'));
       }
     })();
-  }, [params, router]);
+  }, [router]);
 
   return <div className="min-h-[60vh] grid place-items-center p-6 text-sm">Signing you in…</div>;
-}
-
-export default function CallbackPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <CallbackInner />
-    </Suspense>
-  );
 }

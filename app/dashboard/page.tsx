@@ -1,42 +1,37 @@
 // app/dashboard/page.tsx
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createServerClient } from '@supabase/ssr';
 
-export const dynamic = 'force-dynamic'
+import Sidebar from '@/components/Sidebar';
+import Widget from '@/components/Widget';
+import TodaysAppointments from '@/components/dashboard/TodaysAppointments';
+import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload';
+import Revenue from '@/components/dashboard/Revenue';
+import Alerts from '@/components/dashboard/Alerts';
+import Messages from '@/components/dashboard/Messages';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function DashboardPage() {
-  const cookieStore = cookies()
+  const cookieStore = cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          return cookieStore.get(name)?.value;
         },
       },
     }
-  )
+  );
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  // ...return your existing dashboard JSX here
-  return (
-    <div>/* your dashboard content */</div>
-  )
-}
-
-import Sidebar from '@/components/Sidebar'
-import Widget from '@/components/Widget'
-import TodaysAppointments from '@/components/dashboard/TodaysAppointments'
-import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload'
-import Revenue from '@/components/dashboard/Revenue'
-import Alerts from '@/components/dashboard/Alerts'
-import Messages from '@/components/dashboard/Messages'
-
-export default function DashboardPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -61,5 +56,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

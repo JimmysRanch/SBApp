@@ -1,3 +1,4 @@
+// app/login/page.tsx
 'use client';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,19 +9,20 @@ export default function LoginPage() {
   const search = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setErr(null);
-    setLoading(true);
+    setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) { setErr(error.message); return; }
+    if (error) { setError(error.message); return; }
     const next = search.get('redirect') ?? '/dashboard';
     router.replace(next);
-  };
+  }
 
-  // ...render unchanged
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* your inputs and submit button here */}
+    </form>
+  );
 }

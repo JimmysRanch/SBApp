@@ -1,37 +1,22 @@
-// app/dashboard/page.tsx
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@supabase/ssr';
-
-import Sidebar from '@/components/Sidebar';
-import Widget from '@/components/Widget';
-import TodaysAppointments from '@/components/dashboard/TodaysAppointments';
-import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload';
-import Revenue from '@/components/dashboard/Revenue';
-import Alerts from '@/components/dashboard/Alerts';
-import Messages from '@/components/dashboard/Messages';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 export default async function DashboardPage() {
   const cookieStore = cookies();
-
-  const supabase = createServerClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
+    { global: { headers: { Authorization: `Bearer ${cookieStore.get('sb-access-token')?.value ?? ''}` } } }
   );
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  // ...your existing dashboard JSX below
+}
   return (
     <div className="flex min-h-screen">
       <Sidebar />

@@ -1,18 +1,12 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
-  const params = useSearchParams();
-  const presetEmail = params.get('email') || '';
-
-  const [email, setEmail] = useState(presetEmail);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -21,18 +15,29 @@ export default function LoginPage() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     setLoading(false);
+
     if (error) {
       setErr(error.message);
       return;
     }
-    router.replace('/dashboard');
+
+    // Success → go to dashboard
+    router.push('/dashboard');
   };
 
   return (
     <div className="min-h-[70vh] grid place-items-center px-6">
-      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-lg border p-6 bg-white"
+      >
         <h1 className="text-xl font-semibold mb-4">Log in</h1>
 
         {err && (
@@ -43,22 +48,22 @@ export default function LoginPage() {
 
         <label className="block text-sm font-medium">Email</label>
         <input
-          className="mt-1 mb-3 w-full rounded border px-3 py-2"
           type="email"
-          required
+          className="mt-1 mb-3 w-full rounded border px-3 py-2"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
+          required
         />
 
         <label className="block text-sm font-medium">Password</label>
         <input
-          className="mt-1 mb-4 w-full rounded border px-3 py-2"
           type="password"
-          required
+          className="mt-1 mb-4 w-full rounded border px-3 py-2"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
+          required
         />
 
         <button
@@ -70,8 +75,12 @@ export default function LoginPage() {
         </button>
 
         <div className="mt-4 flex justify-between text-sm">
-          <a className="text-blue-600 underline" href="/signup">Create account</a>
-          <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
+          <a className="text-blue-600 underline" href="/signup">
+            Create account
+          </a>
+          <a className="text-blue-600 underline" href="/reset-password">
+            Forgot password?
+          </a>
         </div>
       </form>
     </div>

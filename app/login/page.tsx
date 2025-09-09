@@ -1,5 +1,8 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -11,21 +14,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return setErr(error.message);
-    router.replace('/dashboard');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setErr(error.message);
+        return;
+      }
+      router.replace('/dashboard');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-[70vh] grid place-items-center px-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
         <h1 className="text-xl font-semibold mb-4">Log in</h1>
-        {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
+
+        {err && (
+          <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {err}
+          </div>
+        )}
 
         <label className="block text-sm font-medium">Email</label>
         <input
@@ -35,6 +49,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
+          autoComplete="email"
         />
 
         <label className="block text-sm font-medium">Password</label>
@@ -45,9 +60,14 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
+          autoComplete="current-password"
         />
 
-        <button type="submit" disabled={loading} className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+        >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
 

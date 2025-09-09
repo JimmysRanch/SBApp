@@ -1,20 +1,17 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function CallbackPage() {
+function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
 
   useEffect(() => {
     (async () => {
       try {
-        // OAuth (PKCE) flow: `?code=...`
+        // OAuth (PKCE): ?code=...
         const code = params.get('code');
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -23,7 +20,7 @@ export default function CallbackPage() {
           return;
         }
 
-        // Magic link / recovery flow: tokens in URL hash
+        // Magic link / recovery: tokens in URL hash
         const url = window.location.href;
         if (url.includes('#')) {
           const hash = url.split('#')[1];
@@ -38,7 +35,6 @@ export default function CallbackPage() {
           }
         }
 
-        // Fallback
         router.replace('/login?error=Missing+auth+code');
       } catch (e: any) {
         router.replace('/login?error=' + encodeURIComponent(e?.message || 'Auth error'));
@@ -46,9 +42,13 @@ export default function CallbackPage() {
     })();
   }, [params, router]);
 
+  return <div className="min-h-[60vh] grid place-items-center p-6 text-sm">Signing you in…</div>;
+}
+
+export default function CallbackPage() {
   return (
-    <div className="min-h-[60vh] grid place-items-center p-6 text-sm">
-      Signing you in…
-    </div>
+    <Suspense fallback={<div className="p-6">Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }

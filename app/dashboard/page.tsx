@@ -1,3 +1,33 @@
+// app/dashboard/page.tsx
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@supabase/ssr'
+
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage() {
+  const cookieStore = cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // ...return your existing dashboard JSX here
+  return (
+    <div>/* your dashboard content */</div>
+  )
+}
+
 import Sidebar from '@/components/Sidebar'
 import Widget from '@/components/Widget'
 import TodaysAppointments from '@/components/dashboard/TodaysAppointments'

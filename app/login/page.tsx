@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,15 +14,33 @@ export default function LoginPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setErr(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-    setLoading(false);
-    if (error) { setErr(error.message); return; }
+      console.log('Signed in:', data.user?.id);
 
-    router.push('/dashboard');
+      // Sync any server components and then navigate
+      router.refresh();
+      router.replace('/dashboard');
+
+      // Hard fallback in case client navigation doesn't fire
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/dashboard') {
+          window.location.href = '/dashboard';
+        }
+      }, 300);
+    } catch (e: any) {
+      console.error('Login error:', e);
+      setErr(e?.message || 'Unable to sign in.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,17 +48,39 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
         <h1 className="text-xl font-semibold mb-4">Log in</h1>
 
-        {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
+        {err && (
+          <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {err}
+          </div>
+        )}
 
         <label className="block text-sm font-medium">Email</label>
-        <input className="mt-1 mb-3 w-full rounded border px-3 py-2" type="email" required
-               value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          className="mt-1 mb-3 w-full rounded border px-3 py-2"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
 
         <label className="block text-sm font-medium">Password</label>
-        <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="password" required
-               value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input
+          className="mt-1 mb-4 w-full rounded border px-3 py-2"
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          autoComplete="current-password"
+        />
 
-        <button type="submit" disabled={loading} className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+        >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
 

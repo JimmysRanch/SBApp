@@ -1,13 +1,10 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function ResetPasswordPage() {
+function ResetInner() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -23,11 +20,9 @@ export default function ResetPasswordPage() {
   const redirectTo = `${origin}/reset-password`;
 
   useEffect(() => {
-    // If coming from the email link, Supabase puts tokens in the hash and sets event PASSWORD_RECOVERY
     const type = params.get('type');
     const hasHash =
       typeof window !== 'undefined' && window.location.hash.includes('access_token');
-
     if (type === 'recovery' || hasHash) setStage('reset');
 
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -51,10 +46,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setErr(null);
     setMsg(null);
-    if (password !== confirm) {
-      setErr('Passwords do not match');
-      return;
-    }
+    if (password !== confirm) return setErr('Passwords do not match');
     const { error } = await supabase.auth.updateUser({ password });
     if (error) setErr(error.message);
     else {
@@ -129,5 +121,13 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading…</div>}>
+      <ResetInner />
+    </Suspense>
   );
 }

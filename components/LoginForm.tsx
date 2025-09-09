@@ -7,9 +7,8 @@ import { supabase } from '@/lib/supabaseClient';
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const presetEmail = params.get('email') || '';
 
-  const [email, setEmail] = useState(presetEmail);
+  const [email, setEmail] = useState(params.get('email') || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -18,13 +17,15 @@ export default function LoginForm() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setErr(error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      router.replace('/dashboard');
+    } catch (e: any) {
+      setErr(e?.message || 'Sign in failed');
+    } finally {
+      setLoading(false);
     }
-    router.replace('/dashboard');
   };
 
   return (

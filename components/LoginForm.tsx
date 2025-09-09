@@ -18,20 +18,17 @@ export default function LoginForm() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-
     if (error) {
       setErr(error.message);
       return;
     }
-
     router.replace('/dashboard');
   };
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white shadow">
+    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
       <h1 className="text-xl font-semibold mb-4">Log in</h1>
 
       {err && (
@@ -69,12 +66,8 @@ export default function LoginForm() {
       </button>
 
       <div className="mt-4 flex justify-between text-sm">
-        <a className="text-blue-600 underline" href="/signup">
-          Create account
-        </a>
-        <a className="text-blue-600 underline" href="/reset-password">
-          Forgot password?
-        </a>
+        <a className="text-blue-600 underline" href="/signup">Create account</a>
+        <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
       </div>
     </form>
   );

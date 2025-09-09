@@ -1,7 +1,7 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/Client";
+import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
 // Type definition for a client record

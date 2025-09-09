@@ -14,17 +14,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setErr(error.message);
-        return;
-      }
+      if (error) throw error;
       router.replace('/dashboard');
+    } catch (e: any) {
+      setErr(e?.message || 'Sign in failed');
     } finally {
       setLoading(false);
     }
@@ -49,7 +48,6 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          autoComplete="email"
         />
 
         <label className="block text-sm font-medium">Password</label>
@@ -60,7 +58,6 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
-          autoComplete="current-password"
         />
 
         <button
@@ -73,7 +70,7 @@ export default function LoginPage() {
 
         <div className="mt-4 flex justify-between text-sm">
           <a className="text-blue-600 underline" href="/signup">Create account</a>
-          <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
+          <a className="text-blue-600 underline" href="/forgot-password">Forgot password?</a>
         </div>
       </form>
     </div>

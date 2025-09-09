@@ -18,15 +18,10 @@ export default function LoginPage() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      router.replace('/dashboard');
-    } catch (e: any) {
-      setErr(e?.message || 'Sign in failed');
-    } finally {
-      setLoading(false);
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) return setErr(error.message);
+    router.replace('/dashboard');
   };
 
   return (
@@ -70,7 +65,7 @@ export default function LoginPage() {
 
         <div className="mt-4 flex justify-between text-sm">
           <a className="text-blue-600 underline" href="/signup">Create account</a>
-          <a className="text-blue-600 underline" href="/forgot-password">Forgot password?</a>
+          <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
         </div>
       </form>
     </div>

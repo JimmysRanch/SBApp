@@ -1,17 +1,11 @@
-import '@/app/globals.css'
-import { ReactNode } from 'react'
+// app/layout.tsx
+export const dynamic = 'force-dynamic';   // string, not object
+export const revalidate = 0;              // number (0) or false
 
-export const metadata = {
-  title: 'Scruffy Butts',
-  description: 'Manage your grooming salon efficiently with Scruffy Butts.',
-}
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
-  )
+  );
 }

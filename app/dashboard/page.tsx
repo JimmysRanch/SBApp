@@ -17,20 +17,19 @@ export default function DashboardPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // 1) Gate on client session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.replace('/login');
-      else setReady(true);
-    });
-
-    // 2) React to logout from anywhere
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) router.replace('/login');
-    });
-    return () => sub.subscription.unsubscribe();
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace('/login');
+        return;
+      }
+      setReady(true);
+    })();
   }, [router]);
 
-  if (!ready) return null; // or a loading skeleton
+  if (!ready) {
+    return <div className="p-6 text-sm">Checking session…</div>;
+  }
 
   return (
     <div className="flex min-h-screen">

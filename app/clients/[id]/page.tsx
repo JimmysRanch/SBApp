@@ -1,7 +1,7 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/Client";
+import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
 
 type Client = { id: string; full_name: string; phone: string | null; email: string | null; notes: string | null };

@@ -20,7 +20,7 @@ export default function LoginForm() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       // Use a full page reload so server components can pick up the new session.
-      window.location.href = '/dashboard';
+      window.location.href = '/';
     } catch (e: any) {
       setErr(e?.message || 'Sign in failed');
     } finally {

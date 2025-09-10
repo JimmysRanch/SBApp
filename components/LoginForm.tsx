@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
 export default function LoginForm() {
   const params = useSearchParams();
+  const router = useRouter();
 
   const [email, setEmail] = useState(params.get('email') || '');
   const [password, setPassword] = useState('');
@@ -19,8 +20,8 @@ export default function LoginForm() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      // Use a full page reload so server components can pick up the new session.
-      window.location.href = '/dashboard';
+      router.replace('/dashboard');
+      router.refresh();
     } catch (e: any) {
       setErr(e?.message || 'Sign in failed');
     } finally {

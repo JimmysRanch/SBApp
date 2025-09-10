@@ -43,13 +43,13 @@ export default function LoginForm() {
         <div className="absolute inset-0 bg-[url('/paw.svg')] opacity-20 bg-repeat"></div>
       </div>
 
-      {/* Heading */}
-      <div className="relative z-10 flex flex-col items-center mb-6 text-center">
-        <h1 className="text-5xl font-extrabold drop-shadow-md">
-          Scruffy <span className="text-pink-400">Butts</span>
-        </h1>
-        <p className="mt-2 text-lg font-bold">DOG GROOMING</p>
-        <p className="text-sm tracking-wide">NATALIA TX</p>
+      {/* Logo */}
+      <div className="relative z-10 mb-6">
+        <img
+          src="/logo.svg"
+          alt="Scruffy Butts logo"
+          className="mx-auto h-40 w-40 drop-shadow-md"
+        />
       </div>
 
       {/* Login card */}

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LoginForm from '@/components/LoginForm'
@@ -8,9 +9,19 @@ export default async function LoginPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (user) redirect('/dashboard')
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-400 to-blue-800">
+    <div
+      className="relative flex min-h-screen flex-col items-center justify-center bg-cover bg-center"
+      style={{ backgroundImage: "url('/login-bg.svg')" }}
+    >
       <div className="mb-8 text-center text-white">
-        <h1 className="text-5xl font-extrabold drop-shadow">Scruffy Butts</h1>
+        <Image
+          src="/logo.svg"
+          alt="Scruffy Butts logo"
+          width={300}
+          height={100}
+          className="mx-auto mb-4 h-auto w-64"
+          priority
+        />
         <p className="mt-2 text-sm font-semibold uppercase tracking-wide">
           Dog Grooming
           <br />

@@ -29,47 +29,44 @@ export default function LoginForm() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
-      <h1 className="text-xl font-semibold mb-4">Log in</h1>
-
+    <form onSubmit={onSubmit} className="w-full max-w-xs flex flex-col gap-4">
       {err && (
-        <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700">
           {err}
         </div>
       )}
 
-      <label className="block text-sm font-medium">Email</label>
       <input
-        className="mt-1 mb-3 w-full rounded border px-3 py-2"
+        className="rounded-md border px-4 py-3 shadow-sm placeholder-gray-400"
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
+        placeholder="Email"
       />
 
-      <label className="block text-sm font-medium">Password</label>
       <input
-        className="mt-1 mb-4 w-full rounded border px-3 py-2"
+        className="rounded-md border px-4 py-3 shadow-sm placeholder-gray-400"
         type="password"
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="••••••••"
+        placeholder="Password"
       />
+
+      <div className="flex justify-end text-sm">
+        <a className="text-blue-600 hover:underline" href="/reset-password">
+          Forgot password?
+        </a>
+      </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+        className="rounded-md bg-blue-600 py-3 font-bold uppercase text-white shadow hover:bg-blue-700 disabled:opacity-60"
       >
-        {loading ? 'Signing in…' : 'Sign in'}
+        {loading ? 'Signing in…' : 'Log in'}
       </button>
-
-      <div className="mt-4 flex justify-between text-sm">
-        <a className="text-blue-600 underline" href="/signup">Create account</a>
-        <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
-      </div>
     </form>
   );
 }

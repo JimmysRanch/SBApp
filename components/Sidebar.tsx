@@ -13,6 +13,12 @@ const nav = [
   { href: '/book', label: 'Book Appointment' },
   { href: '/reports', label: 'Reports' },
   { href: '/settings', label: 'Settings' },
+  { href: '/messages', label: 'Messages' },
+  { href: '/login', label: 'Login' },
+  { href: '/signup', label: 'Sign Up' },
+  { href: '/forgot-password', label: 'Forgot Password' },
+  { href: '/reset-password', label: 'Reset Password' },
+  { href: '/logout', label: 'Logout' },
 ];
 
 export default function Sidebar() {

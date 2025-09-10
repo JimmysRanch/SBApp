@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Revenue() {
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
@@ -45,7 +45,7 @@ export default function Revenue() {
     <div className="flex flex-col space-y-2">
       <div>
         <span className="text-3xl font-bold">${todayRevenue?.toFixed(2)}</span>
-        <p className="text-xs text-gray-500">Today's Revenue</p>
+        <p className="text-xs text-gray-500">Today&apos;s Revenue</p>
       </div>
       <div>
         <span className="text-xl font-semibold">${weekRevenue?.toFixed(2)}</span>

@@ -8,12 +8,18 @@ export default async function LoginPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (user) redirect('/dashboard')
+
   return (
-    <div
-      className="relative flex min-h-screen flex-col items-center justify-center bg-cover bg-center"
-      style={{ backgroundImage: "url('/login-bg.svg')" }}
-    >
-      <div className="mb-8 text-center text-white">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
+      <Image
+        src="/login-bg.svg"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="relative z-10 mb-8 text-center text-white">
         <Image
           src="/logo.svg"
           alt="Scruffy Butts logo"
@@ -31,7 +37,6 @@ export default async function LoginPage() {
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-40 rounded-t-[50%] bg-pink-400 -z-10" />
     </div>
   )
 }

@@ -29,47 +29,46 @@ export default function LoginForm() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
-      <h1 className="text-xl font-semibold mb-4">Log in</h1>
-
+    <form
+      onSubmit={onSubmit}
+      className="flex w-full max-w-xs flex-col rounded-xl bg-black/60 p-4"
+    >
       {err && (
-        <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
           {err}
         </div>
       )}
-
-      <label className="block text-sm font-medium">Email</label>
+      <label htmlFor="email" className="sr-only">
+        Email
+      </label>
       <input
-        className="mt-1 mb-3 w-full rounded border px-3 py-2"
+        id="email"
+        className="mb-3 rounded-md bg-white/80 px-3 py-2 text-black placeholder-gray-700"
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
+        placeholder="name@email.com"
       />
-
-      <label className="block text-sm font-medium">Password</label>
+      <label htmlFor="password" className="sr-only">
+        Password
+      </label>
       <input
-        className="mt-1 mb-4 w-full rounded border px-3 py-2"
+        id="password"
+        className="mb-4 rounded-md bg-white/80 px-3 py-2 text-black placeholder-gray-700"
         type="password"
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="••••••••"
+        placeholder="password"
       />
-
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+        className="rounded-md bg-pink-600 py-2 text-white disabled:opacity-60"
       >
-        {loading ? 'Signing in…' : 'Sign in'}
+        {loading ? 'Signing in…' : 'LOGIN'}
       </button>
-
-      <div className="mt-4 flex justify-between text-sm">
-        <a className="text-blue-600 underline" href="/signup">Create account</a>
-        <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
-      </div>
     </form>
   );
 }

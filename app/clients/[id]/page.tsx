@@ -39,7 +39,7 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-4 pb-20 md:p-8">
         {loading && <p>Loading…</p>}
         {!loading && client && (
           <>

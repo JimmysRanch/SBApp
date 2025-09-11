@@ -39,7 +39,7 @@ export default function ClientsPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-4 pb-20 md:p-8">
         <h1 className="text-2xl font-bold mb-4">Clients</h1>
         {/* Button to navigate to the new client form */}
         <div className="mb-4">

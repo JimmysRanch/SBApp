@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 
 // Types for clients, pets, employees
 interface Client { id: string; full_name: string; }
-interface Pet { id: string; name: string; }
+interface Pet { id: string; name: string; weight: number | null; }
 interface Employee { id: string; name: string; }
 
 /**
@@ -24,6 +24,15 @@ export default function BookPage() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [service, setService] = useState('');
+  const [weight, setWeight] = useState('');
+  const [price, setPrice] = useState<number>(0);
+
+  const calculatePrice = (w: number) => {
+    if (w <= 20) return 40;
+    if (w <= 40) return 50;
+    if (w <= 60) return 60;
+    return 70;
+  };
 
   // Fetch clients and employees on mount
   useEffect(() => {
@@ -50,7 +59,7 @@ export default function BookPage() {
       if (clientId) {
         const { data: petsData } = await supabase
           .from('pets')
-          .select('id, name')
+          .select('id, name, weight')
           .eq('client_id', clientId)
           .order('name');
         setPets(petsData ?? []);
@@ -58,9 +67,24 @@ export default function BookPage() {
         setPets([]);
       }
       setPetId('');
+      setWeight('');
+      setPrice(0);
     };
     loadPets();
   }, [clientId]);
+
+  const handlePetChange = (id: string) => {
+    setPetId(id);
+    const selected = pets.find((p) => p.id === id);
+    const w = selected?.weight ?? null;
+    if (w !== null) {
+      setWeight(String(w));
+      setPrice(calculatePrice(w));
+    } else {
+      setWeight('');
+      setPrice(0);
+    }
+  };
 
   // Handle form submission to create new appointment
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -75,6 +99,7 @@ export default function BookPage() {
       start_time: start.toISOString(),
       end_time: end.toISOString(),
       service,
+      price,
       status: 'Scheduled',
     });
     alert('Appointment created!');
@@ -85,6 +110,8 @@ export default function BookPage() {
     setDate('');
     setTime('');
     setService('');
+    setWeight('');
+    setPrice(0);
   };
 
   return (
@@ -113,7 +140,7 @@ export default function BookPage() {
             <select
               className="w-full rounded-full border border-gray-300 p-2 px-4"
               value={petId}
-              onChange={(e) => setPetId(e.target.value)}
+              onChange={(e) => handlePetChange(e.target.value)}
               required
             >
               <option value="">Select pet</option>
@@ -121,6 +148,32 @@ export default function BookPage() {
                 <option key={pet.id} value={pet.id}>{pet.name}</option>
               ))}
             </select>
+          </div>
+          {/* Weight */}
+          <div>
+            <label className="mb-1 block">Weight (lbs)</label>
+            <input
+              type="number"
+              className="w-full rounded-full border border-gray-300 p-2 px-4"
+              value={weight}
+              onChange={(e) => {
+                setWeight(e.target.value);
+                const w = Number(e.target.value);
+                if (!isNaN(w)) setPrice(calculatePrice(w));
+                else setPrice(0);
+              }}
+              required
+            />
+          </div>
+          {/* Price */}
+          <div>
+            <label className="mb-1 block">Price</label>
+            <input
+              type="text"
+              className="w-full rounded-full border border-gray-300 bg-gray-100 p-2 px-4"
+              value={price ? `$${price.toFixed(2)}` : ''}
+              readOnly
+            />
           </div>
           {/* Employee select */}
           <div>

@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-4 pb-20 md:p-8">
         <h1 className="mb-4 text-2xl font-bold">Dashboard</h1>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Widget title="Today's Appointments" color="pink">

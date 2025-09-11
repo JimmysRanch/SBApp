@@ -32,7 +32,7 @@ export default function MessagesPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-4 pb-20 md:p-8">
         <h1 className="text-2xl font-bold mb-4">Messages</h1>
         <ul className="divide-y">
           {rows.map((m) => (

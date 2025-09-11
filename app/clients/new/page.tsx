@@ -117,7 +117,7 @@ export default function NewClientPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8 max-w-2xl">
+      <main className="flex-1 p-4 pb-20 md:p-8 max-w-2xl">
         <h1 className="text-2xl font-bold mb-4">Add New Client</h1>
         {error && <p className="text-red-600 mb-2">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-6">

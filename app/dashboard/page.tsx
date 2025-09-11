@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/Sidebar'
+import PageContainer from '@/components/PageContainer'
 import Widget from '@/components/Widget'
 import TodaysAppointments from '@/components/dashboard/TodaysAppointments'
 import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload'
@@ -15,28 +15,25 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8">
-        <h1 className="mb-4 text-2xl font-bold">Dashboard</h1>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Widget title="Today's Appointments" color="pink">
-            <TodaysAppointments />
-          </Widget>
-          <Widget title="Revenue" color="purple">
-            <Revenue />
-          </Widget>
-          <Widget title="Employee Workload" color="green">
-            <EmployeeWorkload />
-          </Widget>
-          <Widget title="Messages" color="purple">
-            <Messages />
-          </Widget>
-          <Widget title="Alerts" color="pink">
-            <Alerts />
-          </Widget>
-        </div>
-      </main>
-    </div>
+    <PageContainer>
+      <h1 className="text-3xl font-bold text-primary-dark">Dashboard</h1>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <Widget title="Today's Appointments" color="pink">
+          <TodaysAppointments />
+        </Widget>
+        <Widget title="Revenue" color="purple">
+          <Revenue />
+        </Widget>
+        <Widget title="Employee Workload" color="green">
+          <EmployeeWorkload />
+        </Widget>
+        <Widget title="Messages" color="purple">
+          <Messages />
+        </Widget>
+        <Widget title="Alerts" color="pink">
+          <Alerts />
+        </Widget>
+      </div>
+    </PageContainer>
   )
 }

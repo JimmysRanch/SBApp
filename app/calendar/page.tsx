@@ -1,5 +1,6 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -39,10 +40,9 @@ export default function CalendarPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8">
-        <h1 className="text-2xl font-bold mb-4">Calendar</h1>
+    <PageContainer>
+      <Card>
+        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Calendar</h1>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
@@ -67,7 +67,7 @@ export default function CalendarPage() {
             ))}
           </tbody>
         </table>
-      </main>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

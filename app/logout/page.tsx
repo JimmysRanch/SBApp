@@ -12,5 +12,9 @@ export default function Logout() {
       router.replace('/login');
     })();
   }, [router]);
-  return <div className="p-6">Signing you out…</div>;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-6 text-white">
+      Signing you out…
+    </div>
+  );
 }

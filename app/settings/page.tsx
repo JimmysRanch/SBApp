@@ -1,5 +1,6 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 import Link from "next/link";
 
 /**
@@ -16,20 +17,19 @@ export default function Settings() {
     { href: "/settings/agreement", label: "Agreement" },
   ];
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
-        <ul className="grid md:grid-cols-2 gap-4">
+    <PageContainer>
+      <Card>
+        <h1 className="mb-6 text-3xl font-bold text-primary-dark">Settings</h1>
+        <ul className="grid gap-4 md:grid-cols-2">
           {items.map((item) => (
-            <li key={item.href} className="p-4 bg-white rounded shadow">
-              <Link href={item.href} className="text-blue-600 underline">
+            <li key={item.href} className="rounded-2xl bg-white p-4 shadow">
+              <Link href={item.href} className="text-primary underline">
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
-      </main>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

@@ -29,15 +29,18 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-64 border-r p-4 md:block">
-        <nav className="space-y-1">
+      <aside className="hidden w-64 rounded-r-3xl bg-gradient-to-b from-primary-light via-primary to-primary-dark p-6 text-white shadow-lg md:flex md:flex-col">
+        <div className="mb-8 text-2xl font-extrabold">
+          Scruffy<span className="text-secondary-pink">Butts</span>
+        </div>
+        <nav className="flex-1 space-y-2">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={clsx(
-                'block rounded px-3 py-2 hover:bg-gray-100',
-                pathname?.startsWith(item.href) && 'bg-gray-100 font-medium'
+                'block rounded-full px-4 py-2 transition-colors hover:bg-white/20',
+                pathname?.startsWith(item.href) && 'bg-white text-primary-dark font-semibold shadow'
               )}
             >
               {item.label}
@@ -45,11 +48,11 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div className="mt-6 border-t pt-4">
+        <div className="mt-6">
           <LogoutButton />
         </div>
       </aside>
-      <nav className="fixed bottom-0 left-0 right-0 flex justify-around border-t bg-white py-2 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 flex justify-around bg-gradient-to-br from-primary-light via-primary to-primary-dark py-2 text-white md:hidden">
         {nav.map((item) => {
           const Icon = item.icon;
           return (
@@ -59,8 +62,8 @@ export default function Sidebar() {
               className={clsx(
                 'flex flex-col items-center text-xs',
                 pathname?.startsWith(item.href)
-                  ? 'text-blue-600'
-                  : 'text-gray-600'
+                  ? 'text-secondary-pink'
+                  : 'text-white/70'
               )}
             >
               <Icon className="h-6 w-6" />

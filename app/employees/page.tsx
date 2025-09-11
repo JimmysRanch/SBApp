@@ -1,5 +1,6 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client"; 
 import Link from "next/link";
@@ -33,15 +34,13 @@ export default function EmployeesPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8">
-        <h1 className="text-2xl font-bold mb-4">Employees</h1>
-        {/* Add Employee button */}
-        <div className="mb-4">
+    <PageContainer>
+      <Card className="space-y-4">
+        <h1 className="text-3xl font-bold text-primary-dark">Employees</h1>
+        <div>
           <Link
             href="/employees/new"
-            className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
           >
             Add Employee
           </Link>
@@ -51,14 +50,14 @@ export default function EmployeesPage() {
         ) : (
           <ul className="divide-y">
             {rows.map((e) => (
-              <li key={e.id} className="py-3 flex justify-between">
+              <li key={e.id} className="flex justify-between py-3">
                 <span className="font-medium">{e.name}</span>
                 <span className="text-sm text-gray-600">{e.active ? "Active" : "Inactive"}</span>
               </li>
             ))}
           </ul>
         )}
-      </main>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -165,18 +166,16 @@ export default function ReportsPage() {
   }, [range]);
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8">
-        <h1 className="text-2xl font-bold mb-4">Reports</h1>
-        {/* Range selector */}
+    <PageContainer>
+      <Card>
+        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Reports</h1>
         <div className="mb-4">
           <label htmlFor="range" className="mr-2 font-medium">Date range:</label>
           <select
             id="range"
             value={range}
             onChange={(e) => setRange(e.target.value as RangeOption)}
-            className="border rounded px-3 py-2"
+            className="rounded-full border border-gray-300 px-3 py-2"
           >
             <option value="today">Today</option>
             <option value="week">This Week</option>
@@ -189,7 +188,7 @@ export default function ReportsPage() {
           <p>Loading…</p>
         ) : (
           <div className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <ReportCard title="Total Clients" value={counts.clients} />
               <ReportCard title="New Clients" value={counts.newClients} />
               <ReportCard title="Total Pets" value={counts.pets} />
@@ -203,33 +202,33 @@ export default function ReportsPage() {
               <ReportCard title="Expected Revenue" value={`$${counts.expectedRevenue.toFixed(2)}`} />
               <ReportCard title="Sales" value={`$${counts.sales.toFixed(2)}`} />
             </div>
-            <div className="p-4 bg-white rounded shadow">
-              <h2 className="text-xl font-semibold mb-2">Top Services</h2>
+            <Card>
+              <h2 className="mb-2 text-xl font-semibold">Top Services</h2>
               {counts.topServices.length === 0 ? (
-                <p className="text-gray-500 text-sm">No services found</p>
+                <p className="text-sm text-gray-500">No services found</p>
               ) : (
                 <ul className="text-sm">
                   {counts.topServices.map(([service, count]) => (
-                    <li key={service} className="flex justify-between py-1 border-b last:border-none">
+                    <li key={service} className="flex justify-between border-b py-1 last:border-none">
                       <span>{service}</span>
                       <span className="font-medium">{count}</span>
                     </li>
                   ))}
                 </ul>
               )}
-            </div>
+            </Card>
           </div>
         )}
-      </main>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }
 
 function ReportCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <div className="p-4 bg-white rounded shadow">
-      <div className="text-sm text-gray-500 mb-1">{title}</div>
+    <Card className="text-center">
+      <div className="mb-1 text-sm text-gray-500">{title}</div>
       <div className="text-3xl font-bold">{value}</div>
-    </div>
+    </Card>
   );
 }

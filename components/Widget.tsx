@@ -16,11 +16,11 @@ export default function Widget({ title, color = 'pink', children }: WidgetProps)
     green: 'bg-secondary-green',
   }[color]
   return (
-    <div className="bg-white shadow rounded-lg overflow-hidden">
-      <div className={clsx('text-sm font-semibold px-4 py-2', headerColor)}>
+    <div className="overflow-hidden rounded-3xl bg-white shadow">
+      <div className={clsx('px-5 py-3 text-sm font-semibold text-primary-dark', headerColor)}>
         {title}
       </div>
-      <div className="p-4">
+      <div className="p-5">
         {children}
       </div>
     </div>

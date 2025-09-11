@@ -50,29 +50,29 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-[70vh] grid place-items-center px-6">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
       {stage === 'request' ? (
-        <form onSubmit={sendEmail} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Reset your password</h1>
+        <form onSubmit={sendEmail} className="w-full max-w-sm rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur">
+          <h1 className="mb-4 text-xl font-semibold text-primary-dark">Reset your password</h1>
           {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
           {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
           <label className="block text-sm font-medium">Email</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="email" required
+          <input className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="email" required
                  value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Send reset link</button>
+          <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Send reset link</button>
         </form>
       ) : (
-        <form onSubmit={doReset} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Set a new password</h1>
+        <form onSubmit={doReset} className="w-full max-w-sm rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur">
+          <h1 className="mb-4 text-xl font-semibold text-primary-dark">Set a new password</h1>
           {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
           {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
           <label className="block text-sm font-medium">New password</label>
-          <input className="mt-1 mb-3 w-full rounded border px-3 py-2" type="password" required
+          <input className="mt-1 mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="password" required
                  value={password} onChange={(e) => setPassword(e.target.value)} />
           <label className="block text-sm font-medium">Confirm password</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="password" required
+          <input className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="password" required
                  value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Update password</button>
+          <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Update password</button>
         </form>
       )}
     </div>

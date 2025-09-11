@@ -21,15 +21,15 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-4">Forgot password</h1>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <input className="w-full border p-2" type="email" placeholder="Email"
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
+      <form onSubmit={onSubmit} className="w-full max-w-md rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur space-y-3">
+        <h1 className="mb-4 text-2xl font-bold text-primary-dark">Forgot password</h1>
+        <input className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="email" placeholder="Email"
                value={email} onChange={e=>setEmail(e.target.value)} required />
-        <button className="w-full bg-blue-600 text-white p-2 rounded">Send reset link</button>
+        <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Send reset link</button>
+        {msg && <p className="mt-3 text-green-700">{msg}</p>}
+        {err && <p className="mt-3 text-red-700">{err}</p>}
       </form>
-      {msg && <p className="mt-3 text-green-700">{msg}</p>}
-      {err && <p className="mt-3 text-red-700">{err}</p>}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
+import LicenseScanner from "@/components/LicenseScanner";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -39,12 +40,37 @@ export default function NewClientPage() {
   const [dogs, setDogs] = useState<Dog[]>([{ ...emptyDog }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const [licensePhoto, setLicensePhoto] = useState<File | null>(null);
 
   const updateDog = (index: number, updates: Partial<Dog>) => {
     setDogs((prev) => prev.map((d, i) => (i === index ? { ...d, ...updates } : d)));
   };
 
   const addDog = () => setDogs((d) => [...d, { ...emptyDog }]);
+
+  const parseAAMVA = (raw: string) => {
+    const lines = raw.split(/\n/);
+    const get = (code: string) => {
+      const line = lines.find((l) => l.startsWith(code));
+      return line ? line.slice(code.length).trim() : "";
+    };
+    return {
+      firstName: get("DAC") || get("DCT"),
+      lastName: get("DCS"),
+      address: [get("DAG"), get("DAI"), get("DAJ"), get("DAK")]
+        .filter(Boolean)
+        .join(", "),
+    };
+  };
+
+  const handleLicenseScan = (data: string) => {
+    const parsed = parseAAMVA(data);
+    if (parsed.firstName) setFirstName(parsed.firstName);
+    if (parsed.lastName) setLastName(parsed.lastName);
+    if (parsed.address) setAddress(parsed.address);
+    setShowScanner(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +102,25 @@ export default function NewClientPage() {
       setError(insertError?.message || "Failed to create client");
       setSaving(false);
       return;
+    }
+
+    if (licensePhoto) {
+      const ext = licensePhoto.name.split(".").pop();
+      const filePath = `${client.id}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("license-photos")
+        .upload(filePath, licensePhoto);
+      if (!uploadError) {
+        const { data } = supabase.storage
+          .from("license-photos")
+          .getPublicUrl(filePath);
+        await supabase
+          .from("clients")
+          .update({ drivers_license_url: data.publicUrl })
+          .eq("id", client.id);
+      }
     }
 
     for (const dog of dogs) {
@@ -116,6 +161,12 @@ export default function NewClientPage() {
 
   return (
     <div className="flex min-h-screen">
+      {showScanner && (
+        <LicenseScanner
+          onResult={handleLicenseScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
       <Sidebar />
       <main className="flex-1 p-4 pb-20 md:p-8 max-w-2xl">
         <h1 className="text-2xl font-bold mb-4">Add New Client</h1>
@@ -174,6 +225,15 @@ export default function NewClientPage() {
                 />
               </div>
               <div className="sm:col-span-2">
+                <label className="block mb-1 font-medium">{"Driver's License Photo"}</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => setLicensePhoto(e.target.files?.[0] || null)}
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <label className="block mb-1 font-medium">How did you hear about us?</label>
                 <select
                   className="border rounded px-3 py-2 w-full"
@@ -187,6 +247,15 @@ export default function NewClientPage() {
                   <option value="Friend">Friend</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="bg-gray-200 px-3 py-2 rounded"
+                >
+                  {"Scan Driver's License"}
+                </button>
               </div>
             </div>
           </section>

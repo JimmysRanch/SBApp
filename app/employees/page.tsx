@@ -33,7 +33,7 @@ export default function EmployeesPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
       <main className="flex-1 p-4 md:p-8">
         <h1 className="text-2xl font-bold mb-4">Employees</h1>

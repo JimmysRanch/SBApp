@@ -39,6 +39,7 @@ export default function NewClientPage() {
   const [dogs, setDogs] = useState<Dog[]>([{ ...emptyDog }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [licensePhoto, setLicensePhoto] = useState<File | null>(null);
 
   const updateDog = (index: number, updates: Partial<Dog>) => {
     setDogs((prev) => prev.map((d, i) => (i === index ? { ...d, ...updates } : d)));
@@ -76,6 +77,34 @@ export default function NewClientPage() {
       setError(insertError?.message || "Failed to create client");
       setSaving(false);
       return;
+    }
+
+    // Upload driver's license photo if provided and attach URL to the client
+    if (licensePhoto) {
+      const ext = licensePhoto.name.split(".").pop();
+      const filePath = `${client.id}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${ext}`;
+      const { error: licenseUploadError } = await supabase.storage
+        .from("license-photos")
+        .upload(filePath, licensePhoto);
+      if (licenseUploadError) {
+        setError(licenseUploadError.message);
+        setSaving(false);
+        return;
+      }
+      const { data: licenseData } = supabase.storage
+        .from("license-photos")
+        .getPublicUrl(filePath);
+      const { error: licenseUpdateError } = await supabase
+        .from("clients")
+        .update({ license_photo_url: licenseData.publicUrl })
+        .eq("id", client.id);
+      if (licenseUpdateError) {
+        setError(licenseUpdateError.message);
+        setSaving(false);
+        return;
+      }
     }
 
     for (const dog of dogs) {
@@ -187,6 +216,15 @@ export default function NewClientPage() {
                   <option value="Friend">Friend</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block mb-1 font-medium">{"Driver's License Photo"}</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => setLicensePhoto(e.target.files?.[0] || null)}
+                />
               </div>
             </div>
           </section>

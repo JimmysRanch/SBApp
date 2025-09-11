@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 /* Custom global styles */
-body {
-  @apply bg-gray-50 text-gray-900;
+html {
+  font-family: var(--font-sans);
 }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+}
+
+body {
+  @apply bg-gradient-to-br from-brand-light to-white text-slate-900;
+}
+

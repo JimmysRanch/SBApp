@@ -8,16 +8,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          light: '#76b2fe',
-          DEFAULT: '#4b79a1',
-          dark: '#283e51'
+        brand: {
+          light: '#f5f5f0',
+          DEFAULT: '#d4af37',
+          dark: '#1a1f2b'
         },
-        secondary: {
-          pink: '#f8b4c0',
-          purple: '#dcbcef',
-          green: '#b5e5cf'
+        accent: {
+          DEFAULT: '#0e9aa7',
+          dark: '#0a7a83'
         }
+      },
+      fontFamily: {
+        sans: ['var(--font-sans)', 'sans-serif'],
+        serif: ['var(--font-serif)', 'serif']
       }
     }
   },
@@ -25,3 +28,4 @@ const config: Config = {
 }
 
 export default config
+

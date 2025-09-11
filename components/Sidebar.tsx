@@ -12,7 +12,7 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import LogoutButton from '@/components/LogoutButton';
+import LogoutButton from '@/components/LogoutButton'
 
 const nav = [
   { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -29,29 +29,35 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-64 border-r p-4 md:block">
+      <aside className="hidden w-64 bg-brand-dark p-6 text-brand-light md:block">
         <nav className="space-y-1">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                'block rounded px-3 py-2 hover:bg-gray-100',
-                pathname?.startsWith(item.href) && 'bg-gray-100 font-medium'
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  'flex items-center rounded px-3 py-2 transition-colors',
+                  pathname?.startsWith(item.href)
+                    ? 'bg-brand-light/20'
+                    : 'hover:bg-brand-light/10'
+                )}
+              >
+                <Icon className="mr-3 h-5 w-5" />
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
-        <div className="mt-6 border-t pt-4">
+        <div className="mt-6 border-t border-brand-light/20 pt-4">
           <LogoutButton />
         </div>
       </aside>
-      <nav className="fixed bottom-0 left-0 right-0 flex justify-around border-t bg-white py-2 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 flex justify-around border-t bg-brand-dark/90 py-2 text-brand-light md:hidden">
         {nav.map((item) => {
-          const Icon = item.icon;
+          const Icon = item.icon
           return (
             <Link
               key={item.href}
@@ -59,16 +65,16 @@ export default function Sidebar() {
               className={clsx(
                 'flex flex-col items-center text-xs',
                 pathname?.startsWith(item.href)
-                  ? 'text-blue-600'
-                  : 'text-gray-600'
+                  ? 'text-accent'
+                  : 'text-brand-light/70'
               )}
             >
               <Icon className="h-6 w-6" />
               <span>{item.label}</span>
             </Link>
-          );
+          )
         })}
       </nav>
     </>
-  );
+  )
 }

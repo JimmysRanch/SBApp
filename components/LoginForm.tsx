@@ -29,8 +29,14 @@ export default function LoginForm() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg border p-6 bg-white">
-      <h1 className="text-xl font-semibold mb-4">Log in</h1>
+    <form
+      onSubmit={onSubmit}
+      className="w-full max-w-md rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur"
+    >
+      <h1 className="mb-2 text-2xl font-bold text-primary-dark">
+        Welcome back! <span className="ml-1">🐶</span>
+      </h1>
+      <p className="mb-6 text-sm text-gray-600">Sign in to continue.</p>
 
       {err && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -38,9 +44,9 @@ export default function LoginForm() {
         </div>
       )}
 
-      <label className="block text-sm font-medium">Email</label>
+      <label className="block text-sm font-medium text-gray-700">Email</label>
       <input
-        className="mt-1 mb-3 w-full rounded border px-3 py-2"
+        className="mt-1 mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-light"
         type="email"
         required
         value={email}
@@ -48,9 +54,9 @@ export default function LoginForm() {
         placeholder="you@example.com"
       />
 
-      <label className="block text-sm font-medium">Password</label>
+      <label className="block text-sm font-medium text-gray-700">Password</label>
       <input
-        className="mt-1 mb-4 w-full rounded border px-3 py-2"
+        className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-light"
         type="password"
         required
         value={password}
@@ -61,14 +67,18 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+        className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <div className="mt-4 flex justify-between text-sm">
-        <a className="text-blue-600 underline" href="/signup">Create account</a>
-        <a className="text-blue-600 underline" href="/reset-password">Forgot password?</a>
+      <div className="mt-6 flex justify-between text-sm">
+        <a className="text-primary-light underline transition-colors hover:text-primary-dark" href="/signup">
+          Create account
+        </a>
+        <a className="text-primary-light underline transition-colors hover:text-primary-dark" href="/reset-password">
+          Forgot password?
+        </a>
       </div>
     </form>
   );

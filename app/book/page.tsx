@@ -1,7 +1,9 @@
 "use client";
 import PageContainer from '@/components/PageContainer';
 import Card from '@/components/Card';
+import LoginForm from '@/components/LoginForm';
 import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 
 // Types for clients, pets, employees
@@ -15,6 +17,7 @@ interface Employee { id: string; name: string; }
  * submission, inserts an appointment into the `appointments` table.
  */
 export default function BookPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -24,6 +27,15 @@ export default function BookPage() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [service, setService] = useState('');
+
+  // Check auth session and respond to changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Fetch clients and employees on mount
   useEffect(() => {
@@ -86,6 +98,17 @@ export default function BookPage() {
     setTime('');
     setService('');
   };
+
+  if (!session) {
+    return (
+      <PageContainer>
+        <Card>
+          <h1 className="mb-4 text-3xl font-bold text-primary-dark">Book Appointment</h1>
+          <LoginForm />
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

@@ -3,6 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { dogBreeds } from "@/lib/dogBreeds";
 
 type Dog = {
   name: string;
@@ -34,7 +35,10 @@ export default function NewClientPage() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [stateCode, setStateCode] = useState("");
+  const [zip, setZip] = useState("");
   const [hearAboutUs, setHearAboutUs] = useState("");
   const [dogs, setDogs] = useState<Dog[]>([{ ...emptyDog }]);
   const [saving, setSaving] = useState(false);
@@ -66,7 +70,10 @@ export default function NewClientPage() {
         last_name: lastName.trim(),
         phone: digits,
         email: email || null,
-        address: address || null,
+        address:
+          street || city || stateCode || zip
+            ? `${street}, ${city}, ${stateCode} ${zip}`
+            : null,
         hear_about_us: hearAboutUs || null,
       })
       .select("id")
@@ -128,7 +135,7 @@ export default function NewClientPage() {
                 <label className="block mb-1 font-medium">First Name</label>
                 <input
                   type="text"
-                  className="border rounded px-3 py-2 w-full"
+                  className="border rounded px-3 py-2 w-full sm:w-[200px]"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
@@ -138,7 +145,7 @@ export default function NewClientPage() {
                 <label className="block mb-1 font-medium">Last Name</label>
                 <input
                   type="text"
-                  className="border rounded px-3 py-2 w-full"
+                  className="border rounded px-3 py-2 w-full sm:w-[200px]"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
@@ -149,7 +156,8 @@ export default function NewClientPage() {
                 <input
                   type="tel"
                   pattern="\\d{10}"
-                  className="border rounded px-3 py-2 w-full"
+                  maxLength={10}
+                  className="border rounded px-3 py-2 w-full sm:w-[10ch]"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
@@ -159,7 +167,7 @@ export default function NewClientPage() {
                 <label className="block mb-1 font-medium">Email</label>
                 <input
                   type="email"
-                  className="border rounded px-3 py-2 w-full"
+                  className="border rounded px-3 py-2 w-full sm:w-[200px]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -169,24 +177,57 @@ export default function NewClientPage() {
                 <input
                   type="text"
                   className="border rounded px-3 py-2 w-full"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
                 />
+              </div>
+              <div className="sm:col-span-2 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="block mb-1 font-medium">City</label>
+                  <input
+                    type="text"
+                    className="border rounded px-3 py-2 w-full"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">State</label>
+                  <input
+                    type="text"
+                    maxLength={2}
+                    className="border rounded px-3 py-2 w-full sm:w-[60px]"
+                    value={stateCode}
+                    onChange={(e) => setStateCode(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Zip</label>
+                  <input
+                    type="text"
+                    pattern="\\d{5}"
+                    className="border rounded px-3 py-2 w-full sm:w-[80px]"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="block mb-1 font-medium">How did you hear about us?</label>
-                <select
-                  className="border rounded px-3 py-2 w-full"
-                  value={hearAboutUs}
-                  onChange={(e) => setHearAboutUs(e.target.value)}
-                >
-                  <option value="">Select one</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Nextdoor">Next-door</option>
-                  <option value="Google">Google</option>
-                  <option value="Friend">Friend</option>
-                  <option value="Other">Other</option>
-                </select>
+                <div className="flex flex-wrap gap-4">
+                  {['Facebook', 'Nextdoor', 'Google', 'Friend', 'Other'].map((opt) => (
+                    <label key={opt} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="hearAboutUs"
+                        value={opt}
+                        checked={hearAboutUs === opt}
+                        onChange={(e) => setHearAboutUs(e.target.value)}
+                      />
+                      <span className="ml-1">{opt}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -199,7 +240,7 @@ export default function NewClientPage() {
                   <label className="block mb-1 font-medium">Name</label>
                   <input
                     type="text"
-                    className="border rounded px-3 py-2 w-full"
+                    className="border rounded px-3 py-2 w-full sm:w-[200px]"
                     value={dog.name}
                     onChange={(e) => updateDog(i, { name: e.target.value })}
                   />
@@ -208,7 +249,8 @@ export default function NewClientPage() {
                   <label className="block mb-1 font-medium">Breed</label>
                   <input
                     type="text"
-                    className="border rounded px-3 py-2 w-full"
+                    list="breed-options"
+                    className="border rounded px-3 py-2 w-full sm:max-w-xs"
                     value={dog.breed}
                     onChange={(e) => updateDog(i, { breed: e.target.value })}
                   />
@@ -240,7 +282,7 @@ export default function NewClientPage() {
                   <label className="block mb-1 font-medium">Age</label>
                   <input
                     type="text"
-                    className="border rounded px-3 py-2 w-full"
+                    className="border rounded px-3 py-2 w-full sm:w-[80px]"
                     value={dog.age}
                     onChange={(e) => updateDog(i, { age: e.target.value })}
                   />
@@ -291,6 +333,11 @@ export default function NewClientPage() {
                 </div>
               </div>
             ))}
+            <datalist id="breed-options">
+              {dogBreeds.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
             <button
               type="button"
               onClick={addDog}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import SignaturePad from './SignaturePad';
 
 interface OwnerInfo {
   firstName: string;
@@ -268,15 +267,6 @@ export default function BookingForm() {
       >
         Add another dog
       </button>
-
-      {/* Signature */}
-      <section className="space-y-2">
-        <h2 className="text-xl font-semibold">Agreement & Signature</h2>
-        <p className="text-sm text-gray-600">
-          By signing below you agree to our grooming waiver and policies.
-        </p>
-        <SignaturePad />
-      </section>
 
       <div className="flex justify-between border-t pt-4 text-lg font-bold">
         <span>Total:</span>

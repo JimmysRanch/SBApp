@@ -2,18 +2,18 @@
 
 import PageContainer from '@/components/PageContainer';
 import Card from '@/components/Card';
-import LoginForm from '@/components/LoginForm';
 import LogoutButton from '@/components/LogoutButton';
 import BookingForm from '@/components/BookingForm';
-import { Suspense, useEffect, useState } from 'react';
+import LoginBanner from '@/components/LoginBanner';
+import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 
 /**
- * Public booking page.  Shows a login form at the top so clients can quickly
- * sign in.  Once authenticated the full booking form is displayed allowing
- * owners to provide their information, dog details, upload vaccination
- * documents, sign the waiver and submit a grooming appointment request.
+ * Public booking page.  Displays an optional login banner so clients can
+ * sign in, but the booking form is available without authentication. Owners
+ * can enter their information, dog details, upload vaccination documents and
+ * submit a grooming appointment request.
  */
 export default function BookPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -32,20 +32,16 @@ export default function BookPage() {
       <Card>
         <h1 className="mb-6 text-3xl font-bold text-primary-dark">Book Appointment</h1>
 
-        {!session ? (
-          // Login form shown when not authenticated
-          <Suspense fallback={<div>Loading...</div>}>
-            <LoginForm />
-          </Suspense>
-        ) : (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between rounded border p-3 text-sm">
-              <span>Logged in as {session.user.email}</span>
-              <LogoutButton />
-            </div>
-            <BookingForm />
+        {session ? (
+          <div className="mb-6 flex items-center justify-between rounded border p-3 text-sm">
+            <span>Logged in as {session.user.email}</span>
+            <LogoutButton />
           </div>
+        ) : (
+          <LoginBanner />
         )}
+
+        <BookingForm />
       </Card>
     </PageContainer>
   );

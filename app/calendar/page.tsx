@@ -1,12 +1,13 @@
 "use client";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-// Appointment type including joined pet and client names.  The Supabase
-// query uses `pets(name)` and `clients(full_name)` to join in these
-// fields via foreign keys on the appointments table.
+// Appointment type including joined pet and client names. The Supabase
+// query uses `pets(name)` and `clients(full_name)` to join these fields
+// via foreign keys on the appointments table.
 type Appt = {
   id: string;
   start_time: string;
@@ -16,12 +17,36 @@ type Appt = {
   clients: { full_name: string }[];
 };
 
+// Build a date key like `2024-01-05` for grouping appointments.
+function dateKey(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
+// Return all days displayed in the month grid. Includes days from the
+// previous and next months to fill out the weeks.
+function getCalendarDays(current: Date) {
+  const startOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+  const endOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+  const start = new Date(startOfMonth);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(endOfMonth);
+  end.setDate(end.getDate() + (6 - end.getDay()));
+  const days: Date[] = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+  return days;
+}
+
 /**
- * Calendar page showing all appointments.  Appointments are loaded
- * from the `appointments` table along with pet and client names.
+ * Calendar page showing appointments in a month view. Appointments are
+ * loaded from the `appointments` table and grouped by day. Selecting a
+ * day reveals its appointments below the calendar.
  */
 export default function CalendarPage() {
-  const [rows, setRows] = useState<Appt[]>([]);
+  const [apptsByDate, setApptsByDate] = useState<Record<string, Appt[]>>({});
+  const [current, setCurrent] = useState(new Date());
+  const [selected, setSelected] = useState<string>();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,44 +55,131 @@ export default function CalendarPage() {
         .select("id, start_time, service, status, pets(name), clients(full_name)")
         .order("start_time");
       if (!error && data) {
-        // Cast through unknown to satisfy TypeScript since Supabase types
-        // are generated as any when joined.  See build error logs for
-        // details.
-        setRows(data as unknown as Appt[]);
+        const map: Record<string, Appt[]> = {};
+        (data as unknown as Appt[]).forEach((appt) => {
+          const key = appt.start_time.slice(0, 10);
+          map[key] = map[key] ? [...map[key], appt] : [appt];
+        });
+        setApptsByDate(map);
       }
     };
     fetchData();
   }, []);
 
+  const days = getCalendarDays(current);
+  const monthLabel = current.toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <PageContainer>
       <Card>
-        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Calendar</h1>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="p-2 text-left">Date &amp; Time</th>
-              <th>Pet</th>
-              <th>Client</th>
-              <th>Service</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b">
-                <td className="p-2">
-                  {new Date(row.start_time).toLocaleString()}
-                </td>
-                <td>{row.pets?.[0]?.name ?? "-"}</td>
-                <td>{row.clients?.[0]?.full_name ?? "-"}</td>
-                <td>{row.service ?? "-"}</td>
-                <td>{row.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            className="rounded p-1 hover:bg-gray-100"
+            onClick={() =>
+              setCurrent(
+                new Date(current.getFullYear(), current.getMonth() - 1, 1)
+              )
+            }
+            aria-label="Previous month"
+          >
+            <ChevronLeftIcon className="h-5 w-5" />
+          </button>
+          <h1 className="text-3xl font-bold text-primary-dark">{monthLabel}</h1>
+          <button
+            className="rounded p-1 hover:bg-gray-100"
+            onClick={() =>
+              setCurrent(
+                new Date(current.getFullYear(), current.getMonth() + 1, 1)
+              )
+            }
+            aria-label="Next month"
+          >
+            <ChevronRightIcon className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-2 text-center text-sm">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} className="font-medium">
+              {d}
+            </div>
+          ))}
+          {days.map((day) => {
+            const key = dateKey(day);
+            const appts = apptsByDate[key] || [];
+            const isCurrentMonth = day.getMonth() === current.getMonth();
+            return (
+              <div
+                key={key}
+                onClick={() => setSelected(key)}
+                className={`h-24 cursor-pointer rounded border p-1 text-left transition-colors hover:bg-secondary-green/40 ${
+                  isCurrentMonth ? "bg-white" : "bg-gray-50 text-gray-400"
+                }`}
+              >
+                <div className="mb-1 text-right text-xs">{day.getDate()}</div>
+                {appts.slice(0, 2).map((a) => (
+                  <div
+                    key={a.id}
+                    className="mb-1 truncate rounded bg-primary-light px-1 text-[10px] text-white"
+                  >
+                    {a.pets?.[0]?.name ?? "Appt"}
+                  </div>
+                ))}
+                {appts.length > 2 && (
+                  <div className="text-[10px] text-primary-dark">
+                    +{appts.length - 2} more
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {selected && (
+          <div className="mt-6">
+            <h2 className="mb-2 text-lg font-semibold">
+              Appointments on {" "}
+              {new Date(selected).toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </h2>
+            <ul className="space-y-2">
+              {(apptsByDate[selected] || []).map((a) => (
+                <li
+                  key={a.id}
+                  className="flex justify-between rounded border p-2 text-sm"
+                >
+                  <div>
+                    <div className="font-medium">
+                      {a.pets?.[0]?.name ?? "-"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {a.clients?.[0]?.full_name ?? "-"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {a.service ?? "-"}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div>
+                      {new Date(a.start_time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                    <div className="text-xs capitalize">{a.status}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Card>
     </PageContainer>
   );
 }
+

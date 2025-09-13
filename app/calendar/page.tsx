@@ -1,72 +1,599 @@
 "use client";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
-import { useState, useEffect } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
+import clsx from "clsx";
 
-// Appointment type including joined pet and client names.  The Supabase
-// query uses `pets(name)` and `clients(full_name)` to join in these
-// fields via foreign keys on the appointments table.
 type Appt = {
   id: string;
   start_time: string;
   service: string | null;
   status: string;
+  groomer_name: string | null;
   pets: { name: string }[];
   clients: { full_name: string }[];
 };
 
-/**
- * Calendar page showing all appointments.  Appointments are loaded
- * from the `appointments` table along with pet and client names.
- */
+function dateKey(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
+function getCalendarDays(current: Date) {
+  const startOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+  const endOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+  const start = new Date(startOfMonth);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(endOfMonth);
+  end.setDate(end.getDate() + (6 - end.getDay()));
+  const days: Date[] = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+  return days;
+}
+
 export default function CalendarPage() {
-  const [rows, setRows] = useState<Appt[]>([]);
+  const [appts, setAppts] = useState<Appt[]>([]);
+  const [groomers, setGroomers] = useState<string[]>([]);
+  const [groomer, setGroomer] = useState("All");
+  const [view, setView] = useState<"day" | "week" | "month" | "list">("month");
+  const [current, setCurrent] = useState(new Date());
+  const todayKey = dateKey(new Date());
+  const [selected, setSelected] = useState<string>(todayKey);
 
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
         .from("appointments")
-        .select("id, start_time, service, status, pets(name), clients(full_name)")
+        .select(
+          "id,start_time,service,status,groomer_name,pets(name),clients(full_name)"
+        )
         .order("start_time");
       if (!error && data) {
-        // Cast through unknown to satisfy TypeScript since Supabase types
-        // are generated as any when joined.  See build error logs for
-        // details.
-        setRows(data as unknown as Appt[]);
+        const appts = data as unknown as Appt[];
+        setAppts(appts);
+        setGroomers(
+          Array.from(
+            new Set(appts.map((a) => a.groomer_name).filter(Boolean))
+          ) as string[]
+        );
       }
     };
     fetchData();
   }, []);
 
+  const filtered = useMemo(() => {
+    return groomer === "All"
+      ? appts
+      : appts.filter((a) => a.groomer_name === groomer);
+  }, [appts, groomer]);
+
+  const apptsByDate = useMemo(() => {
+    const map: Record<string, Appt[]> = {};
+    filtered.forEach((appt) => {
+      const key = appt.start_time.slice(0, 10);
+      map[key] = map[key] ? [...map[key], appt] : [appt];
+    });
+    return map;
+  }, [filtered]);
+
+  const listAppts = useMemo(
+    () => [...filtered].sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    [filtered]
+  );
+
+  const days = useMemo(() => getCalendarDays(current), [current]);
+
+  const weekDays = useMemo(() => {
+    const start = new Date(current);
+    start.setDate(start.getDate() - start.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [current]);
+
+  const goToday = () => {
+    const now = new Date();
+    if (view === "month") {
+      setCurrent(new Date(now.getFullYear(), now.getMonth(), 1));
+    } else if (view === "week") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - start.getDay());
+      setCurrent(start);
+      setSelected(dateKey(now));
+    } else {
+      setCurrent(now);
+      setSelected(dateKey(now));
+    }
+  };
+
+  const goPrev = () => {
+    if (view === "month") {
+      setCurrent(new Date(current.getFullYear(), current.getMonth() - 1, 1));
+    } else if (view === "week") {
+      const d = new Date(current);
+      d.setDate(d.getDate() - 7);
+      setCurrent(d);
+      setSelected(dateKey(d));
+    } else if (view === "day") {
+      const d = new Date(current);
+      d.setDate(d.getDate() - 1);
+      setCurrent(d);
+      setSelected(dateKey(d));
+    }
+  };
+
+  const goNext = () => {
+    if (view === "month") {
+      setCurrent(new Date(current.getFullYear(), current.getMonth() + 1, 1));
+    } else if (view === "week") {
+      const d = new Date(current);
+      d.setDate(d.getDate() + 7);
+      setCurrent(d);
+      setSelected(dateKey(d));
+    } else if (view === "day") {
+      const d = new Date(current);
+      d.setDate(d.getDate() + 1);
+      setCurrent(d);
+      setSelected(dateKey(d));
+    }
+  };
+
+  const label = () => {
+    if (view === "month") {
+      return current.toLocaleString("default", { month: "long", year: "numeric" });
+    }
+    if (view === "week") {
+      const start = new Date(current);
+      const end = new Date(current);
+      end.setDate(end.getDate() + 6);
+      return `${start.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })} - ${end.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })}`;
+    }
+    if (view === "day") {
+      return current.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+    return "";
+  };
+
+  const handleViewChange = (v: "day" | "week" | "month" | "list") => {
+    setView(v);
+    if (v === "month") {
+      const d = new Date(selected);
+      setCurrent(new Date(d.getFullYear(), d.getMonth(), 1));
+    } else if (v === "week") {
+      const d = new Date(selected);
+      d.setDate(d.getDate() - d.getDay());
+      setCurrent(d);
+    } else if (v === "day") {
+      const d = new Date(selected);
+      setCurrent(d);
+    }
+  };
+
+  const selectedAppts = apptsByDate[selected] || [];
+  const dayKey = dateKey(current);
+  const dayAppts = apptsByDate[dayKey] || [];
+
   return (
     <PageContainer>
       <Card>
-        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Calendar</h1>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="p-2 text-left">Date &amp; Time</th>
-              <th>Pet</th>
-              <th>Client</th>
-              <th>Service</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b">
-                <td className="p-2">
-                  {new Date(row.start_time).toLocaleString()}
-                </td>
-                <td>{row.pets?.[0]?.name ?? "-"}</td>
-                <td>{row.clients?.[0]?.full_name ?? "-"}</td>
-                <td>{row.service ?? "-"}</td>
-                <td>{row.status}</td>
-              </tr>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-2">
+            {(["day", "week", "month", "list"] as const).map((v) => (
+              <button
+                key={v}
+                className={clsx(
+                  "rounded px-2 py-1 text-sm",
+                  view === v
+                    ? "bg-primary-light text-white"
+                    : "border hover:bg-gray-100"
+                )}
+                onClick={() => handleViewChange(v)}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
             ))}
-          </tbody>
-        </table>
+          </div>
+          <select
+            className="rounded border px-2 py-1 text-sm"
+            value={groomer}
+            onChange={(e) => setGroomer(e.target.value)}
+          >
+            <option value="All">All Groomers</option>
+            {groomers.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {view !== "list" && (
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded p-1 hover:bg-gray-100"
+                onClick={goPrev}
+                aria-label="Previous"
+              >
+                <ChevronLeftIcon className="h-5 w-5" />
+              </button>
+              <h1 className="text-3xl font-bold text-primary-dark">{label()}</h1>
+              <button
+                className="rounded p-1 hover:bg-gray-100"
+                onClick={goNext}
+                aria-label="Next"
+              >
+                <ChevronRightIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <button
+              className="rounded border px-2 py-1 text-sm hover:bg-gray-100"
+              onClick={goToday}
+            >
+              Today
+            </button>
+          </div>
+        )}
+
+        {view === "month" && (
+          <>
+            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div key={d} className="font-medium">
+                  {d}
+                </div>
+              ))}
+              {days.map((day) => {
+                const key = dateKey(day);
+                const appts = apptsByDate[key] || [];
+                const isCurrentMonth = day.getMonth() === current.getMonth();
+                const isToday = key === todayKey;
+                const isSelected = key === selected;
+                return (
+                  <div
+                    key={key}
+                    onClick={() => setSelected(key)}
+                    className={clsx(
+                      "relative h-24 cursor-pointer rounded border p-1 text-left transition-colors hover:bg-secondary-green/40",
+                      isCurrentMonth ? "bg-white" : "bg-gray-50 text-gray-400",
+                      isToday && "border-primary-light",
+                      isSelected && "ring-2 ring-primary-light"
+                    )}
+                  >
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span>{day.getDate()}</span>
+                      {appts.length > 0 && (
+                        <span className="rounded bg-primary-light px-1 text-[10px] text-white">
+                          {appts.length}
+                        </span>
+                      )}
+                    </div>
+                    {appts.slice(0, 2).map((a) => (
+                      <div
+                        key={a.id}
+                        className="mb-1 truncate rounded bg-primary-light px-1 text-[10px] text-white"
+                      >
+                        {new Date(a.start_time).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        {a.pets?.[0]?.name ?? "Appt"}
+                      </div>
+                    ))}
+                    {appts.length > 2 && (
+                      <div className="text-[10px] text-primary-dark">
+                        +{appts.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {selected && (
+              <div className="mt-6">
+                <h2 className="mb-2 text-lg font-semibold">
+                  Appointments on{" "}
+                  {new Date(selected).toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </h2>
+                {selectedAppts.length ? (
+                  <ul className="space-y-2">
+                    {selectedAppts.map((a) => (
+                      <li
+                        key={a.id}
+                        className="flex justify-between rounded border p-2 text-sm"
+                      >
+                        <div>
+                          <div className="font-medium">
+                            {a.pets?.[0]?.name ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.clients?.[0]?.full_name ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.service ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.groomer_name ?? "-"}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div>
+                            {new Date(a.start_time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                          <div
+                            className={clsx(
+                              "mt-1 inline-block rounded px-2 text-xs capitalize",
+                              {
+                                pending: "bg-yellow-100 text-yellow-800",
+                                scheduled: "bg-blue-100 text-blue-800",
+                                completed: "bg-green-100 text-green-800",
+                                cancelled: "bg-red-100 text-red-800",
+                              }[a.status] || "bg-gray-100 text-gray-800"
+                            )}
+                          >
+                            {a.status}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No appointments.</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {view === "week" && (
+          <>
+            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div key={d} className="font-medium">
+                  {d}
+                </div>
+              ))}
+              {weekDays.map((day) => {
+                const key = dateKey(day);
+                const appts = apptsByDate[key] || [];
+                const isToday = key === todayKey;
+                const isSelected = key === selected;
+                return (
+                  <div
+                    key={key}
+                    onClick={() => setSelected(key)}
+                    className={clsx(
+                      "relative h-24 cursor-pointer rounded border p-1 text-left transition-colors hover:bg-secondary-green/40",
+                      "bg-white",
+                      isToday && "border-primary-light",
+                      isSelected && "ring-2 ring-primary-light"
+                    )}
+                  >
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span>{day.getDate()}</span>
+                      {appts.length > 0 && (
+                        <span className="rounded bg-primary-light px-1 text-[10px] text-white">
+                          {appts.length}
+                        </span>
+                      )}
+                    </div>
+                    {appts.slice(0, 2).map((a) => (
+                      <div
+                        key={a.id}
+                        className="mb-1 truncate rounded bg-primary-light px-1 text-[10px] text-white"
+                      >
+                        {new Date(a.start_time).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        {a.pets?.[0]?.name ?? "Appt"}
+                      </div>
+                    ))}
+                    {appts.length > 2 && (
+                      <div className="text-[10px] text-primary-dark">
+                        +{appts.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {selected && (
+              <div className="mt-6">
+                <h2 className="mb-2 text-lg font-semibold">
+                  Appointments on{" "}
+                  {new Date(selected).toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </h2>
+                {selectedAppts.length ? (
+                  <ul className="space-y-2">
+                    {selectedAppts.map((a) => (
+                      <li
+                        key={a.id}
+                        className="flex justify-between rounded border p-2 text-sm"
+                      >
+                        <div>
+                          <div className="font-medium">
+                            {a.pets?.[0]?.name ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.clients?.[0]?.full_name ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.service ?? "-"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {a.groomer_name ?? "-"}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div>
+                            {new Date(a.start_time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                          <div
+                            className={clsx(
+                              "mt-1 inline-block rounded px-2 text-xs capitalize",
+                              {
+                                pending: "bg-yellow-100 text-yellow-800",
+                                scheduled: "bg-blue-100 text-blue-800",
+                                completed: "bg-green-100 text-green-800",
+                                cancelled: "bg-red-100 text-red-800",
+                              }[a.status] || "bg-gray-100 text-gray-800"
+                            )}
+                          >
+                            {a.status}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No appointments.</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {view === "day" && (
+          <div className="mt-6">
+            <h2 className="mb-2 text-lg font-semibold">
+              Appointments on{" "}
+              {current.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </h2>
+            {dayAppts.length ? (
+              <ul className="space-y-2">
+                {dayAppts.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex justify-between rounded border p-2 text-sm"
+                  >
+                    <div>
+                      <div className="font-medium">{a.pets?.[0]?.name ?? "-"}</div>
+                      <div className="text-xs text-gray-500">
+                        {a.clients?.[0]?.full_name ?? "-"}
+                      </div>
+                      <div className="text-xs text-gray-500">{a.service ?? "-"}</div>
+                      <div className="text-xs text-gray-500">
+                        {a.groomer_name ?? "-"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div>
+                        {new Date(a.start_time).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div
+                        className={clsx(
+                          "mt-1 inline-block rounded px-2 text-xs capitalize",
+                          {
+                            pending: "bg-yellow-100 text-yellow-800",
+                            scheduled: "bg-blue-100 text-blue-800",
+                            completed: "bg-green-100 text-green-800",
+                            cancelled: "bg-red-100 text-red-800",
+                          }[a.status] || "bg-gray-100 text-gray-800"
+                        )}
+                      >
+                        {a.status}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No appointments.</p>
+            )}
+          </div>
+        )}
+
+        {view === "list" && (
+          <div className="mt-4">
+            {listAppts.length ? (
+              <ul className="space-y-2">
+                {listAppts.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex justify-between rounded border p-2 text-sm"
+                  >
+                    <div>
+                      <div className="font-medium">{a.pets?.[0]?.name ?? "-"}</div>
+                      <div className="text-xs text-gray-500">
+                        {a.clients?.[0]?.full_name ?? "-"}
+                      </div>
+                      <div className="text-xs text-gray-500">{a.service ?? "-"}</div>
+                      <div className="text-xs text-gray-500">
+                        {a.groomer_name ?? "-"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div>
+                        {new Date(a.start_time).toLocaleString([], {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div
+                        className={clsx(
+                          "mt-1 inline-block rounded px-2 text-xs capitalize",
+                          {
+                            pending: "bg-yellow-100 text-yellow-800",
+                            scheduled: "bg-blue-100 text-blue-800",
+                            completed: "bg-green-100 text-green-800",
+                            cancelled: "bg-red-100 text-red-800",
+                          }[a.status] || "bg-gray-100 text-gray-800"
+                        )}
+                      >
+                        {a.status}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No appointments.</p>
+            )}
+          </div>
+        )}
       </Card>
     </PageContainer>
   );

@@ -3,6 +3,9 @@ import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { CameraIcon } from "@heroicons/react/24/outline";
+import { BrowserMultiFormatReader, BarcodeFormat } from "@zxing/browser";
+import { DecodeHintType } from "@zxing/library";
 
 type Dog = {
   name: string;
@@ -39,6 +42,49 @@ export default function NewClientPage() {
   const [dogs, setDogs] = useState<Dog[]>([{ ...emptyDog }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleLicenseScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    try {
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.PDF_417]);
+      const reader = new BrowserMultiFormatReader(hints);
+      const result = await reader.decodeFromImageUrl(url);
+      const data = parseAAMVA(result.getText());
+      if (data.firstName) setFirstName(data.firstName);
+      if (data.lastName) setLastName(data.lastName);
+      if (data.address) setAddress(data.address);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to read driver's license");
+    } finally {
+      URL.revokeObjectURL(url);
+      e.target.value = "";
+    }
+  };
+
+  const parseAAMVA = (raw: string) => {
+    const fields: Record<string, string> = {};
+    raw.split(/\r?\n/).forEach((line) => {
+      const key = line.slice(0, 3);
+      if (/^[A-Z]{3}$/.test(key)) {
+        fields[key] = line.slice(3).trim();
+      }
+    });
+    const firstName = fields["DAC"] || fields["DCT"]?.split(",")[1]?.trim() || "";
+    const lastName = fields["DCS"] || fields["DAB"] || fields["DCT"]?.split(",")[0]?.trim() || "";
+    const address = [
+      fields["DAG"],
+      fields["DAI"],
+      fields["DAJ"],
+      fields["DAK"],
+    ]
+      .filter(Boolean)
+      .join(", ");
+    return { firstName, lastName, address };
+  };
 
   const updateDog = (index: number, updates: Partial<Dog>) => {
     setDogs((prev) => prev.map((d, i) => (i === index ? { ...d, ...updates } : d)));
@@ -122,7 +168,26 @@ export default function NewClientPage() {
         {error && <p className="text-red-600 mb-2">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-6">
           <section>
-            <h2 className="text-xl font-semibold mb-4">Owner</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Owner</h2>
+              <div>
+                <input
+                  type="file"
+                  id="license-scan"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleLicenseScan}
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('license-scan')?.click()}
+                  className="flex items-center bg-gray-200 px-3 py-2 rounded"
+                >
+                  <CameraIcon className="h-5 w-5 mr-1" /> Scan ID
+                </button>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block mb-1 font-medium">First Name</label>

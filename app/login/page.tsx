@@ -9,7 +9,10 @@ export default async function LoginPage() {
   if (user) redirect('/dashboard')
   return (
     <Suspense fallback={null}>
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
+      <div
+        className="flex min-h-screen items-center justify-center bg-cover bg-center p-4"
+        style={{ backgroundImage: "url('/login-background.svg')" }}
+      >
         <LoginForm />
       </div>
     </Suspense>

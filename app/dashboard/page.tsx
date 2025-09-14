@@ -1,5 +1,3 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import PageContainer from '@/components/PageContainer'
 import Widget from '@/components/Widget'
 import TodaysAppointments from '@/components/dashboard/TodaysAppointments'
@@ -7,15 +5,10 @@ import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload'
 import Messages from '@/components/dashboard/Messages'
 import Revenue from '@/components/dashboard/Revenue'
 
-export default async function DashboardPage() {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function DashboardPage() {
   return (
     <PageContainer>
-      <h1 className="text-3xl font-bold text-primary-dark">Dashboard</h1>
+      <h1 className="text-3xl font-bold">Dashboard</h1>
       <div className="grid gap-6 md:grid-cols-3">
         <Widget title="Today's Appointments" color="pink" className="md:col-span-2 md:row-span-4">
           <TodaysAppointments />

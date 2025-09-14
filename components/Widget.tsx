@@ -21,7 +21,7 @@ export default function Widget({ title, color = 'pink', children, className }: W
       <div className={clsx('px-5 py-3 text-sm font-semibold text-primary-dark', headerColor)}>
         {title}
       </div>
-      <div className="p-5">
+      <div className="p-5 text-primary-dark">
         {children}
       </div>
     </div>

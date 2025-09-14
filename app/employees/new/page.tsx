@@ -1,5 +1,6 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
+import PageContainer from "@/components/PageContainer";
+import Card from "@/components/Card";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -38,17 +39,16 @@ export default function NewEmployeePage() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 pb-20 md:p-8 max-w-xl">
-        <h1 className="text-2xl font-bold mb-4">Add New Employee</h1>
-        {error && <p className="text-red-600 mb-2">{error}</p>}
+    <PageContainer>
+      <Card className="mx-auto max-w-xl">
+        <h1 className="mb-4 text-2xl font-bold">Add New Employee</h1>
+        {error && <p className="mb-2 text-red-600">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block mb-1 font-medium">Name</label>
+            <label className="mb-1 block font-medium">Name</label>
             <input
               type="text"
-              className="border rounded px-3 py-2 w-full"
+              className="w-full rounded border px-3 py-2"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -68,13 +68,13 @@ export default function NewEmployeePage() {
           </div>
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
             disabled={saving}
           >
             {saving ? "Saving..." : "Save"}
           </button>
         </form>
-      </main>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

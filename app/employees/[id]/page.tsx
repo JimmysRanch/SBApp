@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { notFound } from "next/navigation";
 import PageContainer from "@/components/PageContainer";
 import { createClient } from "@/supabase/server";
-import Card from "@/components/Card";
+import ProfileCard from "./components/ProfileCard";
 import WeekScheduleWidget from "./components/WeekScheduleWidget";
 import TodayWorkload from "./components/TodayWorkload";
 import AppointmentsList from "./components/AppointmentsList";
@@ -16,7 +16,6 @@ type Params = { params: { id: string } };
 export default async function EmployeePage({ params }: Params) {
   const supabase = createClient();
   const empId = Number(params.id);
-
   const { data: employee, error } = await supabase
     .from("employees")
     .select("id,name,active")
@@ -28,22 +27,15 @@ export default async function EmployeePage({ params }: Params) {
     <PageContainer>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="space-y-4">
-          <Card>
-            <h3 className="text-lg font-semibold">Profile</h3>
-            <p>ID: {employee.id}</p>
-            <p>Name: {employee.name}</p>
-            <p>Status: {employee.active ? "Active" : "Inactive"}</p>
-          </Card>
+          <ProfileCard employee={employee} />
           <WeekScheduleWidget employeeId={empId} />
           <NotesCard employeeId={empId} />
         </div>
-
         <div className="space-y-4">
           <TodayWorkload employeeId={empId} />
           <AppointmentsList employeeId={empId} kind="upcoming" />
           <AppointmentsList employeeId={empId} kind="past" />
         </div>
-
         <div className="space-y-4">
           <PerformanceCard employeeId={empId} />
           <LifetimeTotalsCard employeeId={empId} />

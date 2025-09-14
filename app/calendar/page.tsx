@@ -3,8 +3,8 @@ import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase/client";
 import clsx from "clsx";
+import { getDemoAppointments, demoGroomers } from "@/lib/demoData";
 
 type Appt = {
   id: string;
@@ -44,30 +44,17 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState<string>(todayKey);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [apptsRes, groomersRes] = await Promise.all([
-        supabase
-          .from("appointments")
-          .select(
-            "id,start_time,service,status,groomer_name,pets(name),clients(full_name)"
-          )
-          .order("start_time"),
-        supabase
-          .from("employees")
-          .select("name")
-          .eq("active", true)
-          .order("name"),
-      ]);
-
-      if (!apptsRes.error && apptsRes.data) {
-        setAppts(apptsRes.data as unknown as Appt[]);
-      }
-
-      if (!groomersRes.error && groomersRes.data) {
-        setGroomers(groomersRes.data.map((g: { name: string }) => g.name));
-      }
-    };
-    fetchData();
+    const demos = getDemoAppointments().map((a) => ({
+      id: a.id,
+      start_time: a.start.toISOString(),
+      service: a.service,
+      status: a.status,
+      groomer_name: a.groomerName,
+      pets: [{ name: a.petName }],
+      clients: [{ full_name: a.clientName }],
+    }));
+    setAppts(demos);
+    setGroomers(demoGroomers);
   }, []);
 
   const filtered = useMemo(() => {

@@ -5,6 +5,8 @@ import { createClient } from "@/supabase/server";
 
 type Params = { params: { id: string } };
 
+export const runtime = "nodejs";
+
 export default async function EmployeePage({ params }: Params) {
   const supabase = createClient();
 

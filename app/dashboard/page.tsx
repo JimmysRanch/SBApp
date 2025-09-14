@@ -7,6 +7,8 @@ import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload'
 import Messages from '@/components/dashboard/Messages'
 import Revenue from '@/components/dashboard/Revenue'
 
+export const runtime = "nodejs"
+
 export default async function DashboardPage() {
   const supabase = createClient()
   const {

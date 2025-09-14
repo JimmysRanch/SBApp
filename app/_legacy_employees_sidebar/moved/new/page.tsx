@@ -1,4 +1,5 @@
 "use client";
+import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -38,7 +39,7 @@ export default function NewEmployeePage() {
 
   return (
     <div className="flex min-h-screen">
-      
+      <Sidebar />
       <main className="flex-1 p-4 pb-20 md:p-8 max-w-xl">
         <h1 className="text-2xl font-bold mb-4">Add New Employee</h1>
         {error && <p className="text-red-600 mb-2">{error}</p>}

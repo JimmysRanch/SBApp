@@ -4,5 +4,11 @@
 
 /* Custom global styles */
 body {
-  @apply bg-gradient-to-br from-secondary-pink via-secondary-purple to-secondary-green text-gray-900;
+  @apply bg-gradient-to-br from-secondary-pink via-secondary-purple to-secondary-green text-gray-100;
+}
+
+input,
+textarea,
+select {
+  @apply text-gray-900;
 }

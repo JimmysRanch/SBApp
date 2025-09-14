@@ -61,7 +61,7 @@ export default function EmployeesPage() {
                   <span className="text-sm text-gray-600">{e.active ? "Active" : "Inactive"}</span>
                   {selected?.id === e.id && (
                     <Link
-                      href={`/employees/${e.id}`}
+                      href={`/employees/${Number(e.id)}`}
                       className="absolute inset-0 flex items-center justify-center bg-primary/80 text-lg font-semibold text-white"
                     >
                       Employee Page

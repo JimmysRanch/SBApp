@@ -4,5 +4,5 @@
 
 /* Custom global styles */
 body {
-  @apply bg-gradient-to-br from-secondary-pink via-secondary-purple to-secondary-green text-gray-900;
+  @apply bg-gray-50 text-gray-900;
 }

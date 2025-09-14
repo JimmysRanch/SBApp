@@ -10,6 +10,7 @@ import Link from "next/link";
 export default function Settings() {
   const items = [
     { href: "/settings/business", label: "Business details" },
+    { href: "/settings/employees", label: "Employees" },
     { href: "/settings/notifications", label: "Notifications" },
     { href: "/settings/dashboard", label: "Dashboard customization" },
     { href: "/settings/branding", label: "Branding" },

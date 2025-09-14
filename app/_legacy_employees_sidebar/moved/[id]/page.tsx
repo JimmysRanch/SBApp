@@ -1,5 +1,4 @@
 "use client";
-import Sidebar from "@/components/Sidebar";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 
@@ -29,7 +28,7 @@ export default function EmployeeDetail({ params }: { params: { id: string } }) {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      
       <main className="flex-1 p-4 pb-20 md:p-8">
         {loading && <p>Loading…</p>}
         {!loading && employee && (

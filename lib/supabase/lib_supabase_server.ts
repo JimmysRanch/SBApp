@@ -9,16 +9,21 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOi
 /**
  * Create a Supabase client instance configured for server-side usage.
  *
- * This helper wraps `createServerClient` from `@supabase/ssr` and provides
- * cookie management functions compatible with Next.js. The remove
- * function calls `cookieStore.delete(name)` without passing options
- * because the Next.js cookie API expects either a string key or an
- * options object, but not both. Omitting the options resolves a type error
- * seen during the Vercel build.
+ * The cookie handlers passed to `createServerClient` must conform to the
+ * Next.js API where `cookieStore.delete` accepts a single options object
+ * containing the cookie name.  A previous implementation passed the name and
+ * options as separate arguments which caused a TypeScript error during the
+ * Vercel build.  The `remove` helper now merges the name with the options
+ * before delegating to `cookieStore.delete`.
+ *
+ * An optional `cookieStore` parameter is exposed for testability, allowing
+ * callers to inject a mock implementation when needed.
  */
-export function createClient() {
-  const cookieStore = cookies();
-  return createServerClient(
+export function createClient(
+  cookieStore: ReturnType<typeof cookies> = cookies(),
+  serverClient = createServerClient,
+) {
+  return serverClient(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -31,13 +36,10 @@ export function createClient() {
           // signature for cookieStore.set().
           cookieStore.set(name, value, { ...options });
         },
-        remove(name: string, _options: CookieOptions) {
-          // We keep the `_options` parameter for API parity with the
-          // `@supabase/ssr` interface, but the underlying `cookieStore.delete`
-          // only accepts the cookie name. Passing the options object led to a
-          // type error during builds, so the argument is intentionally ignored
-          // and only the name is supplied.
-          cookieStore.delete(name);
+        remove(name: string, options: CookieOptions) {
+          // Combine the name and options into a single argument to satisfy the
+          // Next.js cookie API.
+          cookieStore.delete({ name, ...options });
         },
       },
     },

@@ -8,3 +8,9 @@ The following environment variables must be set before running or deploying the 
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 Create an `.env.local` file based on `.env.local.example` and populate these values with your Supabase project credentials.
+
+## Routes
+
+- `/employees` - list of employees
+- `/employees/[id]` - employee profile page
+- `/employees/[id]/schedule` - employee schedule editor (coming soon)

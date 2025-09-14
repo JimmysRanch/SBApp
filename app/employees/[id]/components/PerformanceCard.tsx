@@ -1,4 +1,5 @@
 import Card from "@/components/Card";
+import { supabase } from "../../../../supabase/client";
 
 type Props = { employeeId: string };
 

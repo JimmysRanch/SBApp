@@ -6,6 +6,7 @@ export const metadata = {
   title: "Scruffy Butts",
   description: "Grooming dashboard",
 };
+export const runtime = "nodejs";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

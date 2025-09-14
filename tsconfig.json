@@ -35,6 +35,9 @@
       ],
       "@/app/*": [
         "app/*"
+      ],
+      "@/supabase/*": [
+        "lib/supabase/*"
       ]
     },
     "incremental": true,

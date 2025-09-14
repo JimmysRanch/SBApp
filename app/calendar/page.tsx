@@ -205,8 +205,9 @@ export default function CalendarPage() {
 
   return (
     <PageContainer>
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="md:col-span-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
             {(["day", "week", "month", "list"] as const).map((v) => (
               <button
@@ -487,7 +488,12 @@ export default function CalendarPage() {
             )}
           </div>
         )}
-      </Card>
+        </Card>
+        <Card className="md:col-start-3">
+          <h2 className="mb-4 text-lg font-semibold text-primary-dark">Upcoming Appointments</h2>
+          <p className="text-sm text-gray-600">Select a date to view appointments.</p>
+        </Card>
+      </div>
     </PageContainer>
   );
 }

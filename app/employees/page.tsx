@@ -35,29 +35,35 @@ export default function EmployeesPage() {
 
   return (
     <PageContainer>
-      <Card className="space-y-4">
-        <h1 className="text-3xl font-bold text-primary-dark">Employees</h1>
-        <div>
-          <Link
-            href="/employees/new"
-            className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
-          >
-            Add Employee
-          </Link>
-        </div>
-        {loading ? (
-          <p>Loading…</p>
-        ) : (
-          <ul className="divide-y">
-            {rows.map((e) => (
-              <li key={e.id} className="flex justify-between py-3">
-                <span className="font-medium">{e.name}</span>
-                <span className="text-sm text-gray-600">{e.active ? "Active" : "Inactive"}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="space-y-4 md:col-span-2">
+          <h1 className="text-3xl font-bold text-primary-dark">Employees</h1>
+          <div>
+            <Link
+              href="/employees/new"
+              className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
+            >
+              Add Employee
+            </Link>
+          </div>
+          {loading ? (
+            <p>Loading…</p>
+          ) : (
+            <ul className="divide-y">
+              {rows.map((e) => (
+                <li key={e.id} className="flex justify-between py-3">
+                  <span className="font-medium">{e.name}</span>
+                  <span className="text-sm text-gray-600">{e.active ? 'Active' : 'Inactive'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card className="md:col-start-3">
+          <h2 className="mb-4 text-lg font-semibold text-primary-dark">Employee Details</h2>
+          <p className="text-sm text-gray-600">Select an employee to view details.</p>
+        </Card>
+      </div>
     </PageContainer>
   );
 }

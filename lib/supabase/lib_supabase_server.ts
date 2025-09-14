@@ -32,9 +32,11 @@ export function createClient() {
           cookieStore.set(name, value, { ...options });
         },
         remove(name: string, _options: CookieOptions) {
-          // Next.js cookieStore.delete accepts only a single parameter. Passing
-          // options caused a type error during build, so we ignore the
-          // provided options and simply delete by name.
+          // We keep the `_options` parameter for API parity with the
+          // `@supabase/ssr` interface, but the underlying `cookieStore.delete`
+          // only accepts the cookie name. Passing the options object led to a
+          // type error during builds, so the argument is intentionally ignored
+          // and only the name is supplied.
           cookieStore.delete(name);
         },
       },

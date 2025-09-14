@@ -133,19 +133,21 @@ export default function ScheduleEditor({ employeeId, initialSchedule }: Schedule
   // Approve a time off request. Update the local state and persist to Supabase.
   const approveRequest = async (requestId: string) => {
     if (!schedule) return;
-    const updatedRequests = schedule.requests.map((req) =>
-      req.id === requestId ? { ...req, status: "approved" } : req
-    );
-    await persistSchedule({ ...schedule, requests: updatedRequests });
+    // Create a typed copy of the updated requests so that TS infers the correct literal type.
+    const updatedRequests: TimeOffRequest[] = schedule.requests.map((req) =>
+      req.id === requestId ? { ...req, status: "approved" as const } : req
+    ) as TimeOffRequest[];
+    // Cast schedule as non-null Schedule when persisting to avoid null union type.
+    await persistSchedule({ ...(schedule as Schedule), requests: updatedRequests });
   };
 
   // Deny a time off request. Update the local state and persist to Supabase.
   const denyRequest = async (requestId: string) => {
     if (!schedule) return;
-    const updatedRequests = schedule.requests.map((req) =>
-      req.id === requestId ? { ...req, status: "denied" } : req
-    );
-    await persistSchedule({ ...schedule, requests: updatedRequests });
+    const updatedRequests: TimeOffRequest[] = schedule.requests.map((req) =>
+      req.id === requestId ? { ...req, status: "denied" as const } : req
+    ) as TimeOffRequest[];
+    await persistSchedule({ ...(schedule as Schedule), requests: updatedRequests });
   };
 
   /**

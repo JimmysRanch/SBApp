@@ -1,12 +1,14 @@
+"use client";
+import { useEffect, useState } from "react";
 import Card from "@/components/Card";
-
-type Props = { employeeId: string };
-
-export default function NotesCard({ employeeId }: Props) {
-  return (
-    <Card>
-      <h2 className="mb-2 text-lg font-semibold">Notes</h2>
-      <p>Sample note for {employeeId}</p>
-    </Card>
-  );
+import { supabase } from "@/supabase/client";
+type Pref={notes:string|null};
+export default function NotesCard({ employeeId }:{employeeId:number}) {
+  const [notes,setNotes]=useState("");
+  useEffect(()=>{let on=true;(async()=>{
+    const { data }=await supabase.from("employee_prefs").select("notes").eq("employee_id",employeeId).maybeSingle();
+    if(on) setNotes((data as Pref)?.notes ?? "");
+  })();return()=>{on=false};},[employeeId]);
+  return (<Card><h3 className="text-lg font-semibold">Notes</h3>
+    <p className="mt-3 text-sm whitespace-pre-wrap">{notes || "No notes"}</p></Card>);
 }

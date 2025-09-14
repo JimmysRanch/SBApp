@@ -1,53 +1,32 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import Widget from "@/components/Widget";
+import Card from "@/components/Card";
 import { supabase } from "@/supabase/client";
-
-type Props = { employeeId: string };
-
-export default function TodayWorkload({ employeeId }: Props) {
-  const [dogsToday, setDogsToday] = useState<number | null>(null);
-  const [hours, setHours] = useState<number | null>(null);
-  const [completed, setCompleted] = useState<number | null>(null);
-
-  useEffect(() => {
-    const loadWorkload = async () => {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-
-      const { data } = await supabase
-        .from("appointments")
-        .select("start_time,end_time,status")
-        .eq("employee_id", employeeId)
-        .gte("start_time", start.toISOString())
-        .lte("start_time", end.toISOString());
-
-      if (data) {
-        setDogsToday(data.length);
-        const totalHours = data.reduce((sum, row) => {
-          const startTime = new Date(row.start_time);
-          const endTime = new Date(row.end_time);
-          return sum + (endTime.getTime() - startTime.getTime()) / 3600000;
-        }, 0);
-        setHours(totalHours);
-        setCompleted(data.filter((r) => r.status === "completed").length);
-      }
-    };
-    loadWorkload();
-  }, [employeeId]);
-
-  if (dogsToday === null || hours === null || completed === null) {
-    return <Widget title="Today's Workload">Loading...</Widget>;
-  }
-
+type V={dogs_today:number;hours_today:number;completed_today:number};
+export default function TodayWorkload({ employeeId }:{employeeId:number}) {
+  const [v,setV]=useState<V|null>(null);
+  useEffect(()=>{let on=true;(async()=>{
+    const { data } = await supabase.from("v_employee_today_workload").select("*").eq("employee_id",employeeId).maybeSingle();
+    if(on) setV(data as V);
+  })();return()=>{on=false};},[employeeId]);
+  const dogs=v?.dogs_today??0, done=v?.completed_today??0, pct=dogs?Math.round(done/dogs*100):0;
   return (
-    <Widget title="Today's Workload">
-      <p>Dogs Today: {dogsToday}</p>
-      <p>Hours: {hours.toFixed(2)}</p>
-      <p>Completed: {completed}</p>
-    </Widget>
+    <Card>
+      <h3 className="text-lg font-semibold">Today’s Workload</h3>
+      <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+        <div>
+          <div className="text-2xl font-bold">{dogs}</div>
+          <div className="text-gray-600">Dogs</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold">{(v?.hours_today??0).toFixed(2)}</div>
+          <div className="text-gray-600">Hours</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold">{pct}%</div>
+          <div className="text-gray-600">Done</div>
+        </div>
+      </div>
+    </Card>
   );
 }

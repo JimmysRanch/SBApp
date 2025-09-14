@@ -1,98 +1,26 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import Widget from "@/components/Widget";
+import Card from "@/components/Card";
 import { supabase } from "@/supabase/client";
-
-type Appointment = {
-  id: string;
-  start_time: string;
-  end_time: string;
-  service: string | null;
-  status: string | null;
-  pet_id: string | null;
-  client_id: string | null;
-};
-
-type Props = { employeeId: string };
-
-export default function AppointmentsList({ employeeId }: Props) {
-  const [upcoming, setUpcoming] = useState<Appointment[]>([]);
-  const [past, setPast] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadAppointments = async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data: upcomingData } = await supabase
-        .from("appointments")
-        .select(
-          "id,start_time,end_time,service,status,pet_id,client_id"
-        )
-        .eq("employee_id", employeeId)
-        .gte("start_time", today.toISOString())
-        .order("start_time", { ascending: true })
-        .limit(20);
-
-      const { data: pastData } = await supabase
-        .from("appointments")
-        .select(
-          "id,start_time,end_time,service,status,pet_id,client_id"
-        )
-        .eq("employee_id", employeeId)
-        .lt("start_time", today.toISOString())
-        .order("start_time", { ascending: false })
-        .limit(20);
-
-      setUpcoming(upcomingData ?? []);
-      setPast(pastData ?? []);
-      setLoading(false);
-    };
-    loadAppointments();
-  }, [employeeId]);
-
-  if (loading) {
-    return <Widget title="Appointments">Loading...</Widget>;
-  }
-
-  return (
-    <Widget title="Appointments">
-      {upcoming.length === 0 && past.length === 0 ? (
-        <p className="text-sm text-gray-600">No appointments found.</p>
-      ) : (
-        <div className="space-y-4">
-          {upcoming.length > 0 && (
-            <div>
-              <h3 className="mb-1 font-semibold">Upcoming</h3>
-              <ul className="list-disc pl-5 text-sm text-gray-600">
-                {upcoming.map((appt) => (
-                  <li key={appt.id}>
-                    {new Date(appt.start_time).toLocaleString()} -
-                    {" "}
-                    {appt.service ?? "Appointment"}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {past.length > 0 && (
-            <div>
-              <h3 className="mb-1 font-semibold">Past</h3>
-              <ul className="list-disc pl-5 text-sm text-gray-600">
-                {past.map((appt) => (
-                  <li key={appt.id}>
-                    {new Date(appt.start_time).toLocaleString()} -
-                    {" "}
-                    {appt.service ?? "Appointment"}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </Widget>
-  );
+type Row={id:number;start_time:string;end_time:string|null;status:string;service?:string|null};
+export default function AppointmentsList({ employeeId,kind }:{employeeId:number;kind:"upcoming"|"past"}) {
+  const [rows,setRows]=useState<Row[]>([]);
+  useEffect(()=>{let on=true;(async()=>{
+    const now=new Date().toISOString();
+    let q=supabase.from("appointments").select("id,start_time,end_time,status,service").eq("employee_id",employeeId);
+    q = kind==="upcoming"? q.gte("start_time",now).order("start_time",{ascending:true}).limit(20)
+                         : q.lt("start_time",now).order("start_time",{ascending:false}).limit(20);
+    const { data } = await q; if(on) setRows((data||[]) as Row[]);
+  })();return()=>{on=false};},[employeeId,kind]);
+  return (<Card><h3 className="text-lg font-semibold">{kind==="upcoming"?"Upcoming Appointments":"Past Appointments"}</h3>
+    <ul className="mt-3 space-y-2 text-sm">
+      {rows.length===0 && <li className="text-gray-500">None</li>}
+      {rows.map(r=>(
+        <li key={r.id} className="flex justify-between">
+          <span>{new Date(r.start_time).toLocaleString()}</span>
+          <span className="truncate max-w-[50%] text-right">{r.service??"Service"}</span>
+          <span className="text-gray-600">{r.status}</span>
+        </li>
+      ))}
+    </ul></Card>);
 }

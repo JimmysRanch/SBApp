@@ -9,7 +9,11 @@ type Employee = { id: string; name: string; active: boolean | null };
 export default async function EmployeePage({ params }: Params) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("employees").select("id,name,active").eq("id", params.id).single();
+    .from("employees")
+    .select("id,name,active")
+    .eq("id", params.id)
+    .single();
+
   if (error || !data) notFound();
   const employee = data as Employee;
 
@@ -17,7 +21,9 @@ export default async function EmployeePage({ params }: Params) {
     <PageContainer>
       <Card>
         <h1 className="mb-4 text-3xl font-bold text-primary-dark">{employee.name}</h1>
-        <p className="text-gray-600">Status: {employee.active ? "Active" : "Inactive"}</p>
+        <p className="text-gray-600">
+          Status: {employee.active ? "Active" : "Inactive"}
+        </p>
       </Card>
     </PageContainer>
   );

@@ -12,13 +12,20 @@ import NotesCard from "./components/NotesCard";
 import PayrollWidget from "./components/PayrollWidget";
 
 type Params = { params: { id: string } };
-type Employee = { id: string; name: string; active: boolean | null };
+type Employee = {
+  id: string;
+  name: string;
+  active: boolean | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+};
 
 export default async function EmployeePage({ params }: Params) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("employees")
-    .select("id,name,active")
+    .select("id,name,active,phone,email,address")
     .eq("id", params.id)
     .single();
 
@@ -32,6 +39,9 @@ export default async function EmployeePage({ params }: Params) {
           employeeId={employee.id}
           name={employee.name}
           active={employee.active}
+          phone={employee.phone}
+          email={employee.email}
+          address={employee.address}
         />
         <WeekScheduleWidget employeeId={employee.id} />
         <TodayWorkload employeeId={employee.id} />

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Card from "@/components/Card";
 import { supabase } from "../../../../supabase/client";
+import Link from "next/link";
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 type Row = { dow: number; start_time: string | null; end_time: string | null; break_minutes: number };
 export default function WeekScheduleWidget({ employeeId }: { employeeId: number }) {
@@ -28,7 +29,9 @@ export default function WeekScheduleWidget({ employeeId }: { employeeId: number 
         ))}
       </ul>
       <div className="mt-3 text-right">
-        <a href={`./${employeeId}/schedule`} className="text-primary underline text-sm">Open calendar</a>
+        <Link href={`/employees/${employeeId}/schedule`} className="text-primary underline text-sm">
+          Open calendar
+        </Link>
       </div>
     </Card>
   );

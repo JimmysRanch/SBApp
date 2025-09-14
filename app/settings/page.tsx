@@ -1,4 +1,5 @@
 "use client";
+export const runtime = "nodejs";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
 import Link from "next/link";

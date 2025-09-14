@@ -1,3 +1,4 @@
+import TopNav from "@/components/TopNav";
 import './globals.css';
 import AuthProvider from '@/components/AuthProvider';
 
@@ -9,7 +10,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen text-gray-900 antialiased">
+      <body>
+        <TopNav />
+      
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

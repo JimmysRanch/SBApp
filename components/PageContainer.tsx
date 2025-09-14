@@ -1,12 +1,12 @@
 import { ReactNode } from 'react'
-import Sidebar from './Sidebar'
+import TopNav from './TopNav'
 import clsx from 'clsx'
 
 export default function PageContainer({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-secondary-pink via-secondary-purple to-secondary-green">
-      <Sidebar />
-      <main className={clsx('flex-1 p-6 md:p-10 space-y-6', className)}>{children}</main>
+    <div className="min-h-screen bg-gray-100">
+      <TopNav />
+      <main className={clsx('mx-auto max-w-7xl p-6 space-y-6', className)}>{children}</main>
     </div>
   )
 }

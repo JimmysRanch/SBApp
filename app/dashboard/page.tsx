@@ -15,7 +15,6 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
   return (
     <PageContainer>
-      <h1 className="text-3xl font-bold text-primary-dark">Dashboard</h1>
       <div className="grid gap-6 md:grid-cols-3">
         <Widget title="Today's Appointments" color="pink" className="md:col-span-2 md:row-span-4">
           <TodaysAppointments />

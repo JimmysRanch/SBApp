@@ -1,5 +1,8 @@
+"use client";
+
 import { ReactNode } from 'react'
 import clsx from 'clsx'
+import { motion, useReducedMotion } from 'framer-motion'
 
 interface WidgetProps {
   title: string
@@ -26,9 +29,20 @@ export default function Widget({
   headerContent
 }: WidgetProps) {
   const gradient = backgroundMap[color]
+  const shouldReduceMotion = useReducedMotion()
+
+  const motionProps = shouldReduceMotion
+    ? { initial: false }
+    : {
+        initial: { opacity: 0, y: 24, scale: 0.98 },
+        whileInView: { opacity: 1, y: 0, scale: 1 },
+        viewport: { once: true, amount: 0.2 },
+        transition: { duration: 0.5, ease: 'easeOut' as const }
+      }
 
   return (
-    <div
+    <motion.div
+      {...motionProps}
       className={clsx(
         'relative overflow-hidden rounded-[2rem] border border-white/25 text-white shadow-soft backdrop-blur-xl',
         gradient,
@@ -46,6 +60,6 @@ export default function Widget({
       <div className={clsx('relative px-6 pb-6', hideHeader ? 'pt-6' : 'pt-4')}>
         {children}
       </div>
-    </div>
+    </motion.div>
   )
 }

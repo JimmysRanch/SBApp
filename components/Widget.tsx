@@ -11,10 +11,10 @@ interface WidgetProps {
 }
 
 const backgroundMap: Record<Required<WidgetProps>['color'], string> = {
-  blue: 'bg-gradient-to-br from-[#1D4DFF] via-[#2E8CFF] to-[#55C3FF]',
+  blue: 'bg-gradient-to-br from-brand-oceanDark via-brand-ocean to-brand-oceanLight',
   pink: 'bg-gradient-to-br from-brand-bubble to-brand-bubbleDark',
-  purple: 'bg-gradient-to-br from-brand-lavender via-[#5B7DFF] to-primary',
-  green: 'bg-gradient-to-br from-brand-mint via-[#3CE0B7] to-[#43F0C5]'
+  purple: 'bg-gradient-to-br from-brand-lavender via-brand-indigoGlow to-primary',
+  green: 'bg-gradient-to-br from-brand-mint via-brand-mintBright to-brand-mintLuminous'
 }
 
 export default function Widget({
@@ -30,20 +30,20 @@ export default function Widget({
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-[2rem] border border-white/25 text-white shadow-soft backdrop-blur-xl',
+        'relative overflow-hidden rounded-5xl border border-border-contrast text-text-inverse shadow-elevation-lg backdrop-blur-xl',
         gradient,
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/25 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-80 w-80 rounded-full bg-white/10 blur-[160px]" />
+      <div className="pointer-events-none absolute -right-space-4xl -top-space-5xl h-space-7xl w-space-7xl rounded-full bg-surface-overlay blur-glow" />
+      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-space-8xl w-space-8xl rounded-full bg-surface-glass blur-halo" />
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-6 pt-6">
-          <h2 className="text-lg font-semibold tracking-tight drop-shadow-md">{title}</h2>
+        <div className="relative flex items-center justify-between px-space-lg pt-space-lg">
+          <h2 className="text-title-sm font-emphasis tracking-tight drop-shadow-md">{title}</h2>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-6 pb-6', hideHeader ? 'pt-6' : 'pt-4')}>
+      <div className={clsx('relative px-space-lg pb-space-lg', hideHeader ? 'pt-space-lg' : 'pt-space-md')}>
         {children}
       </div>
     </div>

@@ -17,25 +17,25 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
   return (
     <PageContainer>
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-6 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0">
         <Widget
           title="Today's Appointments"
           color="blue"
-          className="md:col-span-2 md:row-span-4"
+          className="min-w-full snap-center md:min-w-0 md:col-span-2 md:row-span-4"
           hideHeader
         >
           <TodaysAppointments />
         </Widget>
-        <Widget title="Employee Workload" color="purple" className="md:col-start-3">
+        <Widget title="Employee Workload" color="purple" className="min-w-full snap-center md:min-w-0 md:col-start-3">
           <EmployeeWorkload />
         </Widget>
-        <Widget title="Revenue" color="green" className="md:col-start-3">
+        <Widget title="Revenue" color="green" className="min-w-full snap-center md:min-w-0 md:col-start-3">
           <Revenue />
         </Widget>
-        <Widget title="Messages" color="purple" className="md:col-start-3">
+        <Widget title="Messages" color="purple" className="min-w-full snap-center md:min-w-0 md:col-start-3">
           <Messages />
         </Widget>
-        <Widget title="Quick Actions" color="pink" className="md:col-start-3">
+        <Widget title="Quick Actions" color="pink" className="min-w-full snap-center md:min-w-0 md:col-start-3">
           <div className="flex flex-col space-y-3">
             {[
               'Book Appointment',

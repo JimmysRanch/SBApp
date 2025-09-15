@@ -38,12 +38,17 @@ export default function Widget({
       <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/25 blur-[120px]" />
       <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-80 w-80 rounded-full bg-white/10 blur-[160px]" />
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-6 pt-6">
+        <div className="relative flex flex-col gap-3 px-5 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
           <h2 className="text-lg font-semibold tracking-tight drop-shadow-md">{title}</h2>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-6 pb-6', hideHeader ? 'pt-6' : 'pt-4')}>
+      <div
+        className={clsx(
+          'relative px-5 pb-5 sm:px-6 sm:pb-6',
+          hideHeader ? 'pt-5 sm:pt-6' : 'pt-4'
+        )}
+      >
         {children}
       </div>
     </div>

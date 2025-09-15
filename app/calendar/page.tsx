@@ -206,51 +206,51 @@ export default function CalendarPage() {
   return (
     <PageContainer>
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-2">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            {(["day", "week", "month", "list"] as const).map((v) => (
-              <button
-                key={v}
-                className={clsx(
-                  "rounded px-2 py-1 text-sm",
-                  view === v
-                    ? "bg-primary-light text-white"
-                    : "border hover:bg-gray-100"
-                )}
-                onClick={() => handleViewChange(v)}
-              >
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
-            ))}
+        <Card className="space-y-6 md:col-span-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="flex w-full gap-2 overflow-x-auto rounded-full bg-brand-bubble/10 p-1 text-sm sm:w-auto sm:overflow-visible sm:bg-transparent sm:p-0">
+              {(["day", "week", "month", "list"] as const).map((v) => (
+                <button
+                  key={v}
+                  className={clsx(
+                    "flex-shrink-0 rounded-full px-3 py-1 text-sm font-semibold transition",
+                    view === v
+                      ? "bg-brand-bubble text-white shadow"
+                      : "bg-white/60 text-primary-dark hover:bg-white"
+                  )}
+                  onClick={() => handleViewChange(v)}
+                >
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+            </div>
+            <select
+              className="w-full rounded-full border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-bubble focus:ring-2 focus:ring-brand-bubble/30 sm:w-56"
+              value={groomer}
+              onChange={(e) => setGroomer(e.target.value)}
+            >
+              <option value="All">All Groomers</option>
+              {groomers.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            className="rounded border px-2 py-1 text-sm"
-            value={groomer}
-            onChange={(e) => setGroomer(e.target.value)}
-          >
-            <option value="All">All Groomers</option>
-            {groomers.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-        </div>
 
         {view !== "list" && (
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3 sm:justify-start">
               <button
-                className="rounded p-1 hover:bg-gray-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-primary-dark shadow-sm transition hover:bg-white"
                 onClick={goPrev}
                 aria-label="Previous"
               >
                 <ChevronLeftIcon className="h-5 w-5" />
               </button>
-              <h1 className="text-3xl font-bold text-primary-dark">{label()}</h1>
+              <h1 className="text-2xl font-bold text-primary-dark sm:text-3xl">{label()}</h1>
               <button
-                className="rounded p-1 hover:bg-gray-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-primary-dark shadow-sm transition hover:bg-white"
                 onClick={goNext}
                 aria-label="Next"
               >
@@ -258,7 +258,7 @@ export default function CalendarPage() {
               </button>
             </div>
             <button
-              className="rounded border px-2 py-1 text-sm hover:bg-gray-100"
+              className="w-full rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-primary-dark shadow-sm transition hover:bg-white sm:w-auto"
               onClick={goToday}
             >
               Today
@@ -267,10 +267,10 @@ export default function CalendarPage() {
         )}
 
         {view === "month" && (
-          <>
-            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[40rem] grid-cols-7 gap-2 text-center text-xs sm:text-sm">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                <div key={d} className="font-medium">
+                <div key={d} className="font-medium text-primary-dark">
                   {d}
                 </div>
               ))}
@@ -285,16 +285,16 @@ export default function CalendarPage() {
                     key={key}
                     onClick={() => handleDayClick(day)}
                     className={clsx(
-                      "relative h-24 cursor-pointer rounded border p-1 text-left transition-colors hover:bg-secondary-green/40",
+                      "relative h-24 cursor-pointer rounded-xl border p-1 text-left transition-colors hover:bg-secondary-green/40",
                       isCurrentMonth ? "bg-white" : "bg-gray-50 text-gray-400",
                       isToday && "border-primary-light",
                       isSelected && "ring-2 ring-primary-light"
                     )}
                   >
-                    <div className="mb-1 flex justify-between text-xs">
+                    <div className="mb-1 flex justify-between text-[0.65rem] sm:text-xs">
                       <span>{day.getDate()}</span>
                       {appts.length > 0 && (
-                        <span className="rounded bg-primary-light px-1 text-[10px] text-white">
+                        <span className="rounded bg-primary-light px-1 text-[0.6rem] text-white">
                           {appts.length}
                         </span>
                       )}
@@ -302,7 +302,7 @@ export default function CalendarPage() {
                     {appts.slice(0, 2).map((a) => (
                       <div
                         key={a.id}
-                        className="mb-1 truncate rounded bg-primary-light px-1 text-[10px] text-white"
+                        className="mb-1 truncate rounded bg-primary-light/90 px-1 text-[0.6rem] text-white"
                       >
                         {new Date(a.start_time).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -312,7 +312,7 @@ export default function CalendarPage() {
                       </div>
                     ))}
                     {appts.length > 2 && (
-                      <div className="text-[10px] text-primary-dark">
+                      <div className="text-[0.6rem] text-primary-dark">
                         +{appts.length - 2} more
                       </div>
                     )}
@@ -320,15 +320,14 @@ export default function CalendarPage() {
                 );
               })}
             </div>
-
-          </>
+          </div>
         )}
 
         {view === "week" && (
-          <>
-            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[40rem] grid-cols-7 gap-2 text-center text-xs sm:text-sm">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                <div key={d} className="font-medium">
+                <div key={d} className="font-medium text-primary-dark">
                   {d}
                 </div>
               ))}
@@ -342,16 +341,16 @@ export default function CalendarPage() {
                     key={key}
                     onClick={() => handleDayClick(day)}
                     className={clsx(
-                      "relative h-24 cursor-pointer rounded border p-1 text-left transition-colors hover:bg-secondary-green/40",
+                      "relative h-24 cursor-pointer rounded-xl border p-1 text-left transition-colors hover:bg-secondary-green/40",
                       "bg-white",
                       isToday && "border-primary-light",
                       isSelected && "ring-2 ring-primary-light"
                     )}
                   >
-                    <div className="mb-1 flex justify-between text-xs">
+                    <div className="mb-1 flex justify-between text-[0.65rem] sm:text-xs">
                       <span>{day.getDate()}</span>
                       {appts.length > 0 && (
-                        <span className="rounded bg-primary-light px-1 text-[10px] text-white">
+                        <span className="rounded bg-primary-light px-1 text-[0.6rem] text-white">
                           {appts.length}
                         </span>
                       )}
@@ -359,7 +358,7 @@ export default function CalendarPage() {
                     {appts.slice(0, 2).map((a) => (
                       <div
                         key={a.id}
-                        className="mb-1 truncate rounded bg-primary-light px-1 text-[10px] text-white"
+                        className="mb-1 truncate rounded bg-primary-light/90 px-1 text-[0.6rem] text-white"
                       >
                         {new Date(a.start_time).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -369,7 +368,7 @@ export default function CalendarPage() {
                       </div>
                     ))}
                     {appts.length > 2 && (
-                      <div className="text-[10px] text-primary-dark">
+                      <div className="text-[0.6rem] text-primary-dark">
                         +{appts.length - 2} more
                       </div>
                     )}
@@ -377,14 +376,13 @@ export default function CalendarPage() {
                 );
               })}
             </div>
-
-          </>
+          </div>
         )}
 
         {view === "day" && (
-          <div className="mt-6">
-            <h2 className="mb-2 text-lg font-semibold">
-              Appointments on{" "}
+          <div className="mt-4 space-y-3">
+            <h2 className="text-lg font-semibold text-primary-dark">
+              Appointments on {" "}
               {current.toLocaleDateString(undefined, {
                 weekday: "long",
                 month: "long",
@@ -392,14 +390,14 @@ export default function CalendarPage() {
               })}
             </h2>
             {dayAppts.length ? (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {dayAppts.map((a) => (
                   <li
                     key={a.id}
-                    className="flex justify-between rounded border p-2 text-sm"
+                    className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white/80 p-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
-                      <div className="font-medium">{a.pets?.[0]?.name ?? "-"}</div>
+                    <div className="space-y-1 text-left">
+                      <div className="font-semibold text-primary-dark">{a.pets?.[0]?.name ?? "-"}</div>
                       <div className="text-xs text-gray-500">
                         {a.clients?.[0]?.full_name ?? "-"}
                       </div>
@@ -408,8 +406,8 @@ export default function CalendarPage() {
                         {a.groomer_name ?? "-"}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div>
+                    <div className="flex flex-col items-start gap-2 text-xs font-semibold text-primary-dark sm:items-end sm:text-right">
+                      <div className="text-sm">
                         {new Date(a.start_time).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -417,7 +415,7 @@ export default function CalendarPage() {
                       </div>
                       <div
                         className={clsx(
-                          "mt-1 inline-block rounded px-2 text-xs capitalize",
+                          "inline-flex items-center rounded-full px-3 py-1 text-xs capitalize",
                           {
                             pending: "bg-yellow-100 text-yellow-800",
                             scheduled: "bg-blue-100 text-blue-800",
@@ -441,14 +439,14 @@ export default function CalendarPage() {
         {view === "list" && (
           <div className="mt-4">
             {listAppts.length ? (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {listAppts.map((a) => (
                   <li
                     key={a.id}
-                    className="flex justify-between rounded border p-2 text-sm"
+                    className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white/80 p-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
-                      <div className="font-medium">{a.pets?.[0]?.name ?? "-"}</div>
+                    <div className="space-y-1 text-left">
+                      <div className="font-semibold text-primary-dark">{a.pets?.[0]?.name ?? "-"}</div>
                       <div className="text-xs text-gray-500">
                         {a.clients?.[0]?.full_name ?? "-"}
                       </div>
@@ -457,8 +455,8 @@ export default function CalendarPage() {
                         {a.groomer_name ?? "-"}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div>
+                    <div className="flex flex-col items-start gap-2 text-xs font-semibold text-primary-dark sm:items-end sm:text-right">
+                      <div className="text-sm">
                         {new Date(a.start_time).toLocaleString([], {
                           month: "short",
                           day: "numeric",
@@ -468,7 +466,7 @@ export default function CalendarPage() {
                       </div>
                       <div
                         className={clsx(
-                          "mt-1 inline-block rounded px-2 text-xs capitalize",
+                          "inline-flex items-center rounded-full px-3 py-1 text-xs capitalize",
                           {
                             pending: "bg-yellow-100 text-yellow-800",
                             scheduled: "bg-blue-100 text-blue-800",

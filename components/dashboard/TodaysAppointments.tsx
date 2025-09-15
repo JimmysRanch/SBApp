@@ -75,12 +75,12 @@ export default function TodaysAppointments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between text-white">
+      <div className="flex flex-col gap-3 text-white sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
           <h3 className="text-2xl font-semibold tracking-tight drop-shadow-sm">{today}</h3>
         </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-lg font-semibold text-white shadow-inner">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-base font-semibold text-white shadow-inner sm:h-12 sm:w-12 sm:text-lg">
           {appointments.length}
         </span>
       </div>
@@ -88,7 +88,7 @@ export default function TodaysAppointments() {
         {appointments.map((appt) => (
           <li
             key={appt.id}
-            className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur"
+            className="flex flex-col gap-3 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur sm:grid sm:grid-cols-[auto,1fr,auto] sm:items-center sm:gap-4"
           >
             <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-2xl">
               🐶
@@ -97,11 +97,11 @@ export default function TodaysAppointments() {
               <p className="text-sm font-semibold text-brand-navy">{appt.pet_name}</p>
               <p className="text-xs text-brand-navy/70">{appt.client_name}</p>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-semibold text-brand-navy">{appt.time}</div>
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-brand-navy sm:flex-col sm:items-end sm:gap-3 sm:text-right">
+              <div>{appt.time}</div>
               <span
                 className={clsx(
-                  'mt-2 inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide',
+                  'inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide',
                   statusStyles[appt.status] ?? 'bg-white/40 text-brand-navy'
                 )}
               >

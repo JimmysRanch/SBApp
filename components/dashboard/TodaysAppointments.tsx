@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import clsx from 'clsx'
 
 interface Appointment {
   id: string
@@ -8,6 +9,14 @@ interface Appointment {
   pet_name: string
   client_name: string
   status: string
+}
+
+const statusStyles: Record<string, string> = {
+  Completed: 'bg-brand-mint/30 text-brand-navy',
+  Upcoming: 'bg-white/40 text-brand-navy',
+  Cancelled: 'bg-brand-bubble/40 text-white',
+  'In Progress': 'bg-brand-sunshine/60 text-brand-navy',
+  'Checked In': 'bg-brand-lavender/40 text-white'
 }
 
 export default function TodaysAppointments() {
@@ -47,37 +56,61 @@ export default function TodaysAppointments() {
   }, [])
 
   if (loading) {
-    return <div>Loading...</div>
+    return <div className="text-white/80">Loading...</div>
   }
 
   if (appointments.length === 0) {
-    return <div>No appointments today.</div>
+    return (
+      <div className="rounded-3xl border border-white/30 bg-white/10 p-6 text-white/80 backdrop-blur-md">
+        No appointments today.
+      </div>
+    )
   }
 
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  })
+
   return (
-    <ul className="space-y-2">
-      {appointments.map((appt) => (
-        <li key={appt.id} className="flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="font-medium">{appt.time}</span>
-            <span>{appt.pet_name}</span>
-            <span className="text-sm text-gray-500">{appt.client_name}</span>
-          </div>
-          <span className={
-            appt.status === 'Completed'
-              ? 'text-green-600'
-              : appt.status === 'Cancelled'
-              ? 'text-orange-600'
-              : appt.status === 'In Progress'
-              ? 'text-green-500'
-              : appt.status === 'Checked In'
-              ? 'text-blue-600'
-              : 'text-gray-600'
-          }>
-            {appt.status}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between text-white">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
+          <h3 className="text-2xl font-semibold tracking-tight drop-shadow-sm">{today}</h3>
+        </div>
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-lg font-semibold text-white shadow-inner">
+          {appointments.length}
+        </span>
+      </div>
+      <ul className="space-y-3">
+        {appointments.map((appt) => (
+          <li
+            key={appt.id}
+            className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur"
+          >
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-2xl">
+              🐶
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-brand-navy">{appt.pet_name}</p>
+              <p className="text-xs text-brand-navy/70">{appt.client_name}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-semibold text-brand-navy">{appt.time}</div>
+              <span
+                className={clsx(
+                  'mt-2 inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide',
+                  statusStyles[appt.status] ?? 'bg-white/40 text-brand-navy'
+                )}
+              >
+                {appt.status}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

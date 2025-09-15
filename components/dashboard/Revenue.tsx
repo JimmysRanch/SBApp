@@ -40,16 +40,21 @@ export default function Revenue() {
     fetchRevenue()
   }, [])
 
-  if (loading) return <div>Loading...</div>
+  const format = (value: number | null) => (value ?? 0).toFixed(2)
+
+  if (loading) return <div className="text-white/80">Loading...</div>
   return (
-    <div className="flex flex-col space-y-2">
-      <div>
-        <span className="text-3xl font-bold">${todayRevenue?.toFixed(2)}</span>
-        <p className="text-xs text-gray-500">Today&apos;s Revenue</p>
+    <div className="space-y-4 text-white">
+      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
+        <div className="mt-2 flex items-end gap-2">
+          <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
+          <span className="text-xs text-white/70">so far</span>
+        </div>
       </div>
-      <div>
-        <span className="text-xl font-semibold">${weekRevenue?.toFixed(2)}</span>
-        <p className="text-xs text-gray-500">This Week</p>
+      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
+        <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
       </div>
     </div>
   )

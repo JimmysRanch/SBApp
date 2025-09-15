@@ -32,16 +32,41 @@ export default function EmployeeWorkload() {
     fetchWorkloads()
   }, [])
 
-  if (loading) return <div>Loading...</div>
-  if (workloads.length === 0) return <div>No active jobs.</div>
+  if (loading) return <div className="text-white/80">Loading...</div>
+  if (workloads.length === 0)
+    return (
+      <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/85 backdrop-blur-lg">
+        No active jobs.
+      </div>
+    )
+
+  const max = workloads.length ? Math.max(...workloads.map((w) => w.count), 1) : 1
+
   return (
-    <ul className="space-y-1">
-      {workloads.map((wl) => (
-        <li key={wl.employee_name} className="flex justify-between">
-          <span>{wl.employee_name}</span>
-          <span className="font-semibold">{wl.count}</span>
-        </li>
-      ))}
+    <ul className="space-y-3 text-white/90">
+      {workloads.map((wl) => {
+        const width = Math.max((wl.count / max) * 100, 12)
+        return (
+          <li
+            key={wl.employee_name}
+            className="rounded-3xl border border-white/15 bg-white/10 p-4 shadow-inner backdrop-blur"
+          >
+            <div className="flex items-center justify-between text-sm font-semibold tracking-tight">
+              <span>{wl.employee_name}</span>
+              <span className="flex items-center gap-1 text-xs uppercase">
+                <span className="inline-flex h-2 w-2 rounded-full bg-white/80" />
+                {wl.count} {wl.count === 1 ? 'dog' : 'dogs'}
+              </span>
+            </div>
+            <div className="mt-3 h-2 rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-white/80"
+                style={{ width: `${width}%` }}
+              />
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }

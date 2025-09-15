@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -11,6 +11,12 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const headingId = useId();
+  const descriptionId = useId();
+  const errorId = useId();
+  const emailId = useId();
+  const passwordId = useId();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,31 +37,43 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
+      aria-labelledby={headingId}
+      aria-describedby={err ? `${descriptionId} ${errorId}` : descriptionId}
       className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
     >
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
           Welcome back
         </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
+        <h1 id={headingId} className="text-3xl font-black tracking-tight text-brand-navy">
           Scruffy squad <span className="ml-1">🐶</span>
         </h1>
-        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
+        <p id={descriptionId} className="text-sm text-brand-navy/70">
+          Sign in to keep the tails wagging.
+        </p>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
+        <div
+          id={errorId}
+          role="alert"
+          className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700"
+        >
           {err}
         </div>
       )}
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Email</label>
+          <label htmlFor={emailId} className="block text-sm font-semibold text-brand-navy">
+            Email
+          </label>
           <input
+            id={emailId}
             className="w-full"
             type="email"
             required
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
@@ -63,11 +81,15 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Password</label>
+          <label htmlFor={passwordId} className="block text-sm font-semibold text-brand-navy">
+            Password
+          </label>
           <input
+            id={passwordId}
             className="w-full"
             type="password"
             required
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
@@ -78,16 +100,22 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+        className="focus-ring w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
       <div className="flex justify-between text-sm text-brand-navy/70">
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
+        <a
+          className="focus-ring font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark"
+          href="/signup"
+        >
           Create account
         </a>
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
+        <a
+          className="focus-ring font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark"
+          href="/reset-password"
+        >
           Forgot password?
         </a>
       </div>

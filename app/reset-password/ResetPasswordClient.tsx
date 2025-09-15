@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -14,6 +14,19 @@ export default function ResetPasswordClient() {
   const [confirm, setConfirm] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const requestHeadingId = useId();
+  const requestEmailId = useId();
+  const resetHeadingId = useId();
+  const newPasswordId = useId();
+  const confirmPasswordId = useId();
+  const feedbackErrorId = useId();
+  const feedbackMessageId = useId();
+  const describedByIds = [
+    err ? feedbackErrorId : null,
+    msg ? feedbackMessageId : null,
+  ].filter((value): value is string => Boolean(value));
+  const describedByAttr = describedByIds.length ? describedByIds.join(' ') : undefined;
 
   const origin =
     typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL;
@@ -55,27 +68,107 @@ export default function ResetPasswordClient() {
   return (
     <>
       {stage === 'request' ? (
-        <form onSubmit={sendEmail} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Reset your password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">Email</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="email" required
-                 value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Send reset link</button>
+        <form
+          onSubmit={sendEmail}
+          aria-labelledby={requestHeadingId}
+          aria-describedby={describedByAttr}
+          className="w-full max-w-sm rounded border bg-white p-6"
+        >
+          <h1 id={requestHeadingId} className="mb-4 text-xl font-semibold">
+            Reset your password
+          </h1>
+          {err && (
+            <div
+              id={feedbackErrorId}
+              role="alert"
+              className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {err}
+            </div>
+          )}
+          {msg && (
+            <div
+              id={feedbackMessageId}
+              role="status"
+              aria-live="polite"
+              className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700"
+            >
+              {msg}
+            </div>
+          )}
+          <label htmlFor={requestEmailId} className="block text-sm font-medium">
+            Email
+          </label>
+          <input
+            id={requestEmailId}
+            className="mt-1 mb-4 w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+          <button className="focus-ring w-full rounded bg-black px-4 py-2 text-white">
+            Send reset link
+          </button>
         </form>
       ) : (
-        <form onSubmit={doReset} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Set a new password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">New password</label>
-          <input className="mt-1 mb-3 w-full rounded border px-3 py-2" type="password" required
-                 value={password} onChange={(e) => setPassword(e.target.value)} />
-          <label className="block text-sm font-medium">Confirm password</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="password" required
-                 value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Update password</button>
+        <form
+          onSubmit={doReset}
+          aria-labelledby={resetHeadingId}
+          aria-describedby={describedByAttr}
+          className="w-full max-w-sm rounded border bg-white p-6"
+        >
+          <h1 id={resetHeadingId} className="mb-4 text-xl font-semibold">
+            Set a new password
+          </h1>
+          {err && (
+            <div
+              id={feedbackErrorId}
+              role="alert"
+              className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {err}
+            </div>
+          )}
+          {msg && (
+            <div
+              id={feedbackMessageId}
+              role="status"
+              aria-live="polite"
+              className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700"
+            >
+              {msg}
+            </div>
+          )}
+          <label htmlFor={newPasswordId} className="block text-sm font-medium">
+            New password
+          </label>
+          <input
+            id={newPasswordId}
+            className="mt-1 mb-3 w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <label htmlFor={confirmPasswordId} className="block text-sm font-medium">
+            Confirm password
+          </label>
+          <input
+            id={confirmPasswordId}
+            className="mt-1 mb-4 w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+          <button className="focus-ring w-full rounded bg-black px-4 py-2 text-white">
+            Update password
+          </button>
         </form>
       )}
     </>

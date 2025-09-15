@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { ScruffyIcon } from './icons';
 
 export default function LoginForm() {
   const params = useSearchParams();
@@ -37,8 +38,9 @@ export default function LoginForm() {
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
           Welcome back
         </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
-          Scruffy squad <span className="ml-1">🐶</span>
+        <h1 className="flex items-center gap-2 text-3xl font-black tracking-tight text-brand-navy">
+          <span>Scruffy squad</span>
+          <ScruffyIcon name="dog" size={28} className="text-brand-bubble" aria-hidden />
         </h1>
         <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
       </div>

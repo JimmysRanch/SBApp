@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import clsx from 'clsx'
+import { ScruffyIcon } from '../icons'
 
 interface Appointment {
   id: string
@@ -90,8 +91,8 @@ export default function TodaysAppointments() {
             key={appt.id}
             className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur"
           >
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-2xl">
-              🐶
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-brand-bubble">
+              <ScruffyIcon name="paw" size={26} aria-hidden />
             </div>
             <div>
               <p className="text-sm font-semibold text-brand-navy">{appt.pet_name}</p>

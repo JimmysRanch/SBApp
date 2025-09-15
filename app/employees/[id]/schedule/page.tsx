@@ -27,7 +27,7 @@ export default async function EmployeeSchedulePage({
   return (
     <PageContainer>
       {/* Title could be added here if desired */}
-      <ScheduleEditor employeeId={empId} initialSchedule={employee.schedule} />
+      <ScheduleEditor employeeId={params.id} initialSchedule={employee.schedule} />
     </PageContainer>
   );
 }

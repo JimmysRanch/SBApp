@@ -65,12 +65,12 @@ export default async function EmployeePage({ params }: Params) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div>
           <ProfileCard employee={employee} />
-          <WeekScheduleWidget employee={employee} />
+          <WeekScheduleWidget employeeId={empId} />
           <NotesCard employeeId={empId} />
         </div>
         <div>
           <TodayWorkload employeeId={empId} />
-          <AppointmentsList employeeId={empId} />
+            <AppointmentsList employeeId={empId} kind="upcoming" />
         </div>
         <div className="flex flex-col space-y-4">
           <PerformanceCard employeeId={empId} />

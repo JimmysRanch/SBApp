@@ -3,27 +3,21 @@ import clsx from 'clsx'
 
 interface WidgetProps {
   title: string
-  color?: 'pink' | 'purple' | 'green'
+  color?: 'accent' | 'progress' | 'success'
   children: ReactNode
   className?: string
 }
 
-// A simple card with a thin colored header matching the supplied color. See the
-// dashboard mockups for examples of how these widgets should look.
-export default function Widget({ title, color = 'pink', children, className }: WidgetProps) {
+export default function Widget({ title, color = 'accent', children, className }: WidgetProps) {
   const headerColor = {
-    pink: 'bg-secondary-pink',
-    purple: 'bg-secondary-purple',
-    green: 'bg-secondary-green',
+    accent: 'bg-accent',
+    progress: 'bg-progress',
+    success: 'bg-success'
   }[color]
   return (
-    <div className={clsx('overflow-hidden rounded-3xl bg-white shadow', className)}>
-      <div className={clsx('px-5 py-3 text-sm font-semibold text-primary-dark', headerColor)}>
-        {title}
-      </div>
-      <div className="p-5">
-        {children}
-      </div>
+    <div className={clsx('card', className)}>
+      <div className={clsx('card-header text-white', headerColor)}>{title}</div>
+      <div className="card-body">{children}</div>
     </div>
   )
 }

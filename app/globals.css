@@ -2,7 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom global styles */
+:root {
+  --sb-bg: linear-gradient(to bottom, #0b5fff, #19a2ff);
+  --sb-primary: #0b5fff;
+  --sb-primary-700: #084bcc;
+  --sb-accent: #ff3aa6;
+  --sb-accent-700: #cc2e84;
+  --sb-surface: #ffffff;
+  --sb-muted: #f2f6ff;
+  --sb-text: #0f172a;
+  --info: #3b82f6;
+  --success: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --progress: #a855f7;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 9999px;
+  --shadow-card: 0 8px 24px rgba(2, 6, 23, 0.08);
+}
+
+.sb-gradient {
+  background-image: var(--sb-bg);
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-muted text-text;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.rounded-pill {
+  border-radius: var(--radius-pill);
+}
+
+.card {
+  @apply rounded-sb bg-surface shadow-card;
+}
+.card-header {
+  @apply mb-4 font-semibold;
+}
+.card-body {
+  @apply p-4;
+}
+.card-footer {
+  @apply mt-4;
+}
+
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-sb font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent;
+}
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary-700;
+}
+.btn-secondary {
+  @apply bg-muted text-text hover:bg-primary/10;
+}
+.btn-accent {
+  @apply bg-accent text-white hover:bg-accent-700;
+}
+.btn-ghost {
+  @apply bg-transparent text-text hover:bg-muted;
+}
+.btn-destructive {
+  @apply bg-danger text-white hover:bg-danger/90;
+}
+
+.chip {
+  @apply inline-flex items-center rounded-pill px-2 py-0.5 text-xs font-medium;
 }

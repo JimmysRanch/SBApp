@@ -31,52 +31,63 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full max-w-md rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur"
+      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
     >
-      <h1 className="mb-2 text-2xl font-bold text-primary-dark">
-        Welcome back! <span className="ml-1">🐶</span>
-      </h1>
-      <p className="mb-6 text-sm text-gray-600">Sign in to continue.</p>
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
+          Welcome back
+        </p>
+        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
+          Scruffy squad <span className="ml-1">🐶</span>
+        </h1>
+        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
+      </div>
 
       {err && (
-        <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
           {err}
         </div>
       )}
 
-      <label className="block text-sm font-medium text-gray-700">Email</label>
-      <input
-        className="mt-1 mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-light"
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
-      />
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <label className="block text-sm font-semibold text-brand-navy">Email</label>
+          <input
+            className="w-full"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+        </div>
 
-      <label className="block text-sm font-medium text-gray-700">Password</label>
-      <input
-        className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-light"
-        type="password"
-        required
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="••••••••"
-      />
+        <div className="space-y-1">
+          <label className="block text-sm font-semibold text-brand-navy">Password</label>
+          <input
+            className="w-full"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+      </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark disabled:opacity-60"
+        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <div className="mt-6 flex justify-between text-sm">
-        <a className="text-primary-light underline transition-colors hover:text-primary-dark" href="/signup">
+      <div className="flex justify-between text-sm text-brand-navy/70">
+        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
           Create account
         </a>
-        <a className="text-primary-light underline transition-colors hover:text-primary-dark" href="/reset-password">
+        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
           Forgot password?
         </a>
       </div>

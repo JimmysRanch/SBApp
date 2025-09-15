@@ -25,12 +25,14 @@ export default function LoginBanner() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="mb-6 flex flex-wrap items-center gap-2 rounded border p-3 text-sm">
+    <form
+      onSubmit={onSubmit}
+      className="glass-panel mb-6 flex flex-wrap items-center gap-3 bg-white/95 p-4 text-sm text-brand-navy"
+    >
       <input
         type="email"
         required
         placeholder="Email"
-        className="rounded border p-1"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
@@ -38,18 +40,17 @@ export default function LoginBanner() {
         type="password"
         required
         placeholder="Password"
-        className="rounded border p-1"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-primary px-3 py-1 text-white disabled:opacity-60"
+        className="rounded-full bg-brand-bubble px-4 py-2 font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Logging in...' : 'Login'}
       </button>
-      {err && <span className="ml-2 text-red-600">{err}</span>}
+      {err && <span className="ml-2 font-medium text-red-600">{err}</span>}
     </form>
   );
 }

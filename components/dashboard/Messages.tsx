@@ -27,14 +27,35 @@ export default function Messages() {
     fetchMessages()
   }, [])
 
-  if (loading) return <div>Loading...</div>
-  if (!messages.length) return <div>No messages.</div>
+  const formatTime = (date: string) =>
+    new Date(date).toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
+  if (loading) return <div className="text-white/80">Loading...</div>
+  if (!messages.length)
+    return (
+      <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/80 backdrop-blur-lg">
+        No messages yet.
+      </div>
+    )
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {messages.map((msg) => (
-        <li key={msg.id} className="border rounded-lg p-2 bg-gray-50">
-          <p className="text-sm font-medium">{msg.sender} → {msg.recipient}</p>
-          <p className="text-sm text-gray-700 truncate" title={msg.body}>{msg.body}</p>
+        <li
+          key={msg.id}
+          className="rounded-3xl border border-white/25 bg-white/95 p-4 text-brand-navy shadow-lg backdrop-blur"
+        >
+          <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-brand-navy/70">
+            <span>
+              {msg.sender} → {msg.recipient}
+            </span>
+            <span>{formatTime(msg.created_at)}</span>
+          </div>
+          <p className="mt-2 max-h-14 overflow-hidden text-sm text-brand-navy/80" title={msg.body}>
+            {msg.body}
+          </p>
         </li>
       ))}
     </ul>

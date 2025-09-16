@@ -12,6 +12,25 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const launchConfetti = async () => {
+    const { default: confetti } = await import('canvas-confetti');
+
+    const defaults = {
+      startVelocity: 45,
+      spread: 360,
+      ticks: 80,
+      gravity: 0.8,
+      zIndex: 2000,
+      colors: ['#f472b6', '#38bdf8', '#facc15', '#34d399', '#a855f7'],
+    } as const;
+
+    confetti({ ...defaults, particleCount: 140, origin: { x: 0.2, y: 0.6 } });
+    confetti({ ...defaults, particleCount: 140, origin: { x: 0.8, y: 0.6 } });
+    confetti({ ...defaults, particleCount: 220, scalar: 1.1, origin: { x: 0.5, y: 0.45 } });
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -19,11 +38,11 @@ export default function LoginForm() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      await launchConfetti().catch(() => undefined);
       // Use a full page reload so server components can pick up the new session.
       window.location.href = '/';
     } catch (e: any) {
       setErr(e?.message || 'Sign in failed');
-    } finally {
       setLoading(false);
     }
   };

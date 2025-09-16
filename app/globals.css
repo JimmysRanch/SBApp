@@ -16,7 +16,7 @@
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white;
   }
 
   label {
@@ -34,6 +34,14 @@
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sunshine;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy;
+  }
+
+  .focus-ring-muted {
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sunshine;
   }
 }

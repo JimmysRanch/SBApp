@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent, useId } from "react";
 import { useRouter } from "next/navigation";
 import PageContainer from "@/components/PageContainer";
 import { supabase } from "@/supabase/client";
@@ -16,6 +16,10 @@ export default function EmployeeSettings({ params }: { params: Params }) {
     emergency_contact: "",
   });
   const [loading, setLoading] = useState(true);
+  const headingId = useId();
+  const payRateId = useId();
+  const addressId = useId();
+  const emergencyId = useId();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,42 +73,57 @@ export default function EmployeeSettings({ params }: { params: Params }) {
 
   return (
     <PageContainer>
-      <h1 className="text-2xl font-bold mb-4">Employee Settings</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+      <h1 id={headingId} className="mb-4 text-2xl font-bold">
+        Employee Settings
+      </h1>
+      <form
+        onSubmit={handleSubmit}
+        aria-labelledby={headingId}
+        className="max-w-md space-y-4"
+      >
         <div>
-          <label className="block font-medium mb-1">Pay Rate</label>
+          <label htmlFor={payRateId} className="mb-1 block font-medium">
+            Pay rate
+          </label>
           <input
+            id={payRateId}
             type="number"
             step="0.01"
             name="pay_rate"
             value={form.pay_rate}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
           />
         </div>
         <div>
-          <label className="block font-medium mb-1">Address</label>
+          <label htmlFor={addressId} className="mb-1 block font-medium">
+            Address
+          </label>
           <input
+            id={addressId}
             type="text"
             name="address"
             value={form.address}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
           />
         </div>
         <div>
-          <label className="block font-medium mb-1">Emergency Contact</label>
+          <label htmlFor={emergencyId} className="mb-1 block font-medium">
+            Emergency contact
+          </label>
           <input
+            id={emergencyId}
             type="text"
             name="emergency_contact"
             value={form.emergency_contact}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 focus:ring-offset-white"
           />
         </div>
         <button
           type="submit"
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          className="focus-ring rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
         >
           Save
         </button>

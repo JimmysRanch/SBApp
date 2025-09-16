@@ -62,15 +62,16 @@ export default async function EmployeePage({ params }: Params) {
           Settings
         </Link>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="flex flex-col space-y-4">
           <ProfileCard employee={employee} />
           <WeekScheduleWidget employeeId={empId} />
           <NotesCard employeeId={empId} />
         </div>
-        <div>
+        <div className="flex flex-col space-y-4">
           <TodayWorkload employeeId={empId} />
-            <AppointmentsList employeeId={empId} kind="upcoming" />
+          <AppointmentsList employeeId={empId} kind="upcoming" />
+          <AppointmentsList employeeId={empId} kind="past" />
         </div>
         <div className="flex flex-col space-y-4">
           <PerformanceCard employeeId={empId} />

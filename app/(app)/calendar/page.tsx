@@ -128,6 +128,8 @@ export default function CalendarPage() {
     type: filters.type,
   });
 
+  const loadErrorMessage = error?.message?.trim();
+
   const filteredEvents = useMemo(() => {
     const list = (events as TCalendarEvent[]) ?? [];
     if (!search.trim()) return list;
@@ -366,8 +368,11 @@ export default function CalendarPage() {
           <div className="mb-2 text-sm text-gray-500">Loading…</div>
         )}
         {error && (
-          <div className="mb-3 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            <span>Could not load events.</span>
+          <div
+            data-testid="calendar-error-banner"
+            className="mb-3 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            <span>{loadErrorMessage ? `Could not load events: ${loadErrorMessage}` : "Could not load events."}</span>
             <button
               type="button"
               onClick={refresh}

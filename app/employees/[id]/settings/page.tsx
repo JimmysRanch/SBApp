@@ -1,114 +1,289 @@
-'use client';
+"use client";
 
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import PageContainer from "@/components/PageContainer";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { saveSettings } from "./server-actions";
 import { supabase } from "@/supabase/client";
 
-type Params = { id: string };
+interface StaffSettingsProps {
+  params: { id: string };
+}
 
-export default function EmployeeSettings({ params }: { params: Params }) {
-  const empId = Number(params.id);
-  const router = useRouter();
-  const [form, setForm] = useState({
-    pay_rate: "",
-    address: "",
-    emergency_contact: "",
-  });
+interface FormState {
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  address_street: string;
+  address_city: string;
+  address_state: string;
+  address_zip: string;
+  pay_type: string;
+  commission_rate: string;
+  hourly_rate: string;
+  desired_dogs_per_day: string;
+  weekly_revenue_target: string;
+}
+
+interface EmployeeRow {
+  name?: string | null;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address_street?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  address_zip?: string | null;
+  pay_type?: string | null;
+  commission_rate?: number | null;
+  hourly_rate?: number | null;
+}
+
+interface StaffGoalsRow {
+  weekly_revenue_target?: number | null;
+  desired_dogs_per_day?: number | null;
+}
+
+const defaultState: FormState = {
+  name: "",
+  role: "",
+  email: "",
+  phone: "",
+  address_street: "",
+  address_city: "",
+  address_state: "",
+  address_zip: "",
+  pay_type: "",
+  commission_rate: "",
+  hourly_rate: "",
+  desired_dogs_per_day: "",
+  weekly_revenue_target: "",
+};
+
+export default function StaffSettings({ params }: StaffSettingsProps) {
+  const staffId = params.id;
+  const [form, setForm] = useState<FormState>(defaultState);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data } = await supabase
-        .from("employees")
-        .select("pay_rate, address, emergency_contact")
-        .eq("id", empId)
-        .single();
-      if (data) {
-        setForm({
-          pay_rate: data.pay_rate ?? "",
-          address: data.address ?? "",
-          emergency_contact: data.emergency_contact ?? "",
-        });
-      }
-      setLoading(false);
-    };
-    fetchData();
-  }, [empId]);
+    let active = true;
+    async function load() {
+      setLoading(true);
+      const employeeId = Number(staffId);
+      const [employeeRes, goalsRes] = await Promise.all([
+        supabase
+          .from("employees")
+          .select(
+            "name, role, email, phone, address_street, address_city, address_state, address_zip, pay_type, commission_rate, hourly_rate",
+          )
+          .eq("id", employeeId)
+          .maybeSingle(),
+        supabase.from("staff_goals").select("weekly_revenue_target, desired_dogs_per_day").eq("staff_id", employeeId).maybeSingle(),
+      ]);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+      if (!active) {
+        return;
+      }
+
+      const employee = (employeeRes.data ?? {}) as EmployeeRow;
+      const goals = (goalsRes.data ?? {}) as StaffGoalsRow;
+
+      setForm({
+        name: employee.name ?? "",
+        role: employee.role ?? "",
+        email: employee.email ?? "",
+        phone: employee.phone ?? "",
+        address_street: employee.address_street ?? "",
+        address_city: employee.address_city ?? "",
+        address_state: employee.address_state ?? "",
+        address_zip: employee.address_zip ?? "",
+        pay_type: employee.pay_type ?? "",
+        commission_rate: employee.commission_rate?.toString() ?? "",
+        hourly_rate: employee.hourly_rate?.toString() ?? "",
+        desired_dogs_per_day: goals.desired_dogs_per_day?.toString() ?? "",
+        weekly_revenue_target: goals.weekly_revenue_target?.toString() ?? "",
+      });
+
+      setLoading(false);
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, [staffId]);
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase
-      .from("employees")
-      .update({
-        pay_rate: form.pay_rate,
-        address: form.address,
-        emergency_contact: form.emergency_contact,
-      })
-      .eq("id", empId);
-    if (!error) {
-      router.refresh();
-      alert("Employee updated successfully.");
-    } else {
-      alert("Error updating employee.");
-    }
-  };
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setStatus(null);
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <p>Loading...</p>
-      </PageContainer>
-    );
+    const fd = new FormData(event.currentTarget);
+
+    try {
+      await saveSettings(fd);
+      setStatus("Settings saved");
+    } catch (error) {
+      console.error(error);
+      setStatus("Unable to save settings");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <PageContainer>
-      <h1 className="text-2xl font-bold mb-4">Employee Settings</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-        <div>
-          <label className="block font-medium mb-1">Pay Rate</label>
+    <form onSubmit={handleSubmit} className="space-y-4 p-4">
+      <input type="hidden" name="id" value={staffId} />
+      <section className="rounded-xl border bg-white p-4">
+        <h3 className="mb-2 font-semibold">Profile</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <input
+            className="border p-2"
+            name="name"
+            placeholder="Full name"
+            value={form.name}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="role"
+            placeholder="Role"
+            value={form.role}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="phone"
+            placeholder="Phone"
+            value={form.phone}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="address_street"
+            placeholder="Street"
+            value={form.address_street}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="address_city"
+            placeholder="City"
+            value={form.address_city}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="address_state"
+            placeholder="State"
+            value={form.address_state}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="address_zip"
+            placeholder="Zip"
+            value={form.address_zip}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-white p-4">
+        <h3 className="mb-2 font-semibold">Compensation &amp; Permissions</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <select
+            className="border p-2"
+            name="pay_type"
+            value={form.pay_type}
+            onChange={handleChange}
+            disabled={loading}
+          >
+            <option value="">Select pay type</option>
+            <option value="hourly">Hourly</option>
+            <option value="commission">Commission</option>
+            <option value="salary">Salary</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+          <input
+            className="border p-2"
+            name="commission_rate"
             type="number"
             step="0.01"
-            name="pay_rate"
-            value={form.pay_rate}
+            placeholder="Commission %"
+            value={form.commission_rate}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            disabled={loading}
           />
-        </div>
-        <div>
-          <label className="block font-medium mb-1">Address</label>
           <input
-            type="text"
-            name="address"
-            value={form.address}
+            className="border p-2"
+            name="hourly_rate"
+            type="number"
+            step="0.01"
+            placeholder="Hourly $"
+            value={form.hourly_rate}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            disabled={loading}
           />
         </div>
-        <div>
-          <label className="block font-medium mb-1">Emergency Contact</label>
+      </section>
+
+      <section className="rounded-xl border bg-white p-4">
+        <h3 className="mb-2 font-semibold">Preferences &amp; Goals</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <input
-            type="text"
-            name="emergency_contact"
-            value={form.emergency_contact}
+            className="border p-2"
+            name="desired_dogs_per_day"
+            type="number"
+            placeholder="Dogs/day goal"
+            value={form.desired_dogs_per_day}
             onChange={handleChange}
-            className="border px-3 py-2 rounded w-full"
+            disabled={loading}
+          />
+          <input
+            className="border p-2"
+            name="weekly_revenue_target"
+            type="number"
+            step="0.01"
+            placeholder="Weekly $ target"
+            value={form.weekly_revenue_target}
+            onChange={handleChange}
+            disabled={loading}
           />
         </div>
+      </section>
+
+      <div className="flex items-center gap-3">
         <button
-          type="submit"
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          className="rounded-lg border bg-white px-3 py-2 text-sm hover:bg-neutral-50"
+          disabled={saving || loading}
         >
-          Save
+          {saving ? "Saving..." : "Save Settings"}
         </button>
-      </form>
-    </PageContainer>
+        {status && <span className="text-sm text-neutral-600">{status}</span>}
+      </div>
+    </form>
   );
 }

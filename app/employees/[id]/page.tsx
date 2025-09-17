@@ -25,7 +25,7 @@ export default async function EmployeePage({ params }: Params) {
   const empId = Number(params.id);
   const { data: employee, error } = await supabase
     .from("employees")
-    .select("*")
+    .select("id, name, email, phone, active, created_at, role, address_street, address_city, address_state, address_zip, avatar_url")
     .eq("id", empId)
     .single();
 

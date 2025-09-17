@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/supabase/server'
 import PageContainer from '@/components/PageContainer'
 import Widget from '@/components/Widget'
 import TodaysAppointments from '@/components/dashboard/TodaysAppointments'

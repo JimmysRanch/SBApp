@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/supabase/server";
 
 export async function addShiftAction(
   staffId: number,

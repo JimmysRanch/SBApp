@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import CalendarGrid from "./components/CalendarGrid";
 import WeekView from "./components/WeekView";
 import DayView from "./components/DayView";
@@ -8,7 +9,7 @@ import EventDialog from "./components/EventDialog";
 import DeleteConfirm from "./components/DeleteConfirm";
 import { useCalendarStore } from "./state/calendarStore";
 import { useCalendarEvents } from "./hooks/useCalendarEvents";
-import { addDays, endOfDay, endOfWeek, startOfDay, startOfMonth, startOfWeek } from "./utils/date";
+import { addDays, endOfDay, endOfWeek, sameDay, startOfDay, startOfMonth, startOfWeek } from "./utils/date";
 import type { CalendarEvent as ViewEvent } from "./components/CalendarEventCard";
 import type { TCalendarEvent } from "@/lib/validation/calendar";
 import { supabase } from "@/lib/supabaseClient";
@@ -81,8 +82,66 @@ function toViewEvent(event: TCalendarEvent): ViewEvent {
   };
 }
 
+function isoWeekStartDate(year: number, week: number): Date | undefined {
+  if (!Number.isFinite(year) || !Number.isFinite(week)) return undefined;
+  if (week < 1 || week > 53) return undefined;
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dayOfWeek = simple.getUTCDay() || 7;
+  simple.setUTCDate(simple.getUTCDate() + 1 - dayOfWeek);
+  return new Date(simple.getUTCFullYear(), simple.getUTCMonth(), simple.getUTCDate());
+}
+
+function parseWeekParam(value: string | null): Date | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const isoMatch = trimmed.match(/^(\d{4})-?W(\d{1,2})$/i);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const week = Number(isoMatch[2]);
+    const parsed = isoWeekStartDate(year, week);
+    if (parsed) return parsed;
+  }
+
+  const yearWeekMatch = trimmed.match(/^(\d{4})-(\d{1,2})$/);
+  if (yearWeekMatch) {
+    const year = Number(yearWeekMatch[1]);
+    const week = Number(yearWeekMatch[2]);
+    const parsed = isoWeekStartDate(year, week);
+    if (parsed) return parsed;
+  }
+
+  const numericWeek = Number(trimmed);
+  if (Number.isFinite(numericWeek)) {
+    const now = new Date();
+    const parsed = isoWeekStartDate(now.getFullYear(), numericWeek);
+    if (parsed) return parsed;
+  }
+
+  const parsedDate = new Date(trimmed);
+  if (!Number.isNaN(parsedDate.valueOf())) {
+    return startOfWeek(parsedDate);
+  }
+
+  return undefined;
+}
+
+function parseStaffParam(value: string | null): number | null | undefined {
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export default function CalendarPage() {
   const { view, setView, selectedDate, setDate, filters, setFilters } = useCalendarStore();
+  const searchParams = useSearchParams();
+  const [pendingAppointmentId, setPendingAppointmentId] = useState<string | null>(null);
+  const [prefetchedAppointment, setPrefetchedAppointment] = useState<TCalendarEvent | null>(null);
+  const paramsAppliedRef = useRef(false);
+  const staffParamProvidedRef = useRef(false);
   const [search, setSearch] = useState("");
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,6 +152,97 @@ export default function CalendarPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (paramsAppliedRef.current) return;
+    if (!searchParams) return;
+    paramsAppliedRef.current = true;
+
+    const staffResult = parseStaffParam(searchParams.get("staffId"));
+    if (staffResult !== undefined) {
+      staffParamProvidedRef.current = true;
+      const nextFilters = { ...filters };
+      let changed = false;
+      if (staffResult === null) {
+        if (nextFilters.staffId !== undefined) {
+          delete nextFilters.staffId;
+          changed = true;
+        }
+      } else if (nextFilters.staffId !== staffResult) {
+        nextFilters.staffId = staffResult;
+        changed = true;
+      }
+      if (changed) {
+        setFilters(nextFilters);
+      }
+    }
+
+    const weekStartDate = parseWeekParam(searchParams.get("week"));
+    if (weekStartDate) {
+      if (!sameDay(weekStartDate, selectedDate)) {
+        setDate(weekStartDate);
+      }
+      if (view !== "week") {
+        setView("week");
+      }
+    }
+
+    const appointmentValue = searchParams.get("appointmentId");
+    const appointmentId = appointmentValue?.trim();
+    if (appointmentId) {
+      setPendingAppointmentId(appointmentId);
+      (async () => {
+        try {
+          const res = await fetch(`/api/calendar/${appointmentId}`);
+          if (!res.ok) return;
+          const json = await res.json();
+          if (json?.data) {
+            setPrefetchedAppointment(json.data as TCalendarEvent);
+          }
+        } catch (err) {
+          // Ignore failures fetching the appointment context.
+        }
+      })();
+    }
+  }, [filters, searchParams, selectedDate, setDate, setFilters, setPendingAppointmentId, setPrefetchedAppointment, setView, view]);
+
+  useEffect(() => {
+    if (!prefetchedAppointment) return;
+
+    const event = prefetchedAppointment;
+    const start = new Date(event.start);
+    if (!Number.isNaN(start.valueOf())) {
+      const normalized = startOfDay(start);
+      if (!sameDay(normalized, selectedDate)) {
+        setDate(normalized);
+      }
+      if (view !== "day") {
+        setView("day");
+      }
+    }
+
+    if (!staffParamProvidedRef.current) {
+      const staffId = typeof event.staffId === "number" && Number.isFinite(event.staffId)
+        ? event.staffId
+        : undefined;
+      const nextFilters = { ...filters };
+      let changed = false;
+      if (staffId === undefined) {
+        if (nextFilters.staffId !== undefined) {
+          delete nextFilters.staffId;
+          changed = true;
+        }
+      } else if (nextFilters.staffId !== staffId) {
+        nextFilters.staffId = staffId;
+        changed = true;
+      }
+      if (changed) {
+        setFilters(nextFilters);
+      }
+    }
+
+    setPrefetchedAppointment(null);
+  }, [filters, prefetchedAppointment, selectedDate, setDate, setFilters, setPrefetchedAppointment, setView, view]);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +288,52 @@ export default function CalendarPage() {
   }, [events, search]);
 
   const viewEvents = useMemo(() => filteredEvents.map(toViewEvent), [filteredEvents]);
+
+  useEffect(() => {
+    if (!pendingAppointmentId) return;
+    if (isLoading) return;
+
+    const list = (events as TCalendarEvent[]) ?? [];
+    const match = list.find((eventItem) => eventItem.id === pendingAppointmentId);
+    if (!match) return;
+
+    if (!staffParamProvidedRef.current) {
+      const staffId = typeof match.staffId === "number" && Number.isFinite(match.staffId)
+        ? match.staffId
+        : undefined;
+      const nextFilters = { ...filters };
+      let changed = false;
+      if (staffId === undefined) {
+        if (nextFilters.staffId !== undefined) {
+          delete nextFilters.staffId;
+          changed = true;
+        }
+      } else if (nextFilters.staffId !== staffId) {
+        nextFilters.staffId = staffId;
+        changed = true;
+      }
+      if (changed) {
+        setFilters(nextFilters);
+      }
+    }
+
+    const start = new Date(match.start);
+    if (!Number.isNaN(start.valueOf())) {
+      const normalized = startOfDay(start);
+      if (!sameDay(normalized, selectedDate)) {
+        setDate(normalized);
+      }
+    }
+    if (view !== "day") {
+      setView("day");
+    }
+
+    setActiveEvent(match);
+    setDialogMode("edit");
+    setDialogInitial(match);
+    setDialogOpen(true);
+    setPendingAppointmentId(null);
+  }, [events, filters, isLoading, pendingAppointmentId, selectedDate, setActiveEvent, setDate, setDialogInitial, setDialogMode, setDialogOpen, setFilters, setPendingAppointmentId, setView, view]);
 
   const pushToast = (message: string, tone: Toast["tone"] = "success") => {
     const id = Date.now() + Math.random();

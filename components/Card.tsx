@@ -5,7 +5,7 @@ export default function Card({ children, className = '' }: { children: ReactNode
   return (
     <div
       className={clsx(
-        'rounded-[2rem] border border-white/30 bg-white/85 p-6 text-brand-navy shadow-soft backdrop-blur-xl',
+        'rounded-[2rem] border border-white/30 bg-white/85 p-5 text-brand-navy shadow-soft backdrop-blur-xl sm:p-6',
         className
       )}
     >

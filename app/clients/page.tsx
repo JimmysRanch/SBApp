@@ -4,6 +4,7 @@ import Card from "@/components/Card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
+import clsx from "clsx";
 
 // Type definition for a client record
 type Client = {
@@ -42,11 +43,11 @@ export default function ClientsPage() {
     <PageContainer>
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="space-y-4 md:col-span-2">
-          <h1 className="text-3xl font-bold text-primary-dark">Clients</h1>
+          <h1 className="text-2xl font-bold text-primary-dark sm:text-3xl">Clients</h1>
           <div>
             <Link
               href="/clients/new"
-              className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
+              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-primary-dark sm:w-auto"
             >
               Add Client
             </Link>
@@ -55,7 +56,7 @@ export default function ClientsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search clients…"
-            className="mb-4 w-full max-w-md rounded-full border border-gray-300 px-4 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light"
+            className="mb-4 w-full rounded-full border border-gray-300 px-4 py-2 shadow-sm focus:border-primary focus:ring-2 focus:ring-primary-light"
           />
           {loading ? (
             <p>Loading…</p>
@@ -65,7 +66,10 @@ export default function ClientsPage() {
                 <li
                   key={c.id}
                   onClick={() => setSelected(c)}
-                  className="relative flex cursor-pointer items-center justify-between py-3"
+                  className={clsx(
+                    "flex cursor-pointer flex-col gap-2 rounded-2xl px-2 py-3 transition sm:flex-row sm:items-center sm:justify-between",
+                    selected?.id === c.id ? "bg-brand-bubble/15" : "hover:bg-white/60"
+                  )}
                 >
                   <div>
                     <div className="font-medium">{c.full_name}</div>
@@ -76,7 +80,7 @@ export default function ClientsPage() {
                   {selected?.id === c.id && (
                     <Link
                       href={`/clients/${c.id}`}
-                      className="absolute inset-0 flex items-center justify-center bg-primary/80 text-lg font-semibold text-white"
+                      className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-primary-dark sm:w-auto"
                     >
                       Client Page
                     </Link>

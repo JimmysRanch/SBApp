@@ -1,3 +1,4 @@
+# .github/workflows/bunny-ops.yml
 name: Bunny Ops
 on:
   workflow_dispatch:
@@ -24,26 +25,40 @@ jobs:
         run: |
           body="${{ github.event.comment.body }}"
           echo "task=${body#'/bunny '}" >> $GITHUB_OUTPUT
+      - name: Install git + gh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git gh
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.BUNNY_PAT }}
-      - name: Run
+      - name: Run task
         env:
           GH_TOKEN: ${{ secrets.BUNNY_PAT }}
+          GITHUB_TOKEN: ${{ secrets.BUNNY_PAT }}
         run: |
           set -e
+          gh --version
+          git --version
           bash -lc "${{ steps.x.outputs.task }}"
 
   manual:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Install git + gh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git gh
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.BUNNY_PAT }}
-      - name: Run
+      - name: Run task
         env:
           GH_TOKEN: ${{ secrets.BUNNY_PAT }}
+          GITHUB_TOKEN: ${{ secrets.BUNNY_PAT }}
         run: |
           set -e
+          gh --version
+          git --version
           bash -lc "${{ inputs.task }}"

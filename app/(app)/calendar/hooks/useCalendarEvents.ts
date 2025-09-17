@@ -4,7 +4,29 @@ import { useCallback, useMemo } from "react";
 import { fmt } from "../utils/date";
 import type { TCalendarEvent } from "@/lib/validation/calendar";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch (err) {
+    // If parsing fails but the response was successful, bubble the original error.
+    if (res.ok) throw err;
+  }
+
+  if (!res.ok) {
+    const message =
+      (json && typeof json === "object" && typeof json.error === "string" && json.error.trim())
+        ? json.error
+        : `Request failed with status ${res.status}`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    (error as any).payload = json;
+    throw error;
+  }
+
+  return json;
+};
 
 export type NewEvent = {
   title: string;
@@ -23,10 +45,16 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: string; 
   if (q?.staffId) params.set("staffId", q.staffId);
   if (q?.type) params.set("type", q.type);
 
-  const { data, error, isLoading, mutate, isValidating } = useSWR(`/api/calendar?${params.toString()}`, fetcher, {
+  const { data, error: swrError, isLoading, mutate, isValidating } = useSWR(`/api/calendar?${params.toString()}`, fetcher, {
     revalidateOnFocus: false,
   });
   const events = useMemo<TCalendarEvent[]>(() => data?.data ?? [], [data]);
+
+  const error = useMemo(() => {
+    if (!swrError) return undefined;
+    if (swrError instanceof Error) return swrError;
+    return new Error(String(swrError));
+  }, [swrError]);
 
   const create = useCallback(async (payload: NewEvent) => {
     const res = await fetch("/api/calendar", {

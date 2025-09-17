@@ -1,84 +1,49 @@
-export const runtime = "nodejs";
+import { createServerClient } from "@/lib/supabase/server";
+import OverviewWidgets from "@/components/staff/OverviewWidgets";
+import RecentJobs from "@/components/staff/RecentJobs";
+import StaffHeader from "@/components/staff/StaffHeader";
+import StaffTabs from "@/components/staff/StaffTabs";
 
-import { notFound } from "next/navigation";
-import PageContainer from "@/components/PageContainer";
-import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-
-import ProfileCard from "./components/ProfileCard";
-import WeekScheduleWidget from "./components/WeekScheduleWidget";
-import TodayWorkload from "./components/TodayWorkload";
-import AppointmentsList from "./components/AppointmentsList";
-import PerformanceCard from "./components/PerformanceCard";
-import LifetimeTotalsCard from "./components/LifetimeTotalsCard";
-import PayrollWidget from "./components/PayrollWidget";
-import NotesCard from "./components/NotesCard";
-
-interface Params {
-  params: {
-    id: string;
-  };
+interface StaffOverviewProps {
+  params: { id: string };
 }
 
-export default async function EmployeePage({ params }: Params) {
-  const supabase = createClient();
-  const empId = Number(params.id);
-  const { data: employee, error } = await supabase
+export default async function StaffOverview({ params }: StaffOverviewProps) {
+  const supabase = createServerClient();
+  const staffId = Number(params.id);
+
+  const { data: staff } = await supabase
     .from("employees")
-    .select("id, name, email, phone, active, created_at, role, address_street, address_city, address_state, address_zip, avatar_url")
-    .eq("id", empId)
+    .select(
+      "id, name, email, phone, active, role, address_street, address_city, address_state, address_zip, avatar_url",
+    )
+    .eq("id", staffId)
     .single();
 
-  if (error || !employee) {
-    notFound();
+  const [todayResult, weeklyResult, lifetimeResult, goalsResult] = await Promise.all([
+    supabase.rpc("staff_today_metrics", { p_staff_id: staffId }),
+    supabase.rpc("staff_week_metrics", { p_staff_id: staffId }),
+    supabase.rpc("staff_lifetime_metrics", { p_staff_id: staffId }),
+    supabase.from("staff_goals").select("*").eq("staff_id", staffId).maybeSingle(),
+  ]);
+
+  const today = todayResult.data?.[0] ?? null;
+  const weekly = weeklyResult.data?.[0] ?? null;
+  const lifetime = lifetimeResult.data?.[0] ?? null;
+  const goals = goalsResult.data;
+
+  if (!staff) {
+    return <div className="p-6">Staff not found.</div>;
   }
 
   return (
-    <PageContainer>
-      {/* Navigation links to subpages */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link
-          href={`/employees/${empId}/schedule`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Schedule
-        </Link>
-        <Link
-          href={`/employees/${empId}/payroll`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Payroll
-        </Link>
-        <Link
-          href={`/employees/${empId}/history`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          History
-        </Link>
-        <Link
-          href={`/employees/${empId}/settings`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Settings
-        </Link>
+    <div className="space-y-4 p-4">
+      <div className="rounded-xl border bg-white p-4">
+        <StaffHeader staff={staff} />
+        <StaffTabs staffId={String(staffId)} />
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="flex flex-col space-y-4">
-          <ProfileCard employee={employee} />
-          <WeekScheduleWidget employeeId={empId} />
-          <NotesCard employeeId={empId} />
-        </div>
-        <div className="flex flex-col space-y-4">
-          <TodayWorkload employeeId={empId} />
-          <AppointmentsList employeeId={empId} kind="upcoming" />
-          <AppointmentsList employeeId={empId} kind="past" />
-        </div>
-        <div className="flex flex-col space-y-4">
-          <PerformanceCard employeeId={empId} />
-          <LifetimeTotalsCard employeeId={empId} />
-          <PayrollWidget employeeId={empId} />
-        </div>
-      </div>
-    </PageContainer>
+      <OverviewWidgets today={today} weekly={weekly} lifetime={lifetime} goals={goals} />
+      <RecentJobs staffId={String(staffId)} limit={8} />
+    </div>
   );
 }

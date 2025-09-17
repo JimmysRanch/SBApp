@@ -1,31 +1,44 @@
-import { notFound } from "next/navigation";
-import PageContainer from "@/components/PageContainer";
-import { createClient } from "@/supabase/server";
-import LifetimeTotalsCard from "../components/LifetimeTotalsCard";
-import PerformanceCard from "../components/PerformanceCard";
+import { createServerClient } from "@/lib/supabase/server";
 
-type Params = { id: string };
+interface StaffHistoryProps {
+  params: { id: string };
+}
 
-export const dynamic = "force-dynamic";
+export default async function StaffHistory({ params }: StaffHistoryProps) {
+  const supabase = createServerClient();
+  const staffId = Number(params.id);
+  const { data: rows } = await supabase
+    .from("appointments")
+    .select("id, start_time, end_time, service, price, status")
+    .eq("employee_id", staffId)
+    .order("start_time", { ascending: false })
+    .limit(200);
 
-export default async function HistoryPage({ params }: { params: Params }) {
-  const supabase = createClient();
-  const empId = Number(params.id);
-  const { data: employee, error } = await supabase
-    .from("employees")
-    .select("*")
-    .eq("id", empId)
-    .single();
-  if (error || !employee) {
-    notFound();
-  }
   return (
-    <PageContainer>
-      <h1 className="text-2xl font-bold mb-4">Employee History</h1>
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <LifetimeTotalsCard employeeId={empId} />
-        <PerformanceCard employeeId={empId} />
+    <div className="m-4 rounded-xl border bg-white p-4">
+      <h2 className="mb-3 text-lg font-semibold">Appointment History</h2>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-left text-neutral-600">
+            <tr>
+              <th>Date</th>
+              <th>Service</th>
+              <th>Price</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows?.map((row) => (
+              <tr key={row.id} className="border-t">
+                <td>{row.start_time ? new Date(row.start_time).toLocaleString() : ""}</td>
+                <td>{row.service}</td>
+                <td>${Number(row.price ?? 0).toFixed(2)}</td>
+                <td>{row.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </PageContainer>
+    </div>
   );
 }

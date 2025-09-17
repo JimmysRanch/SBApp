@@ -5,6 +5,12 @@ export function startOfWeek(d: Date) {
   const x = new Date(d); const day = (x.getDay()+6)%7; // Monday=0
   x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x;
 }
+export function endOfWeek(d: Date) {
+  const start = startOfWeek(d);
+  const end = addDays(start, 6);
+  end.setHours(23,59,59,999);
+  return end;
+}
 export function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 export function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth()+1, 0, 23,59,59,999); }
 export function fmt(d: Date) { return d.toISOString(); }

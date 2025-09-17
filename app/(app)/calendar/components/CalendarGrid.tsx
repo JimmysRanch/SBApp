@@ -1,13 +1,28 @@
 "use client";
-import { addDays, startOfMonth, startOfWeek, sameDay } from "../utils/date";
+import { addDays, startOfDay, endOfDay, startOfMonth, startOfWeek, sameDay } from "../utils/date";
 import CalendarEventCard, { type CalendarEvent } from "./CalendarEventCard";
 
-export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent }: {
+type Props = {
   date: Date;
   events: CalendarEvent[];
   onSelectDay: (d: Date) => void;
   onSelectEvent: (e: CalendarEvent) => void;
-}) {
+  onShowOverflow: (d: Date) => void;
+};
+
+function eventsForDay(day: Date, list: CalendarEvent[]) {
+  const start = startOfDay(day);
+  const end = endOfDay(day);
+  return list
+    .filter((ev) => {
+      const s = new Date(ev.start);
+      const e = new Date(ev.end);
+      return s <= end && e >= start;
+    })
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent, onShowOverflow }: Props) {
   const monthStart = startOfMonth(date);
   const gridStart = startOfWeek(monthStart);
   const cells: Date[] = [];
@@ -20,19 +35,23 @@ export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent 
       ))}
       {cells.map((d, idx) => {
         const inMonth = d.getMonth() === date.getMonth();
-        const dayEvents = events.filter(ev => {
-          const s = new Date(ev.start); const e = new Date(ev.end);
-          return sameDay(d, s) || (d >= new Date(s.setHours(0,0,0,0)) && d <= new Date(e.setHours(23,59,59,999)));
-        }).slice(0,3);
-        const more = events.filter(ev => {
-          const s = new Date(ev.start); const e = new Date(ev.end);
-          return sameDay(d, s) || (d >= new Date(s.setHours(0,0,0,0)) && d <= new Date(e.setHours(23,59,59,999)));
-        }).length - dayEvents.length;
+        const items = eventsForDay(d, events);
+        const dayEvents = items.slice(0,3);
+        const more = Math.max(items.length - dayEvents.length, 0);
 
         return (
-          <div key={idx} className={`bg-white min-h-[100px] p-2 ${inMonth ? "" : "bg-gray-50 text-gray-400"}`}>
+          <div
+            key={idx}
+            className={`bg-white min-h-[100px] p-2 ${inMonth ? "" : "bg-gray-50 text-gray-400"} ${sameDay(d, new Date()) ? "border border-blue-500" : ""}`}
+          >
             <div className="flex justify-between items-center">
-              <button className="text-xs font-medium" onClick={()=>onSelectDay(d)}>{d.getDate()}</button>
+              <button
+                type="button"
+                className="text-xs font-medium hover:underline"
+                onClick={()=>onSelectDay(d)}
+              >
+                {d.getDate()}
+              </button>
             </div>
             <div className="mt-2 space-y-1">
               {dayEvents.map((ev)=>(
@@ -40,7 +59,15 @@ export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent 
                   <CalendarEventCard event={ev} onClick={()=>onSelectEvent(ev)} />
                 </div>
               ))}
-              {more>0 && <div className="text-xs text-gray-500">+{more} more</div>}
+              {more>0 && (
+                <button
+                  type="button"
+                  onClick={()=>onShowOverflow(d)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  +{more} more
+                </button>
+              )}
             </div>
           </div>
         );

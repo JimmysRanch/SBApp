@@ -2,6 +2,7 @@
 import useSWR from "swr";
 import { useCallback, useMemo } from "react";
 import { fmt } from "../utils/date";
+import type { TCalendarEvent } from "@/lib/validation/calendar";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -22,11 +23,17 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: string; 
   if (q?.staffId) params.set("staffId", q.staffId);
   if (q?.type) params.set("type", q.type);
 
-  const { data, error, isLoading, mutate } = useSWR(`/api/calendar?${params.toString()}`, fetcher, { revalidateOnFocus: false });
-  const events = useMemo(() => data?.data ?? [], [data]);
+  const { data, error, isLoading, mutate, isValidating } = useSWR(`/api/calendar?${params.toString()}`, fetcher, {
+    revalidateOnFocus: false,
+  });
+  const events = useMemo<TCalendarEvent[]>(() => data?.data ?? [], [data]);
 
   const create = useCallback(async (payload: NewEvent) => {
-    const res = await fetch("/api/calendar", { method: "POST", body: JSON.stringify(payload) });
+    const res = await fetch("/api/calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "create failed");
     mutate();
@@ -34,7 +41,11 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: string; 
   }, [mutate]);
 
   const update = useCallback(async (id: string, patch: Partial<NewEvent>) => {
-    const res = await fetch(`/api/calendar/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+    const res = await fetch(`/api/calendar/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "update failed");
     mutate();
@@ -49,5 +60,7 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: string; 
     return true;
   }, [mutate]);
 
-  return { events, error, isLoading, create, update, remove };
+  const refresh = useCallback(() => mutate(), [mutate]);
+
+  return { events, error, isLoading: isLoading || isValidating, create, update, remove, refresh };
 }

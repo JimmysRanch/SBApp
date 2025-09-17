@@ -5,10 +5,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
-  const staffId = searchParams.get("staffId") ?? undefined;
+  const staffIdParam = searchParams.get("staffId");
+  const staffId = staffIdParam && staffIdParam.trim() !== ""
+    ? Number(staffIdParam)
+    : undefined;
   const type = searchParams.get("type") ?? undefined;
   try {
-    const data = await listEvents({ from, to, staffId, type });
+    const params: { from?: string; to?: string; staffId?: number; type?: string } = { from, to, type };
+    if (staffId !== undefined && Number.isFinite(staffId)) params.staffId = staffId;
+    const data = await listEvents(params);
     return NextResponse.json({ data });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Failed to list events" }, { status: 400 });

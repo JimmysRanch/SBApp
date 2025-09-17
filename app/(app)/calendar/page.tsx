@@ -193,7 +193,7 @@ export default function CalendarPage() {
       start: base.toISOString(),
       end: end.toISOString(),
       allDay: true,
-      staffId: filters.staffId ?? "",
+      staffId: filters.staffId,
     });
     setDialogOpen(true);
   };
@@ -318,8 +318,11 @@ export default function CalendarPage() {
             <select
               id="calendar-staff"
               className="rounded border border-gray-300 px-2 py-1"
-              value={filters.staffId ?? ""}
-              onChange={(event) => setFilters({ ...filters, staffId: event.target.value || undefined })}
+              value={filters.staffId !== undefined ? String(filters.staffId) : ""}
+              onChange={(event) => {
+                const value = event.target.value.trim();
+                setFilters({ ...filters, staffId: value ? Number(value) : undefined });
+              }}
             >
               <option value="">All staff</option>
               {staffOptions.map((option) => (

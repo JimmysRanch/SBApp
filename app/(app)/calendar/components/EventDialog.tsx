@@ -14,7 +14,7 @@ type Props = {
     end?: string;
     notes?: string|null;
     allDay?: boolean;
-    staffId?: string | null;
+    staffId?: number | null;
     petId?: string | null;
   };
   staffOptions?: Option[];
@@ -38,7 +38,9 @@ export default function EventDialog({ open, mode, initial, staffOptions = [], on
   const [end, setEnd] = useState<string>(toInputValue(initial?.end ?? initial?.start));
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [allDay, setAllDay] = useState(initial?.allDay ?? false);
-  const [staffId, setStaffId] = useState(initial?.staffId ?? "");
+  const [staffId, setStaffId] = useState(
+    initial?.staffId != null ? String(initial.staffId) : ""
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
@@ -51,7 +53,7 @@ export default function EventDialog({ open, mode, initial, staffOptions = [], on
       setEnd(toInputValue(initial?.end ?? initial?.start));
       setNotes(initial?.notes ?? "");
       setAllDay(initial?.allDay ?? false);
-      setStaffId(initial?.staffId ?? "");
+      setStaffId(initial?.staffId != null ? String(initial.staffId) : "");
       setError(null);
       setSaving(false);
       setTimeout(() => firstFieldRef.current?.focus(), 0);
@@ -92,6 +94,11 @@ export default function EventDialog({ open, mode, initial, staffOptions = [], on
     }
     setSaving(true);
     try {
+      const trimmedStaff = staffId.trim();
+      const parsedStaffId = trimmedStaff ? Number(trimmedStaff) : null;
+      const normalizedStaffId = parsedStaffId !== null && Number.isFinite(parsedStaffId)
+        ? parsedStaffId
+        : null;
       await onSubmit({
         title: title.trim(),
         type,
@@ -99,7 +106,7 @@ export default function EventDialog({ open, mode, initial, staffOptions = [], on
         end: normalizedEnd,
         notes: notes.trim() ? notes.trim() : null,
         allDay,
-        staffId: staffId || null,
+        staffId: normalizedStaffId,
       });
       onClose();
     } catch (e: any) {

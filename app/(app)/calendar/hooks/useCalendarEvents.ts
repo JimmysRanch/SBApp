@@ -34,15 +34,15 @@ export type NewEvent = {
   start: string | Date;
   end: string | Date;
   notes?: string | null;
-  staffId?: string | null;
+  staffId?: number | null;
   petId?: string | null;
   allDay?: boolean;
 };
 
-export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: string; type?: string }) {
+export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: number; type?: string }) {
   const params = new URLSearchParams();
   params.set("from", fmt(from)); params.set("to", fmt(to));
-  if (q?.staffId) params.set("staffId", q.staffId);
+  if (q?.staffId !== undefined && Number.isFinite(q.staffId)) params.set("staffId", String(q.staffId));
   if (q?.type) params.set("type", q.type);
 
   const { data, error: swrError, isLoading, mutate, isValidating } = useSWR(`/api/calendar?${params.toString()}`, fetcher, {

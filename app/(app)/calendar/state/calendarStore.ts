@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 type View = "month" | "week" | "day";
-type Filters = { staffId?: string; type?: "appointment"|"shift"|"timeOff" };
+type Filters = { staffId?: number; type?: "appointment"|"shift"|"timeOff" };
 
 type CalendarState = {
   view: View;
@@ -30,6 +30,10 @@ export const useCalendarStore = create<CalendarState>()(
       merge: (persisted: any, current) => {
         const hydrated = { ...current, ...persisted } as CalendarState;
         if (persisted?.selectedDate) hydrated.selectedDate = new Date(persisted.selectedDate);
+        if (persisted?.filters?.staffId !== undefined) {
+          const id = Number(persisted.filters.staffId);
+          hydrated.filters.staffId = Number.isFinite(id) ? id : undefined;
+        }
         return hydrated;
       },
     }

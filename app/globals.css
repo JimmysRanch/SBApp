@@ -16,7 +16,7 @@
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-border-highlight bg-surface-strong px-space-md py-space-sm text-brand-navy placeholder:text-brand-navy/50 shadow-elevation-xs transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
   }
 
   label {
@@ -30,10 +30,10 @@
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
+    @apply rounded-6xl border border-border-subtle bg-surface-glass shadow-elevation-lg backdrop-blur-2xl;
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply rounded-full px-space-md py-space-xs text-body-sm font-emphasis transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-highlight/60;
   }
 }

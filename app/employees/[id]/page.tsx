@@ -1,84 +1,26 @@
-export const runtime = "nodejs";
+import OverviewWidgets from '@/components/staff/OverviewWidgets';
+import RecentJobs from '@/components/staff/RecentJobs';
+import { createServerClient } from '@/lib/supabase/server';
 
-import { notFound } from "next/navigation";
-import PageContainer from "@/components/PageContainer";
-import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
+type StaffOverviewProps = {
+  params: { id: string };
+};
 
-import ProfileCard from "./components/ProfileCard";
-import WeekScheduleWidget from "./components/WeekScheduleWidget";
-import TodayWorkload from "./components/TodayWorkload";
-import AppointmentsList from "./components/AppointmentsList";
-import PerformanceCard from "./components/PerformanceCard";
-import LifetimeTotalsCard from "./components/LifetimeTotalsCard";
-import PayrollWidget from "./components/PayrollWidget";
-import NotesCard from "./components/NotesCard";
+export default async function StaffOverview({ params }: StaffOverviewProps) {
+  const supabase = createServerClient();
+  const staffId = params.id;
 
-interface Params {
-  params: {
-    id: string;
-  };
-}
-
-export default async function EmployeePage({ params }: Params) {
-  const supabase = createClient();
-  const empId = Number(params.id);
-  const { data: employee, error } = await supabase
-    .from("employees")
-    .select("*")
-    .eq("id", empId)
-    .single();
-
-  if (error || !employee) {
-    notFound();
-  }
+  const [{ data: today }, { data: weekly }, { data: lifetime }, { data: goals }] = await Promise.all([
+    supabase.rpc('staff_today_metrics', { p_staff_id: staffId }),
+    supabase.rpc('staff_week_metrics', { p_staff_id: staffId }),
+    supabase.rpc('staff_lifetime_metrics', { p_staff_id: staffId }),
+    supabase.from('staff_goals').select('*').eq('staff_id', staffId).maybeSingle(),
+  ]);
 
   return (
-    <PageContainer>
-      {/* Navigation links to subpages */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link
-          href={`/employees/${empId}/schedule`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Schedule
-        </Link>
-        <Link
-          href={`/employees/${empId}/payroll`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Payroll
-        </Link>
-        <Link
-          href={`/employees/${empId}/history`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          History
-        </Link>
-        <Link
-          href={`/employees/${empId}/settings`}
-          className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Settings
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="flex flex-col space-y-4">
-          <ProfileCard employee={employee} />
-          <WeekScheduleWidget employeeId={empId} />
-          <NotesCard employeeId={empId} />
-        </div>
-        <div className="flex flex-col space-y-4">
-          <TodayWorkload employeeId={empId} />
-          <AppointmentsList employeeId={empId} kind="upcoming" />
-          <AppointmentsList employeeId={empId} kind="past" />
-        </div>
-        <div className="flex flex-col space-y-4">
-          <PerformanceCard employeeId={empId} />
-          <LifetimeTotalsCard employeeId={empId} />
-          <PayrollWidget employeeId={empId} />
-        </div>
-      </div>
-    </PageContainer>
+    <div className="space-y-4">
+      <OverviewWidgets today={today ?? null} weekly={weekly ?? null} lifetime={lifetime ?? null} goals={goals ?? null} />
+      <RecentJobs staffId={staffId} limit={8} />
+    </div>
   );
 }

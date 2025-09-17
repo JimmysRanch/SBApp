@@ -1,6 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -9,9 +9,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }
 
-export function createClient() {
+function instantiateServerClient() {
   const cookieStore = cookies();
-  return createServerClient(
+  return createSupabaseServerClient(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -28,4 +28,12 @@ export function createClient() {
       },
     }
   );
+}
+
+export function createServerClient() {
+  return instantiateServerClient();
+}
+
+export function createClient() {
+  return instantiateServerClient();
 }

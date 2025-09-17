@@ -1,33 +1,10 @@
-import { notFound } from "next/navigation";
-import PageContainer from "@/components/PageContainer";
-import { createClient } from "@/lib/supabase/server";
-import ScheduleEditor from "../components/ScheduleEditor";
-
-interface Params {
-  id: string;
-}
-
-export default async function EmployeeSchedulePage({
-  params,
-}: {
-  params: Params;
-}) {
-  const supabase = createClient();
-  const empId = Number(params.id);
-  const { data: employee, error } = await supabase
-    .from("employees")
-    .select("id, schedule")
-    .eq("id", empId)
-    .single();
-
-  if (error || !employee) {
-    notFound();
-  }
-
+export default function StaffSchedule() {
   return (
-    <PageContainer>
-      {/* Title could be added here if desired */}
-      <ScheduleEditor employeeId={params.id} initialSchedule={employee.schedule} />
-    </PageContainer>
+    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+      <h2 className="mb-3 text-lg font-semibold text-neutral-900">Schedule</h2>
+      <p className="text-sm text-neutral-600">
+        Drag-and-drop shift editor placeholder. Hook to your Calendar data source.
+      </p>
+    </div>
   );
 }

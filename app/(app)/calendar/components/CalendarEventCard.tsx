@@ -21,8 +21,12 @@ export default function CalendarEventCard({ event, onClick }: { event: CalendarE
   const s = event.start instanceof Date ? event.start : new Date(event.start);
   const e = event.end instanceof Date ? event.end : new Date(event.end);
   const valid = !Number.isNaN(s.valueOf()) && !Number.isNaN(e.valueOf());
-  const allDay = valid && s.getHours()===0 && s.getMinutes()===0 && e.getHours()===0 && e.getMinutes()===0;
-  const time = valid ? (allDay ? "All Day" : `${s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${e.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`) : "";
+  const allDayTime = event.allDay || (valid && s.getHours()===0 && s.getMinutes()===0 && e.getHours()===0 && e.getMinutes()===0);
+  const time = valid
+    ? (allDayTime
+      ? "All Day"
+      : `${s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${e.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`)
+    : "";
 
   return (
     <div className={`border rounded px-2 py-1 text-sm cursor-pointer ${colorClasses}`} onClick={onClick} draggable={false}>

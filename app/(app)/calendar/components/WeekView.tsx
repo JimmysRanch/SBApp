@@ -14,10 +14,13 @@ export default function WeekView({ date, events, onSelectEvent }: { date: Date; 
         <div key={idx} className="bg-white min-h-[200px] p-2">
           <div className="text-xs font-medium">{d.getMonth()+1}/{d.getDate()}</div>
           <div className="mt-2 space-y-1">
-            {events.filter(ev=>{
-              const s = new Date(ev.start); const e = new Date(ev.end);
-              return d >= new Date(s.setHours(0,0,0,0)) && d <= new Date(e.setHours(23,59,59,999));
-            }).map(ev=>(
+            {events
+              .filter(ev=>{
+                const s = new Date(ev.start); const e = new Date(ev.end);
+                return d >= new Date(s.setHours(0,0,0,0)) && d <= new Date(e.setHours(23,59,59,999));
+              })
+              .sort((a,b)=> new Date(a.start).getTime() - new Date(b.start).getTime())
+              .map(ev=>(
               <CalendarEventCard key={ev.id} event={ev} onClick={()=>onSelectEvent(ev)} />
             ))}
           </div>

@@ -1,115 +1,132 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { useCalendarStore } from "./state/calendarStore";
-import { addDays, endOfMonth, startOfMonth } from "./utils/date";
-import { useCalendarEvents } from "./hooks/useCalendarEvents";
-import CalendarGrid from "./components/CalendarGrid";
-import WeekView from "./components/WeekView";
-import DayView from "./components/DayView";
-import EventDialog from "./components/EventDialog";
-import DeleteConfirm from "./components/DeleteConfirm";
-import type { CalendarEvent } from "./components/CalendarEventCard";
+
+import { useState, useMemo } from "react";
+import { DragDropContext, DropResult } from "react-beautiful-dnd";
+import CalendarToolbar from "@/components/CalendarToolbar";
+import CalendarGrid from "@/components/CalendarGrid";
+import { DayGrid } from "@/components/CalendarDayGridDnD";
+import AppointmentDrawer from "@/components/AppointmentDrawer";
+import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
+import { useCalendarData, Appt } from "@/hooks/useCalendarData";
+
+type View = "day" | "week" | "month";
 
 export default function CalendarPage() {
-  const { view, selectedDate, setDate, setView, filters } = useCalendarStore();
-  const range = useMemo(()=>{
-    if (view==="month") return { from: startOfMonth(selectedDate), to: endOfMonth(selectedDate) };
-    if (view==="week") return { from: addDays(selectedDate, -3), to: addDays(selectedDate, 3) };
-    return { from: selectedDate, to: addDays(selectedDate, 1) };
-  }, [view, selectedDate]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<View>("week");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selected, setSelected] = useState<Partial<Appt> | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Partial<Appt> | null>(null);
 
-  const { events, create, update, remove, isLoading } = useCalendarEvents(range.from, range.to, filters);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create"|"edit">("create");
-  const [selected, setSelected] = useState<CalendarEvent | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const { appointments, employees, services, loading, error, createAppt, updateAppt, deleteAppt } =
+    useCalendarData(currentDate, view);
 
-  useEffect(()=>{ setSelected(null); }, [view, selectedDate]);
+  // toolbar nav
+  const goToday = () => setCurrentDate(new Date());
+  const goPrev = () => {
+    const d = new Date(currentDate);
+    if (view === "day") d.setDate(d.getDate()-1);
+    else if (view === "week") d.setDate(d.getDate()-7);
+    else d.setMonth(d.getMonth()-1);
+    setCurrentDate(d);
+  };
+  const goNext = () => {
+    const d = new Date(currentDate);
+    if (view === "day") d.setDate(d.getDate()+1);
+    else if (view === "week") d.setDate(d.getDate()+7);
+    else d.setMonth(d.getMonth()+1);
+    setCurrentDate(d);
+  };
 
-  function openCreate(d: Date) {
-    setSelected({
-      id: "new",
-      title: "",
-      type: "appointment",
-      start: d.toISOString(),
-      end: d.toISOString(),
-      allDay: true,
-    });
-    setDialogMode("create");
-    setDialogOpen(true);
-  }
+  // DnD handler (only used in day view grid)
+  const onDragEnd = async (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+    if (!destination || destination.droppableId === source.droppableId) return;
+    const [newEmpId, newHourStr] = destination.droppableId.split("-");
+    const appt = appointments.find(a => a.id === draggableId);
+    if (!appt) return;
+    const newStart = new Date(appt.start_time);
+    newStart.setHours(Number(newHourStr), 0, 0, 0);
+    const res = await updateAppt(appt.id, { employee_id: newEmpId, start_time: newStart.toISOString() });
+    if (res.error) alert(res.error);
+  };
 
-  function openEdit(ev: CalendarEvent) {
-    setSelected(ev);
-    setDialogMode("edit");
-    setDialogOpen(true);
-  }
+  // open drawer for new
+  const openNew = () => {
+    const base = new Date(currentDate);
+    base.setHours(9,0,0,0);
+    setSelected({ employee_id: employees[0]?.id, service_id: services[0]?.id, start_time: base.toISOString() } as Partial<Appt>);
+    setDrawerOpen(true);
+  };
 
-  async function handleSubmit(payload: any) {
-    if (!selected) return;
-    if (dialogMode==="create") {
-      await create(payload);
-    } else {
-      await update(selected.id, payload);
-    }
-    setDialogOpen(false);
-  }
-
-  async function handleDelete() {
-    if (!selected) return;
-    await remove(selected.id);
-    setConfirmOpen(false);
-    setDialogOpen(false);
-  }
+  // simple derived event list for Part 2 CalendarGrid (Week/Month simple lists)
+  const events = useMemo(() => {
+    return appointments.map(a => ({
+      id: Number(a.id),
+      title: `${services.find(s => s.id === a.service_id)?.name || "Service"} (${employees.find(e => e.id === a.employee_id)?.name || "Staff"})`,
+      start: new Date(a.start_time),
+      end: new Date(a.end_time),
+      type: "appointment" as const,
+    }));
+  }, [appointments, employees, services]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button className="border px-2 py-1 rounded" onClick={()=>setDate(addDays(selectedDate, view==="month"?-30:view==="week"?-7:-1))}>Prev</button>
-          <div className="font-semibold">{selectedDate.toDateString()}</div>
-          <button className="border px-2 py-1 rounded" onClick={()=>setDate(addDays(selectedDate, view==="month"?30:view==="week"?7:1))}>Next</button>
-        </div>
-        <div className="flex items-center gap-2">
-          <select className="border px-2 py-1 rounded" onChange={(e)=>setView(e.target.value as any)} value={view}>
-            <option value="month">Month</option>
-            <option value="week">Week</option>
-            <option value="day">Day</option>
-          </select>
-          <button className="bg-black text-white px-3 py-1 rounded" onClick={()=>openCreate(selectedDate)}>New</button>
-        </div>
+    <div className="bg-white rounded-md p-4 shadow-sm">
+      <div className="mb-3 flex justify-between">
+        <CalendarToolbar currentDate={currentDate} view={view} onViewChange={setView} onPrev={goPrev} onNext={goNext} onToday={goToday} />
+        <button onClick={openNew} className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">New Appointment</button>
       </div>
 
-      {isLoading && <div className="text-sm text-gray-500">Loading…</div>}
+      {loading && <div className="text-sm text-gray-500">Loading…</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {view==="month" && (
-        <CalendarGrid
-          date={selectedDate}
-          events={events}
-          onSelectDay={(d)=>openCreate(d)}
-          onSelectEvent={(e)=>openEdit(e)}
-        />
+      {/* Day view gets DnD grid; Week/Month use Part 2 simple grids */}
+      {view === "day" ? (
+        <DragDropContext onDragEnd={onDragEnd}>
+          <DayGrid
+            date={currentDate}
+            employees={employees}
+            appointments={appointments}
+            services={services}
+            onApptClick={(a) => { setSelected(a); setDrawerOpen(true); }}
+          />
+        </DragDropContext>
+      ) : (
+        <CalendarGrid currentDate={currentDate} view={view} events={events} onEventClick={(ev)=> {
+          const a = appointments.find(x => x.id === String(ev.id));
+          if (a) { setSelected(a); setDrawerOpen(true); }
+        }} />
       )}
-      {view==="week" && <WeekView date={selectedDate} events={events} onSelectEvent={openEdit} />}
-      {view==="day" && <DayView date={selectedDate} events={events} onSelectEvent={openEdit} />}
 
-      <EventDialog
-        open={dialogOpen}
-        mode={dialogMode}
-        initial={selected ? {
-          id: selected.id,
-          title: selected.title,
-          type: selected.type,
-          start: (selected.start instanceof Date ? selected.start : new Date(selected.start)).toISOString(),
-          end: (selected.end instanceof Date ? selected.end : new Date(selected.end)).toISOString(),
-          notes: selected.notes ?? "",
-          allDay: selected.allDay ?? false,
-        } : undefined}
-        onClose={()=>setDialogOpen(false)}
-        onSubmit={handleSubmit}
-        onDelete={dialogMode==="edit" ? ()=>setConfirmOpen(true) : undefined}
+      <AppointmentDrawer
+        open={drawerOpen}
+        initial={selected}
+        employees={employees}
+        services={services}
+        onClose={() => setDrawerOpen(false)}
+        onCreate={async (p) => {
+          const res = await createAppt(p);
+          return { error: res.error };
+        }}
+        onUpdate={async (id, p) => {
+          const res = await updateAppt(id, p);
+          return { error: res.error };
+        }}
+        onDeleteRequest={(a) => { setDrawerOpen(false); setConfirmDelete(a); }}
       />
-      <DeleteConfirm open={confirmOpen} onClose={()=>setConfirmOpen(false)} onConfirm={handleDelete} />
+
+      <ConfirmDeleteModal
+        open={!!confirmDelete}
+        itemName="this appointment"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={async () => {
+          if (confirmDelete?.id) {
+            const res = await deleteAppt(String(confirmDelete.id));
+            if (res.error) alert(res.error);
+          }
+          setConfirmDelete(null);
+        }}
+      />
     </div>
   );
 }

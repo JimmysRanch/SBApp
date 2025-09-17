@@ -30,6 +30,9 @@
       "@/lib/*": [
         "lib/*"
       ],
+      "@/hooks/*": [
+        "hooks/*"
+      ],
       "@/types/*": [
         "types/*"
       ],

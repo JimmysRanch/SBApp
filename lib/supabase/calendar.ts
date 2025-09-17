@@ -3,12 +3,12 @@ import { CalendarEvent, CalendarEventCreate, CalendarEventUpdate, normalizeDate 
 
 const TABLE = "calendar_events";
 
-export async function listEvents(params: { from?: string; to?: string; staffId?: string; type?: string } = {}) {
+export async function listEvents(params: { from?: string; to?: string; staffId?: number; type?: string } = {}) {
   const client = getSupabaseAdmin();
   let q = client.from(TABLE).select("*").order("start", { ascending: true });
   if (params.from) q = q.gte("end", params.from);
   if (params.to) q = q.lte("start", params.to);
-  if (params.staffId) q = q.eq("staffId", params.staffId);
+  if (params.staffId !== undefined) q = q.eq("staffId", params.staffId);
   if (params.type) q = q.eq("type", params.type);
   const { data, error } = await q;
   if (error) throw error;
@@ -29,6 +29,7 @@ export async function createEvent(payload: any) {
     start: normalizeDate(parsed.start),
     end: normalizeDate(parsed.end),
   };
+  body.staffId = parsed.staffId ?? null;
   const client = getSupabaseAdmin();
   const { data, error } = await client.from(TABLE).insert(body).select().single();
   if (error) throw error;
@@ -40,6 +41,7 @@ export async function updateEvent(id: string, payload: any) {
   const body: Record<string, any> = { ...parsed };
   if (parsed.start) body.start = normalizeDate(parsed.start);
   if (parsed.end) body.end = normalizeDate(parsed.end);
+  if (parsed.staffId !== undefined) body.staffId = parsed.staffId ?? null;
   const client = getSupabaseAdmin();
   const { data, error } = await client.from(TABLE).update(body).eq("id", id).select().single();
   if (error) throw error;

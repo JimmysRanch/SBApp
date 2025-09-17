@@ -6,7 +6,7 @@ export interface CalendarEvent {
   end: string | Date;
   type: "appointment" | "shift" | "timeOff";
   notes?: string | null;
-  staffId?: string | null;
+  staffId?: number | null;
   petId?: string | null;
   allDay?: boolean;
 }

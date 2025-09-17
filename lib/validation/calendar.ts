@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+const StaffIdSchema = z.preprocess(
+  (value) => {
+    if (value === "" || value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const num = Number(trimmed);
+      return Number.isFinite(num) ? num : value;
+    }
+    return value;
+  },
+  z.union([z.number().int().positive(), z.null()]).optional()
+);
+
 export const CalendarEventType = z.enum(["appointment", "shift", "timeOff"]);
 
 export const CalendarEventBase = z.object({
@@ -8,7 +24,7 @@ export const CalendarEventBase = z.object({
   start: z.string().or(z.date()),
   end: z.string().or(z.date()),
   notes: z.string().optional().nullable(),
-  staffId: z.string().optional().nullable(),
+  staffId: StaffIdSchema,
   petId: z.string().optional().nullable(),
   allDay: z.boolean().optional().default(false),
 });

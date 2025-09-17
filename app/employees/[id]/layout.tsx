@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/supabase/server";
 
 import EmployeeDetailClient, {
   StaffGoals,

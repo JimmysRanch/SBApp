@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   saveCompensationAction,
@@ -16,10 +15,7 @@ type PermissionKey =
   | "can_manage_discounts"
   | "can_manage_staff";
 
-type PermissionOption = {
-  key: PermissionKey;
-  label: string;
-};
+type PermissionOption = { key: PermissionKey; label: string };
 
 const PERMISSION_OPTIONS: PermissionOption[] = [
   { key: "can_view_reports", label: "View reports" },
@@ -42,9 +38,7 @@ export default function EmployeeSettingsPage() {
     };
     if (employee.app_permissions && typeof employee.app_permissions === "object") {
       Object.entries(employee.app_permissions).forEach(([key, value]) => {
-        if (key in base) {
-          base[key as PermissionKey] = Boolean(value);
-        }
+        if (key in base) base[key as PermissionKey] = Boolean(value);
       });
     }
     return base;
@@ -97,7 +91,13 @@ export default function EmployeeSettingsPage() {
     notes: false,
   });
 
-  const cannotEdit = !viewerCanEditStaff;
+  const beginEdit = (key: keyof typeof editing) => {
+    if (!viewerCanEditStaff) {
+      pushToast("You don't have permission to edit staff settings", "error");
+      return;
+    }
+    setEditing((e) => ({ ...e, [key]: true }));
+  };
 
   const handleProfileSave = async () => {
     setSaving((s) => ({ ...s, profile: true }));
@@ -166,90 +166,40 @@ export default function EmployeeSettingsPage() {
         <SectionHeader
           title="Profile"
           subtitle="Contact and status details for this staff member."
-          canEdit={!cannotEdit}
           isEditing={editing.profile}
           isSaving={saving.profile}
-          onEdit={() => setEditing((e) => ({ ...e, profile: true }))}
+          onEdit={() => beginEdit("profile")}
           onSave={handleProfileSave}
         />
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextField
-            label="Name"
-            value={profile.name}
-            onChange={(v) => setProfile((p) => ({ ...p, name: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Role"
-            value={profile.role}
-            onChange={(v) => setProfile((p) => ({ ...p, role: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Email"
-            value={profile.email}
-            onChange={(v) => setProfile((p) => ({ ...p, email: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Phone"
-            value={profile.phone}
-            onChange={(v) => setProfile((p) => ({ ...p, phone: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Avatar URL"
-            value={profile.avatar_url}
-            onChange={(v) => setProfile((p) => ({ ...p, avatar_url: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <SelectField
-            label="Status"
-            value={profile.status}
-            options={STATUS_OPTIONS}
-            onChange={(v) => setProfile((p) => ({ ...p, status: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
+          <TextField label="Name" value={profile.name} onChange={(v) => setProfile((p) => ({ ...p, name: v }))}
+            disabled={!editing.profile || saving.profile} />
+          <TextField label="Role" value={profile.role} onChange={(v) => setProfile((p) => ({ ...p, role: v }))}
+            disabled={!editing.profile || saving.profile} />
+          <TextField label="Email" value={profile.email} onChange={(v) => setProfile((p) => ({ ...p, email: v }))}
+            disabled={!editing.profile || saving.profile} />
+          <TextField label="Phone" value={profile.phone} onChange={(v) => setProfile((p) => ({ ...p, phone: v }))}
+            disabled={!editing.profile || saving.profile} />
+          <TextField label="Avatar URL" value={profile.avatar_url} onChange={(v) => setProfile((p) => ({ ...p, avatar_url: v }))}
+            disabled={!editing.profile || saving.profile} />
+          <SelectField label="Status" value={profile.status} options={STATUS_OPTIONS}
+            onChange={(v) => setProfile((p) => ({ ...p, status: v }))} disabled={!editing.profile || saving.profile} />
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextField
-            label="Street"
-            value={profile.address_street}
-            onChange={(v) => setProfile((p) => ({ ...p, address_street: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="City"
-            value={profile.address_city}
-            onChange={(v) => setProfile((p) => ({ ...p, address_city: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="State"
-            value={profile.address_state}
-            onChange={(v) => setProfile((p) => ({ ...p, address_state: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Zip"
-            value={profile.address_zip}
-            onChange={(v) => setProfile((p) => ({ ...p, address_zip: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
+          <TextField label="Street" value={profile.address_street}
+            onChange={(v) => setProfile((p) => ({ ...p, address_street: v }))} disabled={!editing.profile || saving.profile} />
+          <TextField label="City" value={profile.address_city}
+            onChange={(v) => setProfile((p) => ({ ...p, address_city: v }))} disabled={!editing.profile || saving.profile} />
+          <TextField label="State" value={profile.address_state}
+            onChange={(v) => setProfile((p) => ({ ...p, address_state: v }))} disabled={!editing.profile || saving.profile} />
+          <TextField label="Zip" value={profile.address_zip}
+            onChange={(v) => setProfile((p) => ({ ...p, address_zip: v }))} disabled={!editing.profile || saving.profile} />
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextField
-            label="Emergency Contact Name"
-            value={profile.emergency_contact_name}
-            onChange={(v) => setProfile((p) => ({ ...p, emergency_contact_name: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
-          <TextField
-            label="Emergency Contact Phone"
-            value={profile.emergency_contact_phone}
-            onChange={(v) => setProfile((p) => ({ ...p, emergency_contact_phone: v }))}
-            disabled={!editing.profile || cannotEdit || saving.profile}
-          />
+          <TextField label="Emergency Contact Name" value={profile.emergency_contact_name}
+            onChange={(v) => setProfile((p) => ({ ...p, emergency_contact_name: v }))} disabled={!editing.profile || saving.profile} />
+          <TextField label="Emergency Contact Phone" value={profile.emergency_contact_phone}
+            onChange={(v) => setProfile((p) => ({ ...p, emergency_contact_phone: v }))} disabled={!editing.profile || saving.profile} />
         </div>
       </section>
 
@@ -258,10 +208,9 @@ export default function EmployeeSettingsPage() {
         <SectionHeader
           title="Compensation & Permissions"
           subtitle="Control pay structures and access for this employee."
-          canEdit={!cannotEdit}
           isEditing={editing.comp}
           isSaving={saving.comp}
-          onEdit={() => setEditing((e) => ({ ...e, comp: true }))}
+          onEdit={() => beginEdit("comp")}
           onSave={handleCompensationSave}
         />
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -270,25 +219,25 @@ export default function EmployeeSettingsPage() {
             value={compensation.pay_type}
             options={["hourly", "commission", "salary", "hybrid"]}
             onChange={(v) => setCompensation((p) => ({ ...p, pay_type: v }))}
-            disabled={!editing.comp || cannotEdit || saving.comp}
+            disabled={!editing.comp || saving.comp}
           />
           <NumberField
             label="Commission %"
             value={Number(compensation.commission_rate ?? 0) * 100}
             onChange={(v) => setCompensation((p) => ({ ...p, commission_rate: v / 100 }))}
-            disabled={!editing.comp || cannotEdit || saving.comp}
+            disabled={!editing.comp || saving.comp}
           />
           <NumberField
             label="Hourly rate"
             value={Number(compensation.hourly_rate ?? 0)}
             onChange={(v) => setCompensation((p) => ({ ...p, hourly_rate: v }))}
-            disabled={!editing.comp || cannotEdit || saving.comp}
+            disabled={!editing.comp || saving.comp}
           />
           <NumberField
             label="Salary rate"
             value={Number(compensation.salary_rate ?? 0)}
             onChange={(v) => setCompensation((p) => ({ ...p, salary_rate: v }))}
-            disabled={!editing.comp || cannotEdit || saving.comp}
+            disabled={!editing.comp || saving.comp}
           />
         </div>
         <div className="mt-6">
@@ -308,7 +257,7 @@ export default function EmployeeSettingsPage() {
                       },
                     }))
                   }
-                  disabled={!editing.comp || cannotEdit || saving.comp}
+                  disabled={!editing.comp || saving.comp}
                 />
                 {option.label}
               </label>
@@ -322,10 +271,9 @@ export default function EmployeeSettingsPage() {
         <SectionHeader
           title="Preferences & Goals"
           subtitle="Track favorite breeds, specialties, and performance goals."
-          canEdit={!cannotEdit}
           isEditing={editing.prefs}
           isSaving={saving.prefs}
-          onEdit={() => setEditing((e) => ({ ...e, prefs: true }))}
+          onEdit={() => beginEdit("prefs")}
           onSave={handlePreferencesSave}
         />
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -333,14 +281,14 @@ export default function EmployeeSettingsPage() {
             label="Preferred breeds"
             values={preferences.preferred_breeds}
             onChange={(vals) => setPreferences((p) => ({ ...p, preferred_breeds: vals }))}
-            disabled={!editing.prefs || cannotEdit || saving.prefs}
+            disabled={!editing.prefs || saving.prefs}
             placeholder="Add breed"
           />
           <TagInput
             label="Not accepted breeds"
             values={preferences.not_accepted_breeds}
             onChange={(vals) => setPreferences((p) => ({ ...p, not_accepted_breeds: vals }))}
-            disabled={!editing.prefs || cannotEdit || saving.prefs}
+            disabled={!editing.prefs || saving.prefs}
             placeholder="Add breed"
           />
         </div>
@@ -349,7 +297,7 @@ export default function EmployeeSettingsPage() {
             label="Specialties"
             values={preferences.specialties}
             onChange={(vals) => setPreferences((p) => ({ ...p, specialties: vals }))}
-            disabled={!editing.prefs || cannotEdit || saving.prefs}
+            disabled={!editing.prefs || saving.prefs}
             placeholder="Add specialty"
           />
         </div>
@@ -358,13 +306,13 @@ export default function EmployeeSettingsPage() {
             label="Weekly revenue target"
             value={Number(preferences.weekly_revenue_target ?? 0)}
             onChange={(v) => setPreferences((p) => ({ ...p, weekly_revenue_target: v }))}
-            disabled={!editing.prefs || cannotEdit || saving.prefs}
+            disabled={!editing.prefs || saving.prefs}
           />
           <NumberField
             label="Desired dogs per day"
             value={Number(preferences.desired_dogs_per_day ?? 0)}
             onChange={(v) => setPreferences((p) => ({ ...p, desired_dogs_per_day: v }))}
-            disabled={!editing.prefs || cannotEdit || saving.prefs}
+            disabled={!editing.prefs || saving.prefs}
           />
         </div>
       </section>
@@ -374,16 +322,15 @@ export default function EmployeeSettingsPage() {
         <SectionHeader
           title="Manager Notes"
           subtitle="Private notes for leadership. Visible to managers only."
-          canEdit={!cannotEdit}
           isEditing={editing.notes}
           isSaving={saving.notes}
-          onEdit={() => setEditing((e) => ({ ...e, notes: true }))}
+          onEdit={() => beginEdit("notes")}
           onSave={handleNotesSave}
         />
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          disabled={!editing.notes || cannotEdit || saving.notes}
+          disabled={!editing.notes || saving.notes}
           className="mt-4 h-40 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 disabled:bg-slate-100"
           placeholder="Add private notes for this staff member"
         />
@@ -392,21 +339,18 @@ export default function EmployeeSettingsPage() {
   );
 }
 
-/** Shared header with Edit/Save toggle */
+/** Header that always allows clicking Edit. Save is the same button. */
 function SectionHeader(props: {
   title: string;
   subtitle: string;
-  canEdit: boolean;
   isEditing: boolean;
   isSaving: boolean;
   onEdit: () => void;
   onSave: () => void;
 }) {
-  const { title, subtitle, canEdit, isEditing, isSaving, onEdit, onSave } = props;
-
+  const { title, subtitle, isEditing, isSaving, onEdit, onSave } = props;
   const label = isSaving ? "Saving…" : isEditing ? "Save" : "Edit";
   const handler = isEditing ? onSave : onEdit;
-
   return (
     <header className="flex items-center justify-between">
       <div>
@@ -416,7 +360,7 @@ function SectionHeader(props: {
       <button
         type="button"
         onClick={handler}
-        disabled={!canEdit || isSaving}
+        disabled={isSaving}
         className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-blue/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {label}
@@ -425,13 +369,7 @@ function SectionHeader(props: {
   );
 }
 
-type TextFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-};
-
+type TextFieldProps = { label: string; value: string; onChange: (v: string) => void; disabled?: boolean };
 function TextField({ label, value, onChange, disabled }: TextFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
@@ -439,7 +377,7 @@ function TextField({ label, value, onChange, disabled }: TextFieldProps) {
       <input
         type="text"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
       />
@@ -447,41 +385,26 @@ function TextField({ label, value, onChange, disabled }: TextFieldProps) {
   );
 }
 
-type SelectFieldProps = {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-};
-
+type SelectFieldProps = { label: string; value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean };
 function SelectField({ label, value, options, onChange, disabled }: SelectFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
       >
         {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
+          <option key={option} value={option}>{option}</option>
         ))}
       </select>
     </label>
   );
 }
 
-type NumberFieldProps = {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  disabled?: boolean;
-};
-
+type NumberFieldProps = { label: string; value: number; onChange: (v: number) => void; disabled?: boolean };
 function NumberField({ label, value, onChange, disabled }: NumberFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
@@ -489,7 +412,7 @@ function NumberField({ label, value, onChange, disabled }: NumberFieldProps) {
       <input
         type="number"
         value={Number.isFinite(value) ? value : 0}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}
         className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
       />
@@ -524,10 +447,7 @@ function TagInput({ label, values, onChange, placeholder, disabled }: TagInputPr
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       <div className="flex flex-wrap gap-2">
         {values.map((value) => (
-          <span
-            key={value}
-            className="flex items-center gap-1 rounded-full bg-brand-blue/10 px-3 py-1 text-xs font-semibold text-brand-blue"
-          >
+          <span key={value} className="flex items-center gap-1 rounded-full bg-brand-blue/10 px-3 py-1 text-xs font-semibold text-brand-blue">
             {value}
             {!disabled && (
               <button
@@ -546,10 +466,10 @@ function TagInput({ label, values, onChange, placeholder, disabled }: TagInputPr
       <input
         type="text"
         value={input}
-        onChange={(event) => setInput(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
             addValue();
           }
         }}

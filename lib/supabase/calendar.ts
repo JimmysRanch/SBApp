@@ -9,8 +9,13 @@ import {
 } from "../validation/calendar";
 
 const TABLE = "calendar_events";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const usingMockData = !serviceRoleKey || serviceRoleKey.trim() === "";
+const serviceRoleKey = (() => {
+  const value = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+})();
+const usingMockData = !serviceRoleKey;
 
 type CalendarStore = { events: TCalendarEvent[] };
 

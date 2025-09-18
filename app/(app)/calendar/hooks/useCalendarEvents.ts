@@ -39,6 +39,8 @@ export type NewEvent = {
   allDay?: boolean;
 };
 
+type CalendarMeta = { usingMockData?: boolean };
+
 export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: number; type?: string }) {
   const params = new URLSearchParams();
   params.set("from", fmt(from)); params.set("to", fmt(to));
@@ -49,6 +51,7 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: number; 
     revalidateOnFocus: false,
   });
   const events = useMemo<TCalendarEvent[]>(() => data?.data ?? [], [data]);
+  const meta = useMemo<CalendarMeta>(() => (data?.meta ?? {}) as CalendarMeta, [data]);
 
   const error = useMemo(() => {
     if (!swrError) return undefined;
@@ -90,5 +93,5 @@ export function useCalendarEvents(from: Date, to: Date, q?: { staffId?: number; 
 
   const refresh = useCallback(() => mutate(), [mutate]);
 
-  return { events, error, isLoading: isLoading || isValidating, create, update, remove, refresh };
+  return { events, error, isLoading: isLoading || isValidating, create, update, remove, refresh, meta };
 }

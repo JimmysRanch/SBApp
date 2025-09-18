@@ -30,6 +30,13 @@ const typeOptions: { value: "appointment" | "shift" | "timeOff" | ""; label: str
 
 type StaffOption = { id: string; label: string };
 
+const mockStaffOptions: StaffOption[] = [
+  { id: "101", label: "Sammy Clippers" },
+  { id: "102", label: "Jules Bubbles" },
+  { id: "103", label: "Marla Snoot" },
+  { id: "104", label: "Avery Whiskers" },
+];
+
 type Toast = { id: number; message: string; tone: "success" | "error" | "info" };
 
 type View = "month" | "week" | "day";
@@ -268,6 +275,14 @@ function CalendarPageContent() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (usingMockData) {
+      setStaffOptions(mockStaffOptions);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
       try {
         const { data, error } = await supabase
@@ -291,14 +306,15 @@ function CalendarPageContent() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [usingMockData]);
 
   const range = useMemo(() => computeRange(view, selectedDate), [view, selectedDate]);
 
-  const { events, error, isLoading, create, update, remove, refresh } = useCalendarEvents(range.from, range.to, {
+  const { events, error, isLoading, create, update, remove, refresh, meta } = useCalendarEvents(range.from, range.to, {
     staffId: filters.staffId,
     type: filters.type,
   });
+  const usingMockData = Boolean(meta?.usingMockData);
 
   const loadErrorMessage = error?.message?.trim();
 
@@ -606,10 +622,26 @@ function CalendarPageContent() {
             <button
               type="button"
               onClick={refresh}
-              className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
             >
               Retry
             </button>
+          </div>
+        )}
+        {usingMockData && !error && (
+          <div className="mb-3 flex items-start gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span aria-hidden="true" className="text-lg">💡</span>
+            <div>
+              <p className="font-semibold">Showing sample appointments</p>
+              <p className="text-xs text-amber-800 sm:text-sm">
+                We could not find a Supabase service role key, so the calendar is using demo data. Add your key to see live appointments and enable saving changes.
+              </p>
+            </div>
+          </div>
+        )}
+        {!isLoading && !error && viewEvents.length === 0 && (
+          <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            No events match the filters yet. Try choosing another staff member, event type, or date range.
           </div>
         )}
 

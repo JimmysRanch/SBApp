@@ -42,6 +42,28 @@ function toDateInputValue(date: Date) {
   return copy.toISOString().slice(0, 10);
 }
 
+function parseDateInputValue(value: string): Date | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  if (monthIndex < 0 || monthIndex > 11) return null;
+
+  const result = new Date(year, monthIndex, day);
+  if (
+    result.getFullYear() !== year ||
+    result.getMonth() !== monthIndex ||
+    result.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return result;
+}
+
 function computeRange(view: View, anchor: Date): CalendarRange {
   if (view === "day") {
     return { from: startOfDay(anchor), to: endOfDay(anchor) };
@@ -350,7 +372,11 @@ function CalendarPageContent() {
     } else if (view === "week") {
       next.setDate(next.getDate() - 7);
     } else {
+      const currentDay = next.getDate();
+      next.setDate(1);
       next.setMonth(next.getMonth() - 1);
+      const lastDayOfMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+      next.setDate(Math.min(currentDay, lastDayOfMonth));
     }
     setDate(next);
   };
@@ -362,7 +388,11 @@ function CalendarPageContent() {
     } else if (view === "week") {
       next.setDate(next.getDate() + 7);
     } else {
+      const currentDay = next.getDate();
+      next.setDate(1);
       next.setMonth(next.getMonth() + 1);
+      const lastDayOfMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+      next.setDate(Math.min(currentDay, lastDayOfMonth));
     }
     setDate(next);
   };
@@ -465,8 +495,9 @@ function CalendarPageContent() {
                   className="absolute left-0 top-full mt-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm shadow"
                   value={toDateInputValue(selectedDate)}
                   onChange={(event) => {
-                    const next = new Date(event.target.value);
-                    if (!Number.isNaN(next.valueOf())) {
+                    const parsed = parseDateInputValue(event.target.value);
+                    if (parsed) {
+                      const next = startOfDay(parsed);
                       setDate(next);
                     }
                     setShowDatePicker(false);

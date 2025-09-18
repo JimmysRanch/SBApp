@@ -132,6 +132,27 @@ const subtabs = [
   { label: "Settings", path: (id: number) => `/employees/${id}/settings` },
 ];
 
+const MANAGEMENT_ROLE_KEYWORDS = ["manager", "owner", "admin"];
+
+const TRUTHY_STRINGS = ["true", "1", "yes", "y", "on", "t"];
+
+const isTruthyFlag = (value: unknown) => {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return TRUTHY_STRINGS.includes(normalized);
+  }
+  return false;
+};
+
+const roleImpliesManagement = (role: string | null | undefined) => {
+  if (!role) return false;
+  const normalized = role.toLowerCase();
+  return MANAGEMENT_ROLE_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
 type Props = {
   children: ReactNode;
   employee: StaffRecord;
@@ -185,10 +206,10 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
-      if (flags.can_manage_discounts === true) return true;
-      if (flags.is_manager === true) return true;
+      if (isTruthyFlag(flags.can_manage_discounts)) return true;
+      if (isTruthyFlag(flags.is_manager)) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
+    return roleImpliesManagement(viewer.role);
   }, [viewer]);
 
   const viewerCanEditStaff = useMemo(() => {
@@ -196,11 +217,13 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
-      if (flags.can_edit_schedule === true) return true;
-      if (flags.can_manage_discounts === true) return true;
-      if (flags.can_view_reports === true) return true;
+      if (isTruthyFlag(flags.is_manager)) return true;
+      if (isTruthyFlag(flags.can_manage_staff)) return true;
+      if (isTruthyFlag(flags.can_edit_schedule)) return true;
+      if (isTruthyFlag(flags.can_manage_discounts)) return true;
+      if (isTruthyFlag(flags.can_view_reports)) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
+    return roleImpliesManagement(viewer.role);
   }, [viewer]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);

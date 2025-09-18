@@ -3,25 +3,20 @@ import { cookies } from 'next/headers'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { createClient as createSupabaseJs, type SupabaseClient } from '@supabase/supabase-js'
 
+// NOTE: server-only file; never import in client components.
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-function readServiceRoleKey() {
-  const value = process.env['SUPABASE_SERVICE_ROLE_KEY']
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed ? trimmed : undefined
-}
-
-let cachedAdmin: SupabaseClient | null = null
-let cachedAdminKey: string | undefined
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
 }
 
-export function getSupabaseServiceRoleKey() {
-  return readServiceRoleKey()
+function readServiceRoleKey(): string | undefined {
+  const value = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
 }
 
 export function createClient() {
@@ -34,6 +29,9 @@ export function createClient() {
     },
   })
 }
+
+let cachedAdmin: SupabaseClient | null = null
+let cachedAdminKey: string | undefined
 
 export function getSupabaseAdmin(): SupabaseClient {
   const serviceKey = readServiceRoleKey()

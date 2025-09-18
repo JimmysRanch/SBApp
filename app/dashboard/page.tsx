@@ -17,25 +17,20 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
   return (
     <PageContainer>
-      <div className="grid gap-6 md:grid-cols-3">
-        <Widget
-          title="Today's Appointments"
-          color="blue"
-          className="md:col-span-2 md:row-span-4"
-          hideHeader
-        >
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <Widget title="Today's Appointments" color="blue" hideHeader>
           <TodaysAppointments />
         </Widget>
-        <Widget title="Employee Workload" color="purple" className="md:col-start-3">
+        <Widget title="Employee Workload" color="purple">
           <EmployeeWorkload />
         </Widget>
-        <Widget title="Revenue" color="green" className="md:col-start-3">
+        <Widget title="Revenue" color="green">
           <Revenue />
         </Widget>
-        <Widget title="Messages" color="purple" className="md:col-start-3">
+        <Widget title="Messages" color="purple">
           <Messages />
         </Widget>
-        <Widget title="Quick Actions" color="pink" className="md:col-start-3">
+        <Widget title="Quick Actions" color="pink">
           <div className="flex flex-col space-y-3">
             {[
               'Book Appointment',

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { ScruffyIcon } from "./icons";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -21,8 +22,8 @@ export default function TopNav() {
     <header className="sticky top-0 z-40 flex justify-center px-4 pt-6">
       <div className="glass-panel flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="group flex items-center gap-4 text-white">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-inner ring-4 ring-white/40 transition-transform duration-300 group-hover:-rotate-12">
-            🐾
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-brand-bubble shadow-inner ring-4 ring-white/40 transition-transform duration-300 group-hover:-rotate-12 group-hover:text-brand-bubbleDark">
+            <ScruffyIcon name="logomark" size={28} className="transition-colors duration-300" />
           </span>
           <div className="flex flex-col leading-tight">
             <span className="text-xs font-semibold uppercase tracking-[0.4em] text-white/70">Scruffy</span>

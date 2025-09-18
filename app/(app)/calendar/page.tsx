@@ -399,6 +399,7 @@ function CalendarPageContent() {
       next.setDate(Math.min(currentDay, lastDayOfMonth));
     }
     setDate(next);
+    setShowDatePicker(false);
   };
 
   const handleNext = () => {
@@ -415,6 +416,7 @@ function CalendarPageContent() {
       next.setDate(Math.min(currentDay, lastDayOfMonth));
     }
     setDate(next);
+    setShowDatePicker(false);
   };
 
   const handleViewChange = (newView: View) => {
@@ -423,6 +425,7 @@ function CalendarPageContent() {
 
   const handleToday = () => {
     setDate(new Date());
+    setShowDatePicker(false);
   };
 
   const openCreateDialog = (day?: Date) => {
@@ -481,6 +484,9 @@ function CalendarPageContent() {
   };
 
   const label = useMemo(() => formatLabel(view, selectedDate), [view, selectedDate]);
+  const periodDescriptor = view === "day" ? "day" : view === "week" ? "week" : "month";
+  const previousPeriodLabel = `Previous ${periodDescriptor}`;
+  const nextPeriodLabel = `Next ${periodDescriptor}`;
 
   useEffect(() => {
     if (showDatePicker && dateInputRef.current) {
@@ -492,27 +498,68 @@ function CalendarPageContent() {
     <div className="flex h-full flex-col rounded-md border border-gray-200 bg-white shadow-sm">
       <div className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="rounded border border-gray-300 px-3 py-1 text-sm font-medium hover:bg-gray-50"
-            >
-              Prev
-            </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDatePicker((prev) => !prev)}
-                className="min-w-[180px] rounded border border-transparent px-2 py-1 text-sm font-semibold hover:border-gray-300"
-              >
-                {label}
-              </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative inline-block">
+              <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  aria-label={previousPeriodLabel}
+                  className="inline-flex items-center gap-1 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker((prev) => !prev)}
+                  aria-haspopup="dialog"
+                  aria-expanded={showDatePicker}
+                  className="inline-flex min-w-[200px] items-center gap-2 border-x border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>{label}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  aria-label={nextPeriodLabel}
+                  className="inline-flex items-center gap-1 border-l border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                >
+                  <span>Next</span>
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
               {showDatePicker && (
                 <input
                   ref={dateInputRef}
                   type="date"
-                  className="absolute left-0 top-full mt-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm shadow"
+                  className="absolute left-1/2 top-full z-20 mt-2 w-full min-w-[220px] -translate-x-1/2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={toDateInputValue(selectedDate)}
                   onChange={(event) => {
                     const parsed = parseDateInputValue(event.target.value);
@@ -526,13 +573,6 @@ function CalendarPageContent() {
                 />
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="rounded border border-gray-300 px-3 py-1 text-sm font-medium hover:bg-gray-50"
-            >
-              Next
-            </button>
           </div>
           <div className="flex items-center gap-2">
             <div className="inline-flex overflow-hidden rounded border border-gray-300 text-sm">

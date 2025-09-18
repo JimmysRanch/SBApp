@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { getSupabaseAdmin } from "./server";
+import { getSupabaseAdmin, getSupabaseServiceRoleKey } from "./server";
 import {
   CalendarEvent,
   CalendarEventCreate,
@@ -9,8 +9,10 @@ import {
 } from "../validation/calendar";
 
 const TABLE = "calendar_events";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const usingMockData = !serviceRoleKey || serviceRoleKey.trim() === "";
+
+function shouldUseMockData() {
+  return !getSupabaseServiceRoleKey();
+}
 
 type CalendarStore = { events: TCalendarEvent[] };
 
@@ -131,11 +133,12 @@ function matchesFilters(event: TCalendarEvent, params: { from?: string; to?: str
 }
 
 export function calendarUsesMockData() {
-  return usingMockData;
+  return shouldUseMockData();
 }
 
 export async function listEvents(params: { from?: string; to?: string; staffId?: number; type?: string } = {}) {
-  if (usingMockData) {
+  const useMock = shouldUseMockData();
+  if (useMock) {
     const store = ensureMockStore();
     return store.events
       .filter((event) => matchesFilters(event, params))
@@ -155,7 +158,8 @@ export async function listEvents(params: { from?: string; to?: string; staffId?:
 }
 
 export async function getEvent(id: string) {
-  if (usingMockData) {
+  const useMock = shouldUseMockData();
+  if (useMock) {
     const store = ensureMockStore();
     const found = store.events.find((event) => event.id === id);
     if (!found) throw new Error("Not found");
@@ -169,7 +173,8 @@ export async function getEvent(id: string) {
 }
 
 export async function createEvent(payload: any) {
-  if (usingMockData) {
+  const useMock = shouldUseMockData();
+  if (useMock) {
     const parsed = CalendarEventCreate.parse(payload);
     const now = new Date().toISOString();
     const next: TCalendarEvent = CalendarEvent.parse({
@@ -204,7 +209,8 @@ export async function createEvent(payload: any) {
 }
 
 export async function updateEvent(id: string, payload: any) {
-  if (usingMockData) {
+  const useMock = shouldUseMockData();
+  if (useMock) {
     const parsed = CalendarEventUpdate.parse(payload);
     const store = ensureMockStore();
     const index = store.events.findIndex((event) => event.id === id);
@@ -238,7 +244,8 @@ export async function updateEvent(id: string, payload: any) {
 }
 
 export async function deleteEvent(id: string) {
-  if (usingMockData) {
+  const useMock = shouldUseMockData();
+  if (useMock) {
     const store = ensureMockStore();
     const index = store.events.findIndex((event) => event.id === id);
     if (index === -1) throw new Error("Not found");

@@ -26,52 +26,61 @@ export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent,
   const monthStart = startOfMonth(date);
   const gridStart = startOfWeek(monthStart);
   const cells: Date[] = [];
-  for (let i=0;i<42;i++) cells.push(addDays(gridStart, i));
+  for (let i = 0; i < 42; i += 1) cells.push(addDays(gridStart, i));
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <div className="grid grid-cols-7 gap-px bg-gray-200 rounded overflow-hidden">
-      {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d)=>(
-        <div key={d} className="bg-white p-2 text-xs font-semibold">{d}</div>
-      ))}
-      {cells.map((d, idx) => {
-        const inMonth = d.getMonth() === date.getMonth();
-        const items = eventsForDay(d, events);
-        const dayEvents = items.slice(0,3);
-        const more = Math.max(items.length - dayEvents.length, 0);
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="grid grid-cols-7 border-b border-gray-200 bg-slate-50 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 sm:text-xs">
+        {dayLabels.map((label) => (
+          <div key={label} className="px-3 py-2 text-center">{label}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((d, idx) => {
+          const inMonth = d.getMonth() === date.getMonth();
+          const items = eventsForDay(d, events);
+          const dayEvents = items.slice(0, 3);
+          const more = Math.max(items.length - dayEvents.length, 0);
+          const isToday = sameDay(d, new Date());
+          const isWeekend = idx % 7 >= 5;
+          const isEndOfWeek = (idx + 1) % 7 === 0;
+          let backgroundClass = inMonth ? "bg-white" : "bg-slate-50 text-slate-400";
+          if (inMonth && isWeekend) backgroundClass = "bg-slate-50";
 
-        return (
-          <div
-            key={idx}
-            className={`bg-white min-h-[100px] p-2 ${inMonth ? "" : "bg-gray-50 text-gray-400"} ${sameDay(d, new Date()) ? "border border-blue-500" : ""}`}
-          >
-            <div className="flex justify-between items-center">
-              <button
-                type="button"
-                className="text-xs font-medium hover:underline"
-                onClick={()=>onSelectDay(d)}
-              >
-                {d.getDate()}
-              </button>
-            </div>
-            <div className="mt-2 space-y-1">
-              {dayEvents.map((ev)=>(
-                <div key={ev.id}>
-                  <CalendarEventCard event={ev} onClick={()=>onSelectEvent(ev)} />
-                </div>
-              ))}
-              {more>0 && (
+          return (
+            <div
+              key={`${d.toISOString()}-${idx}`}
+              className={`relative min-h-[140px] border-b border-r border-gray-200 p-3 text-xs transition-colors ${backgroundClass} hover:bg-sky-50 focus-within:bg-sky-50 ${isToday ? "ring-2 ring-inset ring-blue-500" : ""} ${isEndOfWeek ? "border-r-0" : ""}`}
+            >
+              <div className="flex items-start justify-between">
                 <button
                   type="button"
-                  onClick={()=>onShowOverflow(d)}
-                  className="text-xs text-blue-600 hover:underline"
+                  aria-label={`Create event on ${d.toLocaleDateString()}`}
+                  onClick={() => onSelectDay(d)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${isToday ? "bg-blue-600 text-white shadow" : inMonth ? "text-slate-700 hover:bg-blue-50" : "text-slate-400"}`}
                 >
-                  +{more} more
+                  {d.getDate()}
                 </button>
-              )}
+              </div>
+              <div className="mt-3 flex flex-col gap-1">
+                {dayEvents.map((ev) => (
+                  <CalendarEventCard key={ev.id} event={ev} onClick={() => onSelectEvent(ev)} />
+                ))}
+                {more > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onShowOverflow(d)}
+                    className="text-left text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    +{more} more
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -101,6 +101,8 @@ type Toast = {
 type EmployeeDetailContextValue = {
   employee: StaffRecord;
   goals: StaffGoals | null;
+  updateEmployee: (updates: Partial<StaffRecord>) => void;
+  updateGoals: (updates: Partial<StaffGoals> | null) => void;
   viewer: ViewerRecord | null;
   viewerCanManageDiscounts: boolean;
   viewerCanEditStaff: boolean;
@@ -142,6 +144,9 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
   const router = useRouter();
   const { email } = useAuth();
 
+  const [employeeState, setEmployeeState] = useState(employee);
+  const [goalsState, setGoalsState] = useState<StaffGoals | null>(goals ?? null);
+
   const [viewer, setViewer] = useState<ViewerRecord | null>(null);
   const [viewerLoaded, setViewerLoaded] = useState(false);
   useEffect(() => {
@@ -180,15 +185,26 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
   const [refreshKey, setRefreshKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  useEffect(() => {
+    setEmployeeState(employee);
+  }, [employee]);
+
+  useEffect(() => {
+    setGoalsState(goals ?? null);
+  }, [goals]);
+
   const viewerCanManageDiscounts = useMemo(() => {
     if (!viewer) return false;
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
       if (flags.can_manage_discounts === true) return true;
+      if (flags.can_manage_staff === true) return true;
+      if (flags.is_admin === true) return true;
       if (flags.is_manager === true) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
+    const role = viewer.role?.toLowerCase() ?? "";
+    return role.includes("manager") || role.includes("owner") || role.includes("admin");
   }, [viewer]);
 
   const viewerCanEditStaff = useMemo(() => {
@@ -196,11 +212,15 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
+      if (flags.can_manage_staff === true) return true;
+      if (flags.is_admin === true) return true;
+      if (flags.is_manager === true) return true;
       if (flags.can_edit_schedule === true) return true;
       if (flags.can_manage_discounts === true) return true;
       if (flags.can_view_reports === true) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
+    const role = viewer.role?.toLowerCase() ?? "";
+    return role.includes("manager") || role.includes("owner") || role.includes("admin");
   }, [viewer]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -325,13 +345,31 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     setDiscountDraft(draft);
   }, []);
 
+  const updateEmployee = useCallback((updates: Partial<StaffRecord>) => {
+    setEmployeeState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const updateGoals = useCallback(
+    (updates: Partial<StaffGoals> | null) => {
+      if (updates === null) {
+        setGoalsState(null);
+        return;
+      }
+      setGoalsState((prev) => ({
+        ...(prev ?? { weekly_revenue_target: null, desired_dogs_per_day: null }),
+        ...updates,
+      }));
+    },
+    []
+  );
+
   const tabs = useMemo(
     () =>
       subtabs.map((tab) => ({
         label: tab.label,
-        href: tab.path(employee.id),
+        href: tab.path(employeeState.id),
       })),
-    [employee.id]
+    [employeeState.id]
   );
 
   const sanitizePhone = (value: string | null) => {
@@ -340,34 +378,36 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
   };
 
   const handleCallClick = () => {
-    if (!employee.phone) {
+    if (!employeeState.phone) {
       pushToast("No phone number on file", "error");
       return;
     }
-    window.open(`tel:${sanitizePhone(employee.phone)}`);
+    window.open(`tel:${sanitizePhone(employeeState.phone)}`);
   };
 
   const handleTextClick = () => {
-    if (!employee.phone) {
+    if (!employeeState.phone) {
       pushToast("No phone number on file", "error");
       return;
     }
-    window.open(`sms:${sanitizePhone(employee.phone)}`);
+    window.open(`sms:${sanitizePhone(employeeState.phone)}`);
   };
 
   const handleEmailClick = () => {
-    if (!employee.email) {
+    if (!employeeState.email) {
       pushToast("No email address on file", "error");
       return;
     }
-    window.open(`mailto:${employee.email}`);
+    window.open(`mailto:${employeeState.email}`);
   };
 
   return (
     <EmployeeDetailContext.Provider
       value={{
-        employee,
-        goals,
+        employee: employeeState,
+        goals: goalsState,
+        updateEmployee,
+        updateGoals,
         viewer: viewerLoaded ? viewer : null,
         viewerCanManageDiscounts,
         viewerCanEditStaff,

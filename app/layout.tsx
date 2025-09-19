@@ -1,59 +1,36 @@
-// app/layout.tsx
-import './globals.css';
-import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import TopNav from "@/components/TopNav";
+import "./globals.css";
+import AuthProvider from "@/components/AuthProvider";
+import { Nunito } from "next/font/google";
 
-export const metadata: Metadata = {
-  title: 'Scruffy Butts',
-  description: 'Grooming management',
+export const metadata = {
+  title: "Scruffy Butts",
+  description: "Grooming dashboard",
 };
+export const runtime = "nodejs";
 
-async function getUser() {
-  const cookieStore = cookies();
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
-  // NOTE: 3rd arg required
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name) => cookieStore.get(name)?.value,
-        // In a server component these are no-ops (middleware updates cookies)
-        set: () => {},
-        remove: () => {},
-      },
-    }
-  );
-
-  const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
-}
-
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const user = await getUser();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, Arial' }}>
-        {user && (
-          <header style={{ borderBottom: '1px solid #eee', padding: '10px 16px' }}>
-            <nav style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <a href="/">Dashboard</a>
-              <a href="/calendar">Calendar</a>
-              <a href="/clients">Clients</a>
-              <a href="/employees">Staff</a>
-              <a href="/reports">Reports</a>
-              <a href="/messages">Messages</a>
-              <a href="/settings">Settings</a>
-            </nav>
-          </header>
-        )}
-        <main style={{ padding: 16 }}>{children}</main>
+    <html lang="en" className="scroll-smooth">
+      <body
+        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
+      >
+        <div className="relative flex min-h-screen flex-col overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
+            <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
+            <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+          </div>
+          <TopNav />
+          <main className="relative z-10 flex-1">
+            <AuthProvider>{children}</AuthProvider>
+          </main>
+        </div>
       </body>
     </html>
   );

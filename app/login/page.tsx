@@ -1,41 +1,29 @@
 'use client';
-import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useSearchParams } from 'next/navigation';
+export const runtime = "nodejs";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+import LoginForm from '@/components/LoginForm';
 
 export default function LoginPage() {
-  const sp = useSearchParams();
-  const redirectTo = sp.get('redirect') || '/';
-  const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState<string|null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null); setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-    setLoading(false);
-    if (error) { setErr(error.message); return; }
-    window.location.href = redirectTo;
-  }
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace('/dashboard');
+    });
+  }, [router]);
 
   return (
-    <div style={{ minHeight:'100vh', display:'grid', placeItems:'center', padding:24 }}>
-      <form onSubmit={login} style={{ width:360, maxWidth:'90vw', padding:24, border:'1px solid #eee', borderRadius:8, background:'#fff' }}>
-        <h1 style={{ marginBottom: 16 }}>Sign in</h1>
-        {err && <div style={{ color:'#b00020', marginBottom:12 }}>Error: {err}</div>}
-        <div style={{ display:'grid', gap:8 }}>
-          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required style={{ padding:10, border:'1px solid #ccc', borderRadius:4 }} />
-          <input type="password" placeholder="Password" value={pw} onChange={e=>setPw(e.target.value)} required style={{ padding:10, border:'1px solid #ccc', borderRadius:4 }} />
-          <button type="submit" disabled={loading} style={{ padding:'10px 12px' }}>{loading ? 'Signing in…' : 'Sign in'}</button>
+    <Suspense fallback={null}>
+      <div className="relative flex min-h-[calc(100vh-6rem)] w-full items-center justify-center px-4 pb-16 pt-12">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -left-24 top-10 h-80 w-80 rounded-full bg-white/15 blur-[140px]" />
+          <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-brand-bubble/20 blur-[200px]" />
         </div>
-      </form>
-    </div>
+        <LoginForm />
+      </div>
+    </Suspense>
   );
 }

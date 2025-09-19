@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { parseCurrency, parseNumeric } from "@/lib/numbers";
 import { supabase } from "@/lib/supabase/client";
 
 import OverviewWidgets, { OverviewMetrics } from "./components/OverviewWidgets";
@@ -17,6 +18,13 @@ const emptyMetrics: OverviewMetrics = {
   lifetimeDogs: 0,
   lifetimeRevenue: 0,
 };
+
+function unwrapSingle<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) {
+    return (value[0] ?? null) as T | null;
+  }
+  return (value ?? null) as T | null;
+}
 
 export default function EmployeeOverviewPage() {
   const { employee, goals, openAppointmentDrawer, refreshKey } = useEmployeeDetail();
@@ -54,31 +62,36 @@ export default function EmployeeOverviewPage() {
         return;
       }
 
+      const todayData = unwrapSingle(todayRes.data);
+      const weekData = unwrapSingle(weekRes.data);
+      const lifetimeData = unwrapSingle(lifetimeRes.data);
+
       setMetrics({
-        todayDogs: todayRes.data?.dogs ?? 0,
-        todayHours: todayRes.data?.hours ?? 0,
-        weekDogs: weekRes.data?.dogs ?? 0,
-        weekRevenue: weekRes.data?.revenue ?? 0,
-        weekCommission: weekRes.data?.commission ?? 0,
-        lifetimeDogs: lifetimeRes.data?.dogs ?? 0,
-        lifetimeRevenue: lifetimeRes.data?.revenue ?? 0,
+        todayDogs: parseNumeric(todayData?.dogs) ?? 0,
+        todayHours: parseNumeric(todayData?.hours) ?? 0,
+        weekDogs: parseNumeric(weekData?.dogs) ?? 0,
+        weekRevenue: parseCurrency(weekData?.revenue) ?? 0,
+        weekCommission: parseCurrency(weekData?.commission) ?? 0,
+        lifetimeDogs: parseNumeric(lifetimeData?.dogs) ?? 0,
+        lifetimeRevenue: parseCurrency(lifetimeData?.revenue) ?? 0,
       });
 
-      const rows = (recentRes.data ?? []).map((row: any) => ({
-        id: row.id,
-        start: row.start_time,
-        pet: row.pet_name ?? null,
-        service: row.service ?? null,
-        price:
-          typeof row.price === "number"
-            ? row.price
-            : typeof row.price_cents === "number"
-            ? row.price_cents / 100
-            : null,
-        status: row.status ?? null,
-      }));
+      const rows = (recentRes.data ?? [])
+        .map((row: any) => {
+          const id = parseNumeric(row.id);
+          if (id === null) return null;
+          return {
+            id,
+            start: row.start_time,
+            pet: row.pet_name ?? null,
+            service: row.service ?? null,
+            price: parseCurrency(row.price, row.price_cents),
+            status: row.status ?? null,
+          } as RecentJobRow;
+        })
+        .filter((row): row is RecentJobRow => row !== null);
 
-      setRecent(rows as RecentJobRow[]);
+      setRecent(rows);
       setLoading(false);
     };
 

@@ -3,6 +3,7 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 
+import { parseCurrency, parseNumeric } from "@/lib/numbers";
 import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 
@@ -101,22 +102,25 @@ export default function EmployeeHistoryPage() {
       return;
     }
 
-    const mapped = (data ?? []).map((item: any) => {
-      const price = typeof item.price === "number" ? item.price : item.price_cents ? item.price_cents / 100 : 0;
-      let tip = 0;
-      if (typeof item.tip === "number") tip = item.tip;
-      else if (typeof item.tip_amount === "number") tip = item.tip_amount;
-      else if (typeof item.tip_cents === "number") tip = item.tip_cents / 100;
-      return {
-        id: item.id,
-        start_time: item.start_time,
-        service: item.service,
-        status: item.status,
-        price,
-        tip,
-        pet_name: item.pet_name ?? null,
-      };
-    });
+    const mapped = (data ?? [])
+      .map((item: any) => {
+        const id = parseNumeric(item.id);
+        if (id === null) return null;
+        const price = parseCurrency(item.price, item.price_cents) ?? 0;
+        const tip =
+          parseCurrency(item.tip ?? item.tip_amount, item.tip_cents) ??
+          0;
+        return {
+          id,
+          start_time: item.start_time,
+          service: item.service ?? null,
+          status: item.status ?? null,
+          price,
+          tip,
+          pet_name: item.pet_name ?? null,
+        } as HistoryRow;
+      })
+      .filter((row): row is HistoryRow => row !== null);
     setRows(mapped);
     setLoading(false);
   }, [activeFilters, employee.id]);

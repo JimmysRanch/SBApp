@@ -32,19 +32,28 @@ export default function CalendarEventCard({ event, onClick }: { event: CalendarE
           minute: "2-digit",
         })}`
     : "";
+  const fallbackTitle = event.type === "shift" ? "Shift" : event.type === "timeOff" ? "Time off" : "Appointment";
+  const displayTitle = (event.title?.trim() || fallbackTitle).trim();
+  const tooltip = [displayTitle, time].filter(Boolean).join(" • ");
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={`group w-full rounded-md border border-transparent border-l-4 px-3 py-2 text-left text-sm shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${colorClasses}`}
+      draggable
+      onDragStart={(dragEvent) => {
+        dragEvent.dataTransfer.effectAllowed = "move";
+        dragEvent.dataTransfer.setData("text/event-id", String(event.id));
+      }}
+      title={tooltip}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-semibold" title={event.title}>{event.title}</span>
-        {time && <span className="shrink-0 text-xs font-medium opacity-80">{time}</span>}
+        <span className="truncate font-semibold leading-snug" title={displayTitle}>{displayTitle}</span>
+        {time && <span className="shrink-0 text-xs font-semibold leading-snug opacity-80">{time}</span>}
       </div>
       {event.notes && event.notes.trim() && (
-        <p className="mt-1 truncate text-xs opacity-80" title={event.notes ?? undefined}>
+        <p className="mt-1 truncate text-xs leading-snug opacity-80" title={event.notes ?? undefined}>
           {event.notes}
         </p>
       )}

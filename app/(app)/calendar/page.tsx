@@ -699,6 +699,15 @@ function CalendarPageContent() {
               setDate(day);
               setView("day");
             }}
+            onMoveEvent={async (eventId, newStart, newEnd) => {
+              try {
+                await update(eventId, { start: newStart.toISOString(), end: newEnd.toISOString() });
+                pushToast("Event moved");
+              } catch (err) {
+                console.error(err);
+                pushToast("Could not move event", "error");
+              }
+            }}
           />
         )}
         {view === "week" && (

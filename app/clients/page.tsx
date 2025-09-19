@@ -1,15 +1,14 @@
-// app/clients/page.tsx
 'use client';
 
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 type Client = {
   id: number;
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  pet_names: string | null;
   created_at: string;
 };
 
@@ -25,34 +24,27 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    setLoading(true);
-    setErr(null);
+    setLoading(true); setErr(null);
 
     let query = supabase
-      .from('clients')
-      .select('id, full_name, email, phone, created_at')
+      .from('clients_with_pets')
+      .select('id, full_name, email, phone, pet_names, created_at')
       .order('created_at', { ascending: false })
       .limit(200);
 
     if (q.trim()) {
       const pat = `%${q.trim()}%`;
       query = query.or(
-        `full_name.ilike.${pat},email.ilike.${pat},phone.ilike.${pat}`
+        `full_name.ilike.${pat},email.ilike.${pat},phone.ilike.${pat},pet_names.ilike.${pat}`
       );
     }
 
     const { data, error } = await query;
-
-    if (error) setErr(error.message);
-    else setRows(data ?? []);
-
+    if (error) setErr(error.message); else setRows(data ?? []);
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { load(); }, []);
 
   return (
     <div style={{ padding: 16 }}>
@@ -60,7 +52,7 @@ export default function ClientsPage() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input
-          placeholder="Search name, email, or phone"
+          placeholder="Search name, email, phone, or pet"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()}
@@ -71,37 +63,21 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {err && (
-        <div style={{ color: '#b00020', marginBottom: 12 }}>
-          Failed to load clients: {err}
-        </div>
-      )}
-
-      {!loading && rows.length === 0 && !err && (
-        <div>No clients found.</div>
-      )}
+      {err && <div style={{ color: '#b00020', marginBottom: 12 }}>Failed to load clients: {err}</div>}
+      {!loading && rows.length === 0 && !err && <div>No clients found.</div>}
 
       <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
-            <th>ID</th>
-            <th>Full name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Created</th>
-          </tr>
-        </thead>
+        <thead><tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
+          <th>ID</th><th>Full name</th><th>Email</th><th>Phone</th><th>Pets</th><th>Created</th>
+        </tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
-              <td>
-                <Link href={`/clients/${r.id}`}>{r.id}</Link>
-              </td>
-              <td>
-                <Link href={`/clients/${r.id}`}>{r.full_name ?? '—'}</Link>
-              </td>
+              <td>{r.id}</td>
+              <td>{r.full_name ?? '—'}</td>
               <td>{r.email ?? '—'}</td>
               <td>{r.phone ?? '—'}</td>
+              <td>{r.pet_names || '—'}</td>
               <td>{new Date(r.created_at).toLocaleString()}</td>
             </tr>
           ))}

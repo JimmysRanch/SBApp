@@ -184,7 +184,7 @@ export default function ClientDetailPage() {
   const showSkeleton = loading && !client;
 
   return (
-    <PageContainer className="space-y-6">
+    <PageContainer variant="compact" className="space-y-5">
       <div>
         <Link
           href="/clients"
@@ -251,8 +251,8 @@ export default function ClientDetailPage() {
 
       {!showSkeleton && client && (
         <>
-          <Card className="space-y-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <Card className="space-y-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-5">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-bubble to-brand-lavender text-2xl font-semibold text-primary shadow-soft">
                   {getInitials(client.full_name)}
@@ -376,7 +376,7 @@ export default function ClientDetailPage() {
             </div>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="grid gap-5 lg:grid-cols-[2fr,1fr]">
             <Card className="space-y-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-xl font-semibold text-primary-dark">Appointments</h2>

@@ -8,6 +8,7 @@ type Props = {
   onSelectDay: (d: Date) => void;
   onSelectEvent: (e: CalendarEvent) => void;
   onShowOverflow: (d: Date) => void;
+  onMoveEvent: (id: string, newStart: Date, newEnd: Date) => void;
 };
 
 function eventsForDay(day: Date, list: CalendarEvent[]) {
@@ -22,7 +23,7 @@ function eventsForDay(day: Date, list: CalendarEvent[]) {
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
-export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent, onShowOverflow }: Props) {
+export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent, onShowOverflow, onMoveEvent }: Props) {
   const monthStart = startOfMonth(date);
   const gridStart = startOfWeek(monthStart);
   const cells: Date[] = [];
@@ -40,8 +41,9 @@ export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent,
         {cells.map((d, idx) => {
           const inMonth = d.getMonth() === date.getMonth();
           const items = eventsForDay(d, events);
-          const dayEvents = items.slice(0, 3);
-          const more = Math.max(items.length - dayEvents.length, 0);
+          const visibleEvents = inMonth ? items : [];
+          const dayEvents = visibleEvents.slice(0, 3);
+          const more = inMonth ? Math.max(items.length - dayEvents.length, 0) : 0;
           const isToday = sameDay(d, new Date());
           const isWeekend = idx % 7 >= 5;
           const isEndOfWeek = (idx + 1) % 7 === 0;
@@ -52,12 +54,42 @@ export default function CalendarGrid({ date, events, onSelectDay, onSelectEvent,
             <div
               key={`${d.toISOString()}-${idx}`}
               className={`relative min-h-[140px] border-b border-r border-gray-200 p-3 text-xs transition-colors ${backgroundClass} hover:bg-sky-50 focus-within:bg-sky-50 ${isToday ? "ring-2 ring-inset ring-blue-500" : ""} ${isEndOfWeek ? "border-r-0" : ""}`}
+              onDragOver={(event) => {
+                if (!inMonth) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                if (!inMonth) return;
+                event.preventDefault();
+                const eventId = event.dataTransfer.getData("text/event-id");
+                if (!eventId) return;
+                const match = events.find((item) => String(item.id) === eventId);
+                if (!match) return;
+
+                const start = new Date(match.start);
+                const end = new Date(match.end);
+                if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf())) return;
+
+                const targetDay = new Date(d);
+                targetDay.setHours(start.getHours(), start.getMinutes(), start.getSeconds(), start.getMilliseconds());
+                const duration = end.getTime() - start.getTime();
+                const safeDuration = Number.isFinite(duration) ? Math.max(duration, 0) : 0;
+                const targetEnd = new Date(targetDay.getTime() + safeDuration);
+
+                if (start.getTime() === targetDay.getTime() && end.getTime() === targetEnd.getTime()) return;
+
+                onMoveEvent(String(match.id), targetDay, targetEnd);
+              }}
             >
               <div className="flex items-start justify-between">
                 <button
                   type="button"
                   aria-label={`Create event on ${d.toLocaleDateString()}`}
-                  onClick={() => onSelectDay(d)}
+                  onClick={() => {
+                    if (!inMonth) return;
+                    onSelectDay(d);
+                  }}
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${isToday ? "bg-blue-600 text-white shadow" : inMonth ? "text-slate-700 hover:bg-blue-50" : "text-slate-400"}`}
                 >
                   {d.getDate()}

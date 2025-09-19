@@ -15,6 +15,29 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const quickActions = [
+    {
+      label: 'Book Appointment',
+      description: 'Launch a glam session for a fresh-faced pup.',
+      icon: '🎟️'
+    },
+    {
+      label: 'Add Client',
+      description: 'Welcome a brand-new furry friend to the squad.',
+      icon: '🐾'
+    },
+    {
+      label: 'Generate Report',
+      description: 'Pull dazzling numbers for the team celebration.',
+      icon: '📈'
+    },
+    {
+      label: 'Send Message',
+      description: 'Blast a hype note to the crew or a VIP human.',
+      icon: '📣'
+    }
+  ]
   return (
     <PageContainer>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -31,20 +54,26 @@ export default async function DashboardPage() {
           <Messages />
         </Widget>
         <Widget title="Quick Actions" color="pink">
-          <div className="flex flex-col space-y-3">
-            {[
-              'Book Appointment',
-              'Add Client',
-              'Generate Report',
-            ].map((label) => (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {quickActions.map((action) => (
               <button
-                key={label}
-                className="group flex items-center justify-between rounded-2xl bg-white/95 px-5 py-3 text-left font-semibold text-brand-navy shadow-lg transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+                key={action.label}
+                type="button"
+                className="group relative overflow-hidden rounded-2xl border border-white/25 bg-gradient-to-r from-white/90 via-white/80 to-white/60 p-4 text-left text-brand-navy shadow-[0_24px_50px_-26px_rgba(255,102,196,0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_32px_60px_-24px_rgba(255,102,196,0.55)]"
               >
-                <span>{label}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-bubble text-lg text-white shadow-inner transition-transform duration-200 group-hover:scale-105">
-                  →
-                </span>
+                <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-brand-bubble/25 blur-3xl transition duration-500 group-hover:scale-125" />
+                <div className="relative flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-electric-pink via-electric-orange to-electric-purple text-xl text-white shadow-[0_20px_35px_-20px_rgba(120,92,255,0.5)]">
+                      {action.icon}
+                    </span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Go</span>
+                  </div>
+                  <span className="font-display text-base uppercase tracking-[0.3em] text-brand-navy">
+                    {action.label}
+                  </span>
+                  <p className="text-sm text-brand-navy/70">{action.description}</p>
+                </div>
               </button>
             ))}
           </div>

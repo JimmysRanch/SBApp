@@ -10,11 +10,18 @@ interface WidgetProps {
   headerContent?: ReactNode
 }
 
-const backgroundMap: Record<Required<WidgetProps>['color'], string> = {
-  blue: 'bg-gradient-to-br from-[#1D4DFF] via-[#2E8CFF] to-[#55C3FF]',
-  pink: 'bg-gradient-to-br from-brand-bubble to-brand-bubbleDark',
-  purple: 'bg-gradient-to-br from-brand-lavender via-[#5B7DFF] to-primary',
-  green: 'bg-gradient-to-br from-brand-mint via-[#3CE0B7] to-[#43F0C5]'
+const gradientMap: Record<Required<WidgetProps>['color'], string> = {
+  blue: 'from-electric-blue/80 via-electric-aqua/80 to-electric-purple/85',
+  pink: 'from-electric-pink/85 via-electric-orange/80 to-electric-purple/90',
+  purple: 'from-brand-lavender/80 via-electric-purple/85 to-electric-pink/85',
+  green: 'from-electric-lime/80 via-brand-mint/80 to-electric-aqua/80'
+}
+
+const glowMap: Record<Required<WidgetProps>['color'], string> = {
+  blue: 'bg-electric-blue/45',
+  pink: 'bg-electric-pink/45',
+  purple: 'bg-electric-purple/45',
+  green: 'bg-electric-lime/45'
 }
 
 export default function Widget({
@@ -25,25 +32,33 @@ export default function Widget({
   hideHeader = false,
   headerContent
 }: WidgetProps) {
-  const gradient = backgroundMap[color]
+  const gradient = gradientMap[color]
+  const glow = glowMap[color]
 
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-[2rem] border border-white/25 text-white shadow-soft backdrop-blur-xl',
+        'neon-card bg-gradient-to-br text-white',
         gradient,
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/25 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-80 w-80 rounded-full bg-white/10 blur-[160px]" />
+      <div className={clsx('widget-aurora', glow)} />
+      <div className="widget-sparkle widget-sparkle--one" />
+      <div className="widget-sparkle widget-sparkle--two" />
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-6 pt-6">
-          <h2 className="text-lg font-semibold tracking-tight drop-shadow-md">{title}</h2>
+        <div className="relative z-10 flex flex-col gap-4 px-8 pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-[0.55em] text-white/70">Spotlight</p>
+            <h2 className="font-display text-2xl font-black uppercase tracking-[0.3em] drop-shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+              {title}
+            </h2>
+          </div>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-6 pb-6', hideHeader ? 'pt-6' : 'pt-4')}>
+      {!hideHeader && <div className="widget-divider" />}
+      <div className={clsx('relative z-10 px-8 pb-8', hideHeader ? 'pt-10' : 'pt-6')}>
         {children}
       </div>
     </div>

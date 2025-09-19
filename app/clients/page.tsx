@@ -3,6 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type Client = {
   id: number;
@@ -93,8 +94,12 @@ export default function ClientsPage() {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
-              <td>{r.id}</td>
-              <td>{r.full_name ?? '—'}</td>
+              <td>
+                <Link href={`/clients/${r.id}`}>{r.id}</Link>
+              </td>
+              <td>
+                <Link href={`/clients/${r.id}`}>{r.full_name ?? '—'}</Link>
+              </td>
               <td>{r.email ?? '—'}</td>
               <td>{r.phone ?? '—'}</td>
               <td>{new Date(r.created_at).toLocaleString()}</td>

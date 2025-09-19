@@ -1,3 +1,4 @@
+// app/(app)/calendar/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,8 +9,8 @@ type Row = {
   start_time: string;
   end_time: string | null;
   status: string;
-  pets: { name: string } | null;
-  services: { name: string } | null;
+  pet_name: string | null;
+  service_name: string | null;
 };
 
 export default function CalendarPage() {
@@ -21,15 +22,16 @@ export default function CalendarPage() {
     setLoading(true);
     setErr(null);
 
+    // auth
     const { data: sess } = await supabase.auth.getSession();
-    if (!sess.session) {
+    const uid = sess.session?.user.id;
+    if (!uid) {
       setErr('No logged-in user');
       setLoading(false);
       return;
     }
 
-    const uid = sess.session.user.id;
-
+    // find employee
     const { data: emp, error: empErr } = await supabase
       .from('employees')
       .select('id')
@@ -41,10 +43,12 @@ export default function CalendarPage() {
       return;
     }
 
+    // month range with a small buffer
     const now = new Date();
     const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const toISO   = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
 
+    // query with nested relations
     const { data, error } = await supabase
       .from('appointments')
       .select(`
@@ -58,9 +62,23 @@ export default function CalendarPage() {
       .in('status', ['booked','checked_in','in_progress','completed'])
       .order('start_time', { ascending: true });
 
-    if (error) setErr(error.message);
-    else setRows((data as Row[]) ?? []);
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
 
+    // normalize pets/services which may arrive as object OR array
+    const normalized: Row[] = (data ?? []).map((d: any) => ({
+      id: d.id,
+      start_time: d.start_time,
+      end_time: d.end_time,
+      status: d.status,
+      pet_name: Array.isArray(d.pets) ? d.pets[0]?.name ?? null : d.pets?.name ?? null,
+      service_name: Array.isArray(d.services) ? d.services[0]?.name ?? null : d.services?.name ?? null,
+    }));
+
+    setRows(normalized);
     setLoading(false);
   }
 
@@ -73,7 +91,7 @@ export default function CalendarPage() {
         {loading ? 'Loading…' : 'Refresh'}
       </button>
 
-      {err && <div style={{ color: '#b00020' }}>Error: {err}</div>}
+      {err && <div style={{ color: '#b00020', marginBottom: 12 }}>Error: {err}</div>}
       {!loading && rows.length === 0 && !err && <div>No appointments found.</div>}
 
       <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
@@ -87,12 +105,12 @@ export default function CalendarPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.map(a => {
+          {rows.map((a) => {
             const st = new Date(a.start_time);
             const et = a.end_time ? new Date(a.end_time) : null;
             return (
               <tr key={a.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
-                <td><strong>{a.pets?.name ?? 'Unknown pet'}</strong> — {a.services?.name ?? 'Service'}</td>
+                <td><strong>{a.pet_name ?? 'Unknown pet'}</strong> — {a.service_name ?? 'Service'}</td>
                 <td>{st.toLocaleDateString()}</td>
                 <td>{st.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                 <td>{et ? et.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { parseCurrency, parseNumeric } from "@/lib/numbers";
 import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 
@@ -74,33 +75,27 @@ export default function EmployeePayrollPage() {
       return;
     }
 
-    const sanitized = (data ?? []).map((line: any) => ({
-      appointment_id: line.appointment_id,
-      start_time: line.start_time,
-      service: line.service,
-      base_price: typeof line.base_price === "number" ? line.base_price : line.base_price_cents ? line.base_price_cents / 100 : 0,
-      commission_rate: typeof line.commission_rate === "number" ? line.commission_rate : Number(line.commission_rate),
-      commission_amount:
-        typeof line.commission_amount === "number"
-          ? line.commission_amount
-          : line.commission_amount_cents
-          ? line.commission_amount_cents / 100
-          : 0,
-      adjustment_amount:
-        typeof line.adjustment_amount === "number"
-          ? line.adjustment_amount
-          : line.adjustment_amount_cents
-          ? line.adjustment_amount_cents / 100
-          : 0,
-      adjustment_reason: line.adjustment_reason ?? null,
-      final_earnings:
-        typeof line.final_earnings === "number"
-          ? line.final_earnings
-          : line.final_earnings_cents
-          ? line.final_earnings_cents / 100
-          : 0,
-      week_index: typeof line.week_index === "number" ? line.week_index : Number(line.week_index ?? 0),
-    }));
+    const sanitized = (data ?? [])
+      .map((line: any) => {
+        const appointmentId = parseNumeric(line.appointment_id);
+        if (appointmentId === null) return null;
+        return {
+          appointment_id: appointmentId,
+          start_time: line.start_time,
+          service: line.service ?? null,
+          base_price: parseCurrency(line.base_price, line.base_price_cents) ?? 0,
+          commission_rate: parseNumeric(line.commission_rate),
+          commission_amount:
+            parseCurrency(line.commission_amount, line.commission_amount_cents) ?? 0,
+          adjustment_amount:
+            parseCurrency(line.adjustment_amount, line.adjustment_amount_cents) ?? 0,
+          adjustment_reason: line.adjustment_reason ?? null,
+          final_earnings:
+            parseCurrency(line.final_earnings, line.final_earnings_cents) ?? 0,
+          week_index: parseNumeric(line.week_index),
+        } as PayrollLine;
+      })
+      .filter((line): line is PayrollLine => line !== null);
 
     setLines(sanitized);
     setLoading(false);

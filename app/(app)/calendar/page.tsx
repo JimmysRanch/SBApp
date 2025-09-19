@@ -1,772 +1,99 @@
-"use client";
-
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import CalendarGrid from "./components/CalendarGrid";
-import WeekView from "./components/WeekView";
-import DayView from "./components/DayView";
-import EventDialog from "./components/EventDialog";
-import DeleteConfirm from "./components/DeleteConfirm";
-import { useCalendarStore } from "./state/calendarStore";
-import { useCalendarEvents } from "./hooks/useCalendarEvents";
-import { addDays, endOfDay, endOfWeek, sameDay, startOfDay, startOfMonth, startOfWeek } from "./utils/date";
-import type { CalendarEvent as ViewEvent } from "./components/CalendarEventCard";
-import type { TCalendarEvent } from "@/lib/validation/calendar";
-import { supabase } from "@/lib/supabaseClient";
-
-const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
-const dayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-const weekStartFormatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-const weekEndSameMonthFormatter = new Intl.DateTimeFormat(undefined, { day: "numeric" });
-const weekEndDiffMonthFormatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-const weekYearFormatter = new Intl.DateTimeFormat(undefined, { year: "numeric" });
-
-const typeOptions: { value: "appointment" | "shift" | "timeOff" | ""; label: string }[] = [
-  { value: "", label: "All types" },
-  { value: "appointment", label: "Appointment" },
-  { value: "shift", label: "Shift" },
-  { value: "timeOff", label: "Time Off" },
-];
-
-type StaffOption = { id: string; label: string };
-
-const mockStaffOptions: StaffOption[] = [
-  { id: "101", label: "Sammy Clippers" },
-  { id: "102", label: "Jules Bubbles" },
-  { id: "103", label: "Marla Snoot" },
-  { id: "104", label: "Avery Whiskers" },
-];
-
-type Toast = { id: number; message: string; tone: "success" | "error" | "info" };
-
-type View = "month" | "week" | "day";
-
-type CalendarRange = { from: Date; to: Date };
-
-function toDateInputValue(date: Date) {
-  const copy = new Date(date);
-  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
-  return copy.toISOString().slice(0, 10);
-}
-
-function parseDateInputValue(value: string): Date | null {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  const year = Number(match[1]);
-  const monthIndex = Number(match[2]) - 1;
-  const day = Number(match[3]);
-
-  if (monthIndex < 0 || monthIndex > 11) return null;
-
-  const result = new Date(year, monthIndex, day);
-  if (
-    result.getFullYear() !== year ||
-    result.getMonth() !== monthIndex ||
-    result.getDate() !== day
-  ) {
-    return null;
-  }
-
-  return result;
-}
-
-function computeRange(view: View, anchor: Date): CalendarRange {
-  if (view === "day") {
-    return { from: startOfDay(anchor), to: endOfDay(anchor) };
-  }
-  if (view === "week") {
-    return { from: startOfWeek(anchor), to: endOfWeek(anchor) };
-  }
-  const first = startOfWeek(startOfMonth(anchor));
-  const last = endOfWeek(addDays(first, 41));
-  return { from: first, to: last };
-}
-
-function formatLabel(view: View, anchor: Date) {
-  if (view === "day") return dayFormatter.format(anchor);
-  if (view === "week") {
-    const start = startOfWeek(anchor);
-    const end = endOfWeek(anchor);
-    const startText = weekStartFormatter.format(start);
-    const endText = start.getMonth() === end.getMonth()
-      ? weekEndSameMonthFormatter.format(end)
-      : weekEndDiffMonthFormatter.format(end);
-    return `${startText}–${endText}, ${weekYearFormatter.format(end)}`;
-  }
-  return monthFormatter.format(anchor);
-}
-
-function toViewEvent(event: TCalendarEvent): ViewEvent {
-  return {
-    id: event.id,
-    title: event.title,
-    start: event.start,
-    end: event.end,
-    type: event.type,
-    notes: event.notes,
-    staffId: event.staffId ?? undefined,
-    petId: event.petId ?? undefined,
-    allDay: event.allDay ?? false,
-  };
-}
-
-function isoWeekStartDate(year: number, week: number): Date | undefined {
-  if (!Number.isFinite(year) || !Number.isFinite(week)) return undefined;
-  if (week < 1 || week > 53) return undefined;
-  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-  const dayOfWeek = simple.getUTCDay() || 7;
-  simple.setUTCDate(simple.getUTCDate() + 1 - dayOfWeek);
-  return new Date(simple.getUTCFullYear(), simple.getUTCMonth(), simple.getUTCDate());
-}
-
-function parseWeekParam(value: string | null): Date | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  const isoMatch = trimmed.match(/^(\d{4})-?W(\d{1,2})$/i);
-  if (isoMatch) {
-    const year = Number(isoMatch[1]);
-    const week = Number(isoMatch[2]);
-    const parsed = isoWeekStartDate(year, week);
-    if (parsed) return parsed;
-  }
-
-  const yearWeekMatch = trimmed.match(/^(\d{4})-(\d{1,2})$/);
-  if (yearWeekMatch) {
-    const year = Number(yearWeekMatch[1]);
-    const week = Number(yearWeekMatch[2]);
-    const parsed = isoWeekStartDate(year, week);
-    if (parsed) return parsed;
-  }
-
-  const numericWeek = Number(trimmed);
-  if (Number.isFinite(numericWeek)) {
-    const now = new Date();
-    const parsed = isoWeekStartDate(now.getFullYear(), numericWeek);
-    if (parsed) return parsed;
-  }
-
-  const parsedDate = new Date(trimmed);
-  if (!Number.isNaN(parsedDate.valueOf())) {
-    return startOfWeek(parsedDate);
-  }
-
-  return undefined;
-}
-
-function parseStaffParam(value: string | null): number | null | undefined {
-  if (value === null) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function CalendarPageContent() {
-  const { view, setView, selectedDate, setDate, filters, setFilters } = useCalendarStore();
-  const searchParams = useSearchParams();
-  const [pendingAppointmentId, setPendingAppointmentId] = useState<string | null>(null);
-  const [prefetchedAppointment, setPrefetchedAppointment] = useState<TCalendarEvent | null>(null);
-  const paramsAppliedRef = useRef(false);
-  const staffParamProvidedRef = useRef(false);
-  const [search, setSearch] = useState("");
-  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
-  const [dialogInitial, setDialogInitial] = useState<any | undefined>(undefined);
-  const [activeEvent, setActiveEvent] = useState<TCalendarEvent | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TCalendarEvent | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const range = useMemo(() => computeRange(view, selectedDate), [view, selectedDate]);
-
-  const { events, error, isLoading, create, update, remove, refresh, meta } = useCalendarEvents(
-    range.from,
-    range.to,
-    {
-      staffId: filters.staffId,
-      type: filters.type,
-    },
-  );
-  const usingMockData = Boolean(meta?.usingMockData);
-
-  const loadErrorMessage = error?.message?.trim();
-
-  useEffect(() => {
-    if (paramsAppliedRef.current) return;
-    if (!searchParams) return;
-    paramsAppliedRef.current = true;
-
-    const staffResult = parseStaffParam(searchParams.get("staffId"));
-    if (staffResult !== undefined) {
-      staffParamProvidedRef.current = true;
-      const nextFilters = { ...filters };
-      let changed = false;
-      if (staffResult === null) {
-        if (nextFilters.staffId !== undefined) {
-          delete nextFilters.staffId;
-          changed = true;
-        }
-      } else if (nextFilters.staffId !== staffResult) {
-        nextFilters.staffId = staffResult;
-        changed = true;
-      }
-      if (changed) {
-        setFilters(nextFilters);
-      }
-    }
-
-    const weekStartDate = parseWeekParam(searchParams.get("week"));
-    if (weekStartDate) {
-      if (!sameDay(weekStartDate, selectedDate)) {
-        setDate(weekStartDate);
-      }
-      if (view !== "week") {
-        setView("week");
-      }
-    }
-
-    const appointmentValue = searchParams.get("appointmentId");
-    const appointmentId = appointmentValue?.trim();
-    if (appointmentId) {
-      setPendingAppointmentId(appointmentId);
-      (async () => {
-        try {
-          const res = await fetch(`/api/calendar/${appointmentId}`);
-          if (!res.ok) return;
-          const json = await res.json();
-          if (json?.data) {
-            setPrefetchedAppointment(json.data as TCalendarEvent);
-          }
-        } catch (err) {
-          // Ignore failures fetching the appointment context.
-        }
-      })();
-    }
-  }, [filters, searchParams, selectedDate, setDate, setFilters, setPendingAppointmentId, setPrefetchedAppointment, setView, view]);
-
-  useEffect(() => {
-    if (!prefetchedAppointment) return;
-
-    const event = prefetchedAppointment;
-    const start = new Date(event.start);
-    if (!Number.isNaN(start.valueOf())) {
-      const normalized = startOfDay(start);
-      if (!sameDay(normalized, selectedDate)) {
-        setDate(normalized);
-      }
-      if (view !== "day") {
-        setView("day");
-      }
-    }
-
-    if (!staffParamProvidedRef.current) {
-      const staffId = typeof event.staffId === "number" && Number.isFinite(event.staffId)
-        ? event.staffId
-        : undefined;
-      const nextFilters = { ...filters };
-      let changed = false;
-      if (staffId === undefined) {
-        if (nextFilters.staffId !== undefined) {
-          delete nextFilters.staffId;
-          changed = true;
-        }
-      } else if (nextFilters.staffId !== staffId) {
-        nextFilters.staffId = staffId;
-        changed = true;
-      }
-      if (changed) {
-        setFilters(nextFilters);
-      }
-    }
-
-    setPrefetchedAppointment(null);
-  }, [filters, prefetchedAppointment, selectedDate, setDate, setFilters, setPrefetchedAppointment, setView, view]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (usingMockData) {
-      setStaffOptions(mockStaffOptions);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("employees")
-          .select("id,name")
-          .order("name", { ascending: true });
-        if (error) throw error;
-        if (!cancelled) {
-          const options = (data ?? []).map((item: any) => ({
-            id: String(item.id),
-            label: item.name || `#${item.id}`,
-          }));
-          setStaffOptions(options);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setStaffOptions([]);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [usingMockData]);
-
-  const filteredEvents = useMemo(() => {
-    const list = (events as TCalendarEvent[]) ?? [];
-    if (!search.trim()) return list;
-    const query = search.trim().toLowerCase();
-    return list.filter((event) => event.title.toLowerCase().includes(query));
-  }, [events, search]);
-
-  const viewEvents = useMemo(() => filteredEvents.map(toViewEvent), [filteredEvents]);
-
-  useEffect(() => {
-    if (!pendingAppointmentId) return;
-    if (isLoading) return;
-
-    const list = (events as TCalendarEvent[]) ?? [];
-    const match = list.find((eventItem) => eventItem.id === pendingAppointmentId);
-    if (!match) return;
-
-    if (!staffParamProvidedRef.current) {
-      const staffId = typeof match.staffId === "number" && Number.isFinite(match.staffId)
-        ? match.staffId
-        : undefined;
-      const nextFilters = { ...filters };
-      let changed = false;
-      if (staffId === undefined) {
-        if (nextFilters.staffId !== undefined) {
-          delete nextFilters.staffId;
-          changed = true;
-        }
-      } else if (nextFilters.staffId !== staffId) {
-        nextFilters.staffId = staffId;
-        changed = true;
-      }
-      if (changed) {
-        setFilters(nextFilters);
-      }
-    }
-
-    const start = new Date(match.start);
-    if (!Number.isNaN(start.valueOf())) {
-      const normalized = startOfDay(start);
-      if (!sameDay(normalized, selectedDate)) {
-        setDate(normalized);
-      }
-    }
-    if (view !== "day") {
-      setView("day");
-    }
-
-    setActiveEvent(match);
-    setDialogMode("edit");
-    setDialogInitial(match);
-    setDialogOpen(true);
-    setPendingAppointmentId(null);
-  }, [events, filters, isLoading, pendingAppointmentId, selectedDate, setActiveEvent, setDate, setDialogInitial, setDialogMode, setDialogOpen, setFilters, setPendingAppointmentId, setView, view]);
-
-  const pushToast = (message: string, tone: Toast["tone"] = "success") => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, tone }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3000);
-  };
-
-  const handlePrev = () => {
-    const next = new Date(selectedDate);
-    if (view === "day") {
-      next.setDate(next.getDate() - 1);
-    } else if (view === "week") {
-      next.setDate(next.getDate() - 7);
-    } else {
-      const currentDay = next.getDate();
-      next.setDate(1);
-      next.setMonth(next.getMonth() - 1);
-      const lastDayOfMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-      next.setDate(Math.min(currentDay, lastDayOfMonth));
-    }
-    setDate(next);
-    setShowDatePicker(false);
-  };
-
-  const handleNext = () => {
-    const next = new Date(selectedDate);
-    if (view === "day") {
-      next.setDate(next.getDate() + 1);
-    } else if (view === "week") {
-      next.setDate(next.getDate() + 7);
-    } else {
-      const currentDay = next.getDate();
-      next.setDate(1);
-      next.setMonth(next.getMonth() + 1);
-      const lastDayOfMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-      next.setDate(Math.min(currentDay, lastDayOfMonth));
-    }
-    setDate(next);
-    setShowDatePicker(false);
-  };
-
-  const handleViewChange = (newView: View) => {
-    setView(newView);
-  };
-
-  const handleToday = () => {
-    setDate(new Date());
-    setShowDatePicker(false);
-  };
-
-  const openCreateDialog = (day?: Date) => {
-    const base = day ? new Date(day) : new Date(selectedDate);
-    setDate(base);
-    base.setHours(0,0,0,0);
-    const end = new Date(base);
-    end.setHours(23,59,59,999);
-    setDialogMode("create");
-    setActiveEvent(null);
-    setDialogInitial({
-      title: "",
-      type: "appointment",
-      start: base.toISOString(),
-      end: end.toISOString(),
-      allDay: true,
-      staffId: filters.staffId,
-    });
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (eventId: string) => {
-    const found = filteredEvents.find((ev) => ev.id === eventId);
-    if (!found) return;
-    setActiveEvent(found);
-    setDialogMode("edit");
-    setDialogInitial(found);
-    setDialogOpen(true);
-  };
-
-  const handleDialogSubmit = async (payload: any) => {
-    const body = {
-      ...payload,
-      start: (payload.start instanceof Date ? payload.start : new Date(payload.start)).toISOString(),
-      end: (payload.end instanceof Date ? payload.end : new Date(payload.end)).toISOString(),
-    };
-    if (dialogMode === "create") {
-      await create(body);
-      pushToast("Created");
-    } else if (dialogMode === "edit" && activeEvent) {
-      await update(activeEvent.id, body);
-      pushToast("Updated");
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    try {
-      await remove(deleteTarget.id);
-      pushToast("Deleted");
-    } catch (err: any) {
-      pushToast(err?.message ?? "Could not delete", "error");
-    } finally {
-      setDeleteTarget(null);
-    }
-  };
-
-  const label = useMemo(() => formatLabel(view, selectedDate), [view, selectedDate]);
-  const periodDescriptor = view === "day" ? "day" : view === "week" ? "week" : "month";
-  const previousPeriodLabel = `Previous ${periodDescriptor}`;
-  const nextPeriodLabel = `Next ${periodDescriptor}`;
-
-  useEffect(() => {
-    if (showDatePicker && dateInputRef.current) {
-      dateInputRef.current.focus();
-    }
-  }, [showDatePicker]);
-
-  return (
-    <div className="flex h-full flex-col rounded-md border border-gray-200 bg-white shadow-sm">
-      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative inline-block">
-              <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={handlePrev}
-                  aria-label={previousPeriodLabel}
-                  className="inline-flex items-center gap-1 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span>Prev</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker((prev) => !prev)}
-                  aria-haspopup="dialog"
-                  aria-expanded={showDatePicker}
-                  className="inline-flex min-w-[200px] items-center gap-2 border-x border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span>{label}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  aria-label={nextPeriodLabel}
-                  className="inline-flex items-center gap-1 border-l border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                >
-                  <span>Next</span>
-                  <svg
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
-              {showDatePicker && (
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  className="absolute left-1/2 top-full z-20 mt-2 w-full min-w-[220px] -translate-x-1/2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={toDateInputValue(selectedDate)}
-                  onChange={(event) => {
-                    const parsed = parseDateInputValue(event.target.value);
-                    if (parsed) {
-                      const next = startOfDay(parsed);
-                      setDate(next);
-                    }
-                    setShowDatePicker(false);
-                  }}
-                  onBlur={() => setShowDatePicker(false)}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex overflow-hidden rounded border border-gray-300 text-sm">
-              {(["month", "week", "day"] as View[]).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => handleViewChange(item)}
-                  className={`px-3 py-1 font-medium ${view === item ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
-                >
-                  {item.charAt(0).toUpperCase() + item.slice(1)}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => openCreateDialog()}
-              className="rounded bg-blue-600 px-3 py-1 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              New
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b border-gray-200 bg-white px-4 py-2">
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <div>
-            <label className="mr-2 font-medium" htmlFor="calendar-staff">Staff</label>
-            <select
-              id="calendar-staff"
-              className="rounded border border-gray-300 px-2 py-1"
-              value={filters.staffId !== undefined ? String(filters.staffId) : ""}
-              onChange={(event) => {
-                const value = event.target.value.trim();
-                setFilters({ ...filters, staffId: value ? Number(value) : undefined });
-              }}
-            >
-              <option value="">All staff</option>
-              {staffOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mr-2 font-medium" htmlFor="calendar-type">Type</label>
-            <select
-              id="calendar-type"
-              className="rounded border border-gray-300 px-2 py-1"
-              value={filters.type ?? ""}
-              onChange={(event) => {
-                const value = event.target.value as "appointment" | "shift" | "timeOff" | "";
-                setFilters({ ...filters, type: value || undefined });
-              }}
-            >
-              {typeOptions.map((option) => (
-                <option key={option.value || "all"} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={handleToday}
-            className="rounded border border-gray-300 px-3 py-1 font-medium hover:bg-gray-50"
-          >
-            Today
-          </button>
-          <div className="relative flex-1 min-w-[180px]">
-            <span className="sr-only">Search events</span>
-            <input
-              type="search"
-              placeholder="Search titles"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-1"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {isLoading && (
-          <div className="mb-2 text-sm text-gray-500">Loading…</div>
-        )}
-        {error && (
-          <div
-            data-testid="calendar-error-banner"
-            className="mb-3 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            <span>{loadErrorMessage ? `Could not load events: ${loadErrorMessage}` : "Could not load events."}</span>
-            <button
-              type="button"
-              onClick={refresh}
-              className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-        {usingMockData && !error && (
-          <div className="mb-3 flex items-start gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <span aria-hidden="true" className="text-lg">💡</span>
-            <div>
-              <p className="font-semibold">Showing sample appointments</p>
-              <p className="text-xs text-amber-800 sm:text-sm">
-                We could not find a Supabase service role key, so the calendar is using demo data. Add your key to see live appointments and enable saving changes.
-              </p>
-            </div>
-          </div>
-        )}
-        {!isLoading && !error && viewEvents.length === 0 && (
-          <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            No events match the filters yet. Try choosing another staff member, event type, or date range.
-          </div>
-        )}
-
-        {view === "month" && (
-          <CalendarGrid
-            date={selectedDate}
-            events={viewEvents}
-            onSelectDay={(day) => openCreateDialog(day)}
-            onSelectEvent={(event) => openEditDialog(event.id)}
-            onShowOverflow={(day) => {
-              setDate(day);
-              setView("day");
-            }}
-            onMoveEvent={async (eventId, newStart, newEnd) => {
-              try {
-                await update(eventId, { start: newStart.toISOString(), end: newEnd.toISOString() });
-                pushToast("Event moved");
-              } catch (err) {
-                console.error(err);
-                pushToast("Could not move event", "error");
-              }
-            }}
-          />
-        )}
-        {view === "week" && (
-          <WeekView
-            date={selectedDate}
-            events={viewEvents}
-            onSelectEvent={(event) => openEditDialog(event.id)}
-          />
-        )}
-        {view === "day" && (
-          <DayView
-            date={selectedDate}
-            events={viewEvents}
-            onSelectEvent={(event) => openEditDialog(event.id)}
-          />
-        )}
-      </div>
-
-      <EventDialog
-        open={dialogOpen}
-        mode={dialogMode}
-        initial={dialogInitial}
-        staffOptions={staffOptions}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleDialogSubmit}
-        onDelete={dialogMode === "edit" ? () => {
-          if (activeEvent) {
-            setDialogOpen(false);
-            setDeleteTarget(activeEvent);
-          }
-        } : undefined}
-      />
-
-      <DeleteConfirm
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDeleteConfirm}
-      />
-
-      {toasts.length > 0 && (
-        <div className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col gap-2">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`pointer-events-auto rounded px-4 py-2 text-sm font-medium text-white shadow ${toast.tone === "success" ? "bg-emerald-600" : toast.tone === "error" ? "bg-rose-600" : "bg-blue-600"}`}
-            >
-              {toast.message}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/app/lib/supabase';
+
+type Appointment = {
+  id: number;
+  start_time: string;
+  end_time: string | null;
+  status: string;
+};
 
 export default function CalendarPage() {
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setErr(null);
+
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    if (!uid) {
+      setErr('No logged-in user');
+      setLoading(false);
+      return;
+    }
+
+    // find employee for this user
+    const { data: emp, error: empErr } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('user_id', uid)
+      .single();
+
+    if (empErr || !emp) {
+      setErr(empErr?.message || 'No employee linked');
+      setLoading(false);
+      return;
+    }
+
+    const now = new Date();
+    const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const toISO = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('id, start_time, end_time, status')
+      .eq('employee_id', emp.id)
+      .gte('start_time', fromISO)
+      .lt('start_time', toISO)
+      .in('status', ['booked', 'checked_in', 'in_progress', 'completed'])
+      .order('start_time', { ascending: true });
+
+    if (error) setErr(error.message);
+    else setAppts((data as Appointment[]) ?? []);
+
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
   return (
-    <Suspense fallback={null}>
-      <CalendarPageContent />
-    </Suspense>
+    <div style={{ padding: 20 }}>
+      <h1>Employee Calendar</h1>
+      <button onClick={load} disabled={loading} style={{ marginBottom: 16 }}>
+        {loading ? 'Loading…' : 'Refresh'}
+      </button>
+
+      {err && <div style={{ color: 'red' }}>Error: {err}</div>}
+      {!loading && appts.length === 0 && !err && <p>No appointments found in this range.</p>}
+
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #ddd' }}>
+            <th style={{ textAlign: 'left', padding: 8 }}>Date</th>
+            <th style={{ textAlign: 'left', padding: 8 }}>Start</th>
+            <th style={{ textAlign: 'left', padding: 8 }}>End</th>
+            <th style={{ textAlign: 'left', padding: 8 }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {appts.map(a => {
+            const st = new Date(a.start_time);
+            const et = a.end_time ? new Date(a.end_time) : null;
+            return (
+              <tr key={a.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: 8 }}>{st.toLocaleDateString()}</td>
+                <td style={{ padding: 8 }}>{st.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ padding: 8 }}>{et ? et.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                <td style={{ padding: 8 }}>{a.status}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

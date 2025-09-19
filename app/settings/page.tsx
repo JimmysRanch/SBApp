@@ -1,137 +1,148 @@
-// app/settings/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 
-export const dynamic = 'force-dynamic';
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-type AdminRow = { user_id: string; email: string | null };
+type Admin = {
+  email: string;
+  user_id: string;
+};
 
 export default function SettingsPage() {
+  const supabase = createClient();
+
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [admins, setAdmins] = useState<AdminRow[]>([]);
-  const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [newAdmin, setNewAdmin] = useState("");
 
+  // ---------------- LOAD FUNCTION ----------------
   async function load() {
     setLoading(true);
     setErr(null);
 
     const { data: ures, error: uerr } = await supabase.auth.getUser();
-    if (uerr) { setErr(uerr.message); setLoading(false); return; }
+    if (uerr || !ures.user) {
+      setErr(uerr?.message ?? "Not logged in");
+      setLoading(false);
+      return;
+    }
     const user = ures.user;
-    if (!user) { setErr('Not logged in'); setLoading(false); return; }
 
     setEmail(user.email ?? null);
 
     const { data: emp } = await supabase
-      .from('employees')
-      .select('name')
-      .eq('user_id', user.id)
+      .from("employees")
+      .select("name")
+      .eq("user_id", user.id)
       .maybeSingle();
     setName(emp?.name ?? null);
 
-    const { data: list, error: lerr } = await supabase.rpc('admin_list');
-    if (!lerr && Array.isArray(list)) { setIsAdmin(true); setAdmins(list as AdminRow[]); }
-    else { setIsAdmin(false); setAdmins([]); }
+    const { data: isAdminData, error: iaErr } = await supabase.rpc("is_admin");
+    const iAmAdmin = !!(isAdminData === true && !iaErr);
+    setIsAdmin(iAmAdmin);
+
+    if (iAmAdmin) {
+      const { data: list, error: lerr } = await supabase.rpc("admin_list");
+      if (!lerr && Array.isArray(list)) setAdmins(list as any);
+      else setAdmins([]);
+    } else {
+      setAdmins([]);
+    }
 
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
+  // ---------------- ACTIONS ----------------
   async function addAdmin() {
-    setErr(null);
-    const email = newAdminEmail.trim();
-    if (!email) return;
-    const { error } = await supabase.rpc('admin_add', { p_email: email });
-    if (error) { setErr(error.message); return; }
-    setNewAdminEmail('');
-    await load();
+    if (!newAdmin) return;
+    const { error } = await supabase.rpc("add_admin_by_email", {
+      email_input: newAdmin,
+    });
+    if (error) setErr(error.message);
+    setNewAdmin("");
+    load();
   }
 
-  async function removeAdmin(email: string | null) {
-    if (!email) return;
-    setErr(null);
-    const { error } = await supabase.rpc('admin_remove', { p_email: email });
-    if (error) { setErr(error.message); return; }
-    await load();
+  async function removeAdmin(user_id: string) {
+    const { error } = await supabase.rpc("remove_admin", { uid: user_id });
+    if (error) setErr(error.message);
+    load();
   }
 
   async function logout() {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    window.location.href = "/";
   }
 
+  // ---------------- RENDER ----------------
+  if (loading) return <div className="p-6">Loading…</div>;
+  if (err) return <div className="p-6 text-red-500">Error: {err}</div>;
+
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Settings</h1>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Settings</h1>
 
-      {err && <div style={{ color: '#b00020', marginBottom: 12 }}>Error: {err}</div>}
-
-      <div style={{ marginBottom: 8 }}>
-        <strong>Logged in as:</strong>{' '}
-        {name ? `${name} (${email ?? 'no email'})` : (email ?? 'unknown')}
+      <div>
+        <p>
+          <strong>Logged in as:</strong> {name ?? email}
+        </p>
+        <p>
+          <strong>Role:</strong>{" "}
+          {isAdmin ? "Owner / Admin" : "Employee (limited)"}
+        </p>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <strong>Role:</strong> {isAdmin ? 'Owner / Admin' : 'Employee'}
-      </div>
-
-      <button onClick={logout} style={{ padding: '8px 12px', marginBottom: 24 }}>
+      <button
+        onClick={logout}
+        className="px-4 py-2 bg-red-600 text-white rounded"
+      >
         Log out
       </button>
 
-      {loading ? <div>Loading…</div> : null}
-
       {isAdmin && (
-        <div>
-          <h2 style={{ marginTop: 8 }}>Admin management</h2>
-
-          <div style={{ display: 'flex', gap: 8, margin: '8px 0 16px' }}>
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold">Admin management</h2>
+          <div className="flex space-x-2 mt-2">
             <input
-              value={newAdminEmail}
-              onChange={(e) => setNewAdminEmail(e.target.value)}
+              type="email"
+              value={newAdmin}
+              onChange={(e) => setNewAdmin(e.target.value)}
               placeholder="Add admin by email"
-              style={{ padding: 8, flex: 1 }}
+              className="border p-2 flex-1"
             />
-            <button onClick={addAdmin} style={{ padding: '8px 12px' }}>Add</button>
+            <button
+              onClick={addAdmin}
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Add
+            </button>
           </div>
-
-          <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
-                <th>Email</th>
-                <th>User ID</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(admins ?? []).map(a => (
-                <tr key={a.user_id} style={{ borderBottom: '1px solid #f3f3f3' }}>
-                  <td>{a.email ?? '—'}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{a.user_id}</td>
-                  <td>
-                    <button onClick={() => removeAdmin(a.email)} style={{ padding: '6px 10px' }}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {admins.length === 0 && (
-                <tr><td colSpan={3}>No admins listed.</td></tr>
-              )}
-            </tbody>
-          </table>
+          <ul className="mt-4 space-y-2">
+            {admins.length === 0 && (
+              <li className="text-gray-500">No admins listed.</li>
+            )}
+            {admins.map((a) => (
+              <li key={a.user_id} className="flex justify-between items-center">
+                <span>
+                  {a.email} ({a.user_id})
+                </span>
+                <button
+                  onClick={() => removeAdmin(a.user_id)}
+                  className="px-2 py-1 bg-red-500 text-white rounded"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

@@ -9,34 +9,36 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          light: '#63C4FF',
-          DEFAULT: '#1E7BFF',
-          dark: '#0F4ED7'
+          light: '#7CC8FF',
+          DEFAULT: '#4164F6',
+          dark: '#2331B5'
         },
         secondary: {
-          DEFAULT: '#FF66C4',
-          dark: '#FF3D9E',
-          pink: '#FF66C4',
-          purple: '#7C5CFF',
-          green: '#2CD4A6'
+          DEFAULT: '#F6A92F',
+          dark: '#D38416',
+          pink: '#EE7A32',
+          purple: '#7D6BFF',
+          green: '#2BC6A3'
         },
         brand: {
-          sky: '#5CC2FF',
-          blue: '#1A6BFF',
-          navy: '#08245A',
-          bubble: '#FF66C4',
-          bubbleDark: '#FF3D9E',
-          mint: '#31D8AF',
-          lavender: '#7C5CFF',
-          sunshine: '#FFD166',
-          cream: '#F9FBFF'
+          sky: '#92B4FF',
+          blue: '#4D68FF',
+          navy: '#050C1F',
+          bubble: '#F6A92F',
+          bubbleDark: '#D38416',
+          mint: '#2BC6A3',
+          lavender: '#7D6BFF',
+          sunshine: '#F5E6C5',
+          cream: '#F7F9FF'
         }
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif']
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-serif)', 'Georgia', 'serif']
       },
       boxShadow: {
-        soft: '0 24px 55px -25px rgba(20, 90, 200, 0.55)'
+        soft: '0 35px 80px -35px rgba(32, 56, 150, 0.55)',
+        'soft-inner': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.45)'
       },
       borderRadius: {
         '3xl': '1.75rem',

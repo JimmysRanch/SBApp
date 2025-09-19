@@ -5,8 +5,12 @@
 /* Custom global styles */
 @layer base {
   body {
-    @apply relative min-h-screen;
+    @apply relative min-h-screen bg-[#020611];
     background-attachment: fixed;
+    background-image: radial-gradient(circle at 10% 20%, rgba(77, 104, 255, 0.12), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(246, 169, 47, 0.1), transparent 55%),
+      radial-gradient(circle at 50% 85%, rgba(43, 198, 163, 0.12), transparent 50%);
+    background-repeat: no-repeat;
   }
 
   main {
@@ -16,7 +20,7 @@
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-brand-navy/10 bg-white/95 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-[0_20px_40px_-30px_rgba(13,24,54,0.35)] transition focus:border-brand-blue/40 focus:outline-none focus:ring-2 focus:ring-brand-blue/20;
   }
 
   label {
@@ -24,16 +28,25 @@
   }
 
   ::selection {
-    @apply bg-brand-bubble/70 text-white;
+    @apply bg-brand-blue/60 text-white;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
+    @apply rounded-[2.25rem] border border-white/10 bg-white/5 p-px shadow-[0_25px_60px_-35px_rgba(12,22,48,0.85)] backdrop-blur-2xl;
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply relative overflow-hidden rounded-full px-4 py-2 text-sm font-semibold text-brand-cream/80 transition before:absolute before:inset-0 before:-z-10 before:rounded-full before:bg-white/5 before:opacity-0 before:transition hover:text-brand-cream hover:before:opacity-100;
+  }
+
+  .login-field {
+    @apply border-white/20 bg-white/5 text-brand-cream placeholder:text-brand-cream/50 shadow-[0_20px_40px_-30px_rgba(13,24,54,0.65)] backdrop-blur focus:border-brand-blue/40 focus:ring-brand-blue/25;
+  }
+
+  .login-label {
+    @apply text-brand-cream/70;
   }
 }

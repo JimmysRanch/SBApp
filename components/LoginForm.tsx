@@ -169,66 +169,78 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
+      className="relative w-full max-w-lg overflow-hidden rounded-[2.8rem] p-[1px] shadow-[0_55px_120px_-65px_rgba(2,6,17,0.95)]"
     >
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
-          Welcome back
-        </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
-          Scruffy squad <span className="ml-1">🐶</span>
-        </h1>
-        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
-      </div>
-
-      {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
-          {err}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Email</label>
-          <input
-            className="w-full"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
+      <div className="absolute inset-0 rounded-[2.8rem] bg-gradient-to-br from-brand-blue/35 via-transparent to-brand-bubble/25 opacity-90" />
+      <div className="relative z-10 space-y-6 rounded-[2.65rem] bg-[rgba(5,12,31,0.88)] px-12 py-14 text-brand-cream">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.48em] text-brand-cream/60">
+            Welcome back
+          </p>
+          <h1 className="font-serif text-3xl font-semibold text-white">
+            Scruffy Squad Command
+          </h1>
+          <p className="text-sm text-brand-cream/70">
+            Sign in to orchestrate every groomer, client, and schedule with elegance.
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Password</label>
-          <input
-            className="w-full"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-          />
+        {err && (
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {err}
+          </div>
+        )}
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="login-label block text-xs font-semibold uppercase tracking-[0.32em]">
+              Email
+            </label>
+            <input
+              className="login-field w-full"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="login-label block text-xs font-semibold uppercase tracking-[0.32em]">
+              Password
+            </label>
+            <input
+              className="login-field w-full"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="group relative flex w-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-brand-blue via-brand-mint/80 to-secondary px-6 py-3 text-sm font-semibold uppercase tracking-[0.38em] text-white shadow-[0_25px_45px_-35px_rgba(77,104,255,0.9)] transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="relative z-10">{loading ? 'Signing in…' : 'Enter'}</span>
+          <span className="absolute inset-0 -z-10 bg-gradient-to-r from-white/10 via-transparent to-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-brand-cream/70">
+          <a className="font-semibold text-brand-cream transition-colors hover:text-white" href="/signup">
+            Create account
+          </a>
+          <a className="font-semibold text-brand-cream transition-colors hover:text-white" href="/reset-password">
+            Forgot password?
+          </a>
         </div>
       </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? 'Signing in…' : 'Sign in'}
-      </button>
-
-      <div className="flex justify-between text-sm text-brand-navy/70">
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
-          Create account
-        </a>
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
-          Forgot password?
-        </a>
-      </div>
+      <div className="pointer-events-none absolute -left-24 top-10 h-48 w-48 rounded-full bg-brand-blue/30 blur-[140px] opacity-60" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-56 w-56 rounded-full bg-brand-mint/30 blur-[170px] opacity-40" />
     </form>
   );
 }

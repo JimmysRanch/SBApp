@@ -13,10 +13,10 @@ interface Appointment {
 
 const statusStyles: Record<string, string> = {
   Completed: 'bg-brand-mint/30 text-brand-navy',
-  Upcoming: 'bg-white/40 text-brand-navy',
-  Cancelled: 'bg-brand-bubble/40 text-white',
-  'In Progress': 'bg-brand-sunshine/60 text-brand-navy',
-  'Checked In': 'bg-brand-lavender/40 text-white'
+  Upcoming: 'bg-brand-sunshine/70 text-brand-navy',
+  Cancelled: 'bg-red-500/15 text-red-500',
+  'In Progress': 'bg-brand-blue/10 text-brand-blue',
+  'Checked In': 'bg-brand-lavender/20 text-brand-blue'
 }
 
 export default function TodaysAppointments() {
@@ -56,12 +56,12 @@ export default function TodaysAppointments() {
   }, [])
 
   if (loading) {
-    return <div className="text-white/80">Loading...</div>
+    return <div className="text-brand-navy/60">Loading...</div>
   }
 
   if (appointments.length === 0) {
     return (
-      <div className="rounded-3xl border border-white/30 bg-white/10 p-6 text-white/80 backdrop-blur-md">
+      <div className="rounded-[1.85rem] border border-brand-navy/10 bg-white/85 p-6 text-sm text-brand-navy/70 shadow-[0_16px_40px_-35px_rgba(8,15,41,0.55)]">
         No appointments today.
       </div>
     )
@@ -75,12 +75,12 @@ export default function TodaysAppointments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between text-white">
+      <div className="flex items-center justify-between text-brand-navy">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
-          <h3 className="text-2xl font-semibold tracking-tight drop-shadow-sm">{today}</h3>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.42em] text-brand-navy/50">Today</p>
+          <h3 className="font-serif text-2xl font-semibold text-brand-navy">{today}</h3>
         </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-lg font-semibold text-white shadow-inner">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-blue/10 text-lg font-semibold text-brand-blue shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
           {appointments.length}
         </span>
       </div>
@@ -88,9 +88,9 @@ export default function TodaysAppointments() {
         {appointments.map((appt) => (
           <li
             key={appt.id}
-            className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur"
+            className="group relative grid grid-cols-[auto,1fr,auto] items-center gap-4 overflow-hidden rounded-[1.85rem] border border-brand-navy/5 bg-white/95 px-5 py-4 text-brand-navy shadow-[0_18px_35px_-30px_rgba(7,12,30,0.6)] transition-transform duration-200 hover:-translate-y-1"
           >
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-2xl">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-blue/5 text-2xl">
               🐶
             </div>
             <div>
@@ -101,13 +101,14 @@ export default function TodaysAppointments() {
               <div className="text-sm font-semibold text-brand-navy">{appt.time}</div>
               <span
                 className={clsx(
-                  'mt-2 inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide',
-                  statusStyles[appt.status] ?? 'bg-white/40 text-brand-navy'
+                  'mt-3 inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.26em]',
+                  statusStyles[appt.status] ?? 'bg-brand-blue/10 text-brand-blue'
                 )}
               >
                 {appt.status}
               </span>
             </div>
+            <div className="pointer-events-none absolute inset-x-4 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-brand-blue/30 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
           </li>
         ))}
       </ul>

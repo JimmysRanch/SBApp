@@ -42,19 +42,21 @@ export default function Revenue() {
 
   const format = (value: number | null) => (value ?? 0).toFixed(2)
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-brand-navy/60">Loading...</div>
   return (
-    <div className="space-y-4 text-white">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
-        <div className="mt-2 flex items-end gap-2">
-          <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
-          <span className="text-xs text-white/70">so far</span>
+    <div className="space-y-4 text-brand-navy">
+      <div className="relative overflow-hidden rounded-[1.95rem] border border-brand-navy/10 bg-white/95 p-6 shadow-[0_18px_35px_-30px_rgba(7,12,30,0.55)]">
+        <div className="pointer-events-none absolute -top-12 right-0 h-32 w-32 rounded-full bg-brand-blue/20 blur-[90px]" />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.42em] text-brand-navy/50">Today</p>
+        <div className="mt-3 flex items-end gap-2">
+          <span className="font-serif text-3xl font-semibold text-brand-navy">${format(todayRevenue)}</span>
+          <span className="text-xs text-brand-navy/50">so far</span>
         </div>
       </div>
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
-        <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
+      <div className="relative overflow-hidden rounded-[1.95rem] border border-brand-navy/10 bg-white/95 p-6 shadow-[0_18px_35px_-30px_rgba(7,12,30,0.55)]">
+        <div className="pointer-events-none absolute -bottom-12 left-0 h-32 w-32 rounded-full bg-brand-mint/25 blur-[90px]" />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.42em] text-brand-navy/50">This Week</p>
+        <div className="mt-3 font-serif text-2xl font-semibold text-brand-navy">${format(weekRevenue)}</div>
       </div>
     </div>
   )

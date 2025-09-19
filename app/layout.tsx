@@ -1,7 +1,7 @@
 import TopNav from "@/components/TopNav";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
-import { Nunito } from "next/font/google";
+import { Manrope, Playfair_Display } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { mapEmployeeRowToProfile } from "@/lib/auth/profile";
 import type { EmployeeProfile } from "@/lib/auth/profile";
@@ -12,9 +12,14 @@ export const metadata = {
 };
 export const runtime = "nodejs";
 
-const nunito = Nunito({
+const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-serif",
 });
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -46,14 +51,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
+        className={`${manrope.variable} ${playfair.variable} font-sans text-brand-cream/90 antialiased bg-[#020611] min-h-screen overflow-x-hidden`}
       >
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(65,100,246,0.25),_transparent_55%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_rgba(243,201,105,0.2),_transparent_60%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(12,22,48,0.9),rgba(2,6,17,0.85))]" />
+              <div className="absolute left-1/2 top-1/3 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full bg-brand-lavender/10 blur-[180px]" />
+              <div className="absolute -left-32 bottom-[-12rem] h-[36rem] w-[36rem] rounded-full bg-brand-mint/10 blur-[200px]" />
             </div>
             <TopNav />
             <main className="relative z-10 flex-1">{children}</main>

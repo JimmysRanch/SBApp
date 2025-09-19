@@ -33,10 +33,10 @@ export default function Messages() {
       minute: '2-digit'
     })
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-brand-navy/60">Loading...</div>
   if (!messages.length)
     return (
-      <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/80 backdrop-blur-lg">
+      <div className="rounded-[1.85rem] border border-brand-navy/10 bg-white/80 p-6 text-sm text-brand-navy/70 shadow-[0_16px_40px_-35px_rgba(8,15,41,0.55)]">
         No messages yet.
       </div>
     )
@@ -45,17 +45,18 @@ export default function Messages() {
       {messages.map((msg) => (
         <li
           key={msg.id}
-          className="rounded-3xl border border-white/25 bg-white/95 p-4 text-brand-navy shadow-lg backdrop-blur"
+          className="group relative overflow-hidden rounded-[1.85rem] border border-brand-navy/10 bg-white/95 p-5 text-brand-navy shadow-[0_18px_35px_-30px_rgba(7,12,30,0.55)] transition-transform duration-200 hover:-translate-y-1"
         >
-          <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-brand-navy/70">
+          <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.32em] text-brand-navy/60">
             <span>
               {msg.sender} → {msg.recipient}
             </span>
             <span>{formatTime(msg.created_at)}</span>
           </div>
-          <p className="mt-2 max-h-14 overflow-hidden text-sm text-brand-navy/80" title={msg.body}>
+          <p className="mt-3 max-h-16 overflow-hidden text-sm text-brand-navy/80" title={msg.body}>
             {msg.body}
           </p>
+          <div className="pointer-events-none absolute inset-x-4 bottom-2 h-[1px] bg-gradient-to-r from-transparent via-brand-blue/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
         </li>
       ))}
     </ul>

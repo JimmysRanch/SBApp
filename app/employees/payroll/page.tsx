@@ -25,34 +25,66 @@ export default function EmployeePayrollPage() {
     setErr(null);
 
     const uid = (await supabase.auth.getUser()).data.user?.id;
-    if (!uid) { setErr('No logged-in user'); setLoading(false); return; }
+    if (!uid) {
+      setErr('No logged-in user');
+      setLoading(false);
+      return;
+    }
 
     const { data: emp, error: empErr } = await supabase
       .from('employees')
       .select('id')
       .eq('user_id', uid)
       .single();
-    if (empErr || !emp) { setErr(empErr?.message || 'Employee not found'); setLoading(false); return; }
-    const empId = emp.id;
+
+    if (empErr || !emp) {
+      setErr(empErr?.message || 'Employee not found');
+      setLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from('payroll_lines_ui')
-      .select('id,paid_at,base_dollars,commission_dollars,override_dollars,tip_dollars,guarantee_topup_dollars,final_dollars')
-      .eq('employee_id', empId)
+      .select(`
+        id,
+        paid_at,
+        base_dollars,
+        commission_dollars,
+        override_dollars,
+        tip_dollars,
+        guarantee_topup_dollars,
+        final_dollars
+      `)
+      .eq('employee_id', emp.id)
       .order('paid_at', { ascending: false });
 
     if (error) setErr(error.message);
-    else setRows(data ?? []);
+    else setRows((data as Row[]) ?? []);
+
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ padding: 16 }}>
       <h1>Payroll</h1>
 
-      {err && <div style={{ color: '#b00020', marginBottom: 12 }}>Error: {err}</div>}
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={load} disabled={loading} style={{ padding: '8px 12px' }}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {err && (
+        <div style={{ color: '#b00020', marginBottom: 12 }}>
+          Error: {err}
+        </div>
+      )}
+
       {!loading && rows.length === 0 && !err && <div>No payroll entries found.</div>}
 
       <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
@@ -68,15 +100,15 @@ export default function EmployeePayrollPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <tr key={r.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
               <td>{new Date(r.paid_at).toLocaleDateString()}</td>
-              <td>${r.base_dollars.toFixed(2)}</td>
-              <td>${r.commission_dollars.toFixed(2)}</td>
-              <td>${r.override_dollars.toFixed(2)}</td>
-              <td>${r.tip_dollars.toFixed(2)}</td>
-              <td>${r.guarantee_topup_dollars.toFixed(2)}</td>
-              <td><strong>${r.final_dollars.toFixed(2)}</strong></td>
+              <td>${(r.base_dollars ?? 0).toFixed(2)}</td>
+              <td>${(r.commission_dollars ?? 0).toFixed(2)}</td>
+              <td>${(r.override_dollars ?? 0).toFixed(2)}</td>
+              <td>${(r.tip_dollars ?? 0).toFixed(2)}</td>
+              <td>${(r.guarantee_topup_dollars ?? 0).toFixed(2)}</td>
+              <td><strong>${(r.final_dollars ?? 0).toFixed(2)}</strong></td>
             </tr>
           ))}
         </tbody>

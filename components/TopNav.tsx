@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
+import { useAuth } from "@/components/AuthProvider";
+
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/calendar", label: "Calendar" },
@@ -16,6 +18,14 @@ const navLinks = [
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { loading, session, displayName, role, signOut } = useAuth();
+
+  if (!session) return null;
+
+  const handleSignOut = () => {
+    if (loading) return;
+    void signOut();
+  };
 
   return (
     <header className="sticky top-0 z-40 flex justify-center px-4 pt-6">
@@ -50,6 +60,22 @@ export default function TopNav() {
             );
           })}
         </nav>
+        <div className="flex items-center gap-3">
+          <div className="hidden text-right text-xs leading-tight text-white/80 sm:flex sm:flex-col sm:items-end">
+            {displayName && (
+              <span className="font-semibold text-white">{displayName}</span>
+            )}
+            {role && <span className="uppercase tracking-[0.22em] text-[11px] text-white/60">{role}</span>}
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded-full bg-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-white/30"
+            disabled={loading}
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </header>
   );

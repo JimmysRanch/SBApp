@@ -1,131 +1,207 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type TeamMember = {
+  id: number | null;
+  name: string | null;
+  email: string | null;
+  role: string | null;
+  app_permissions: Record<string, unknown> | null;
+};
 
-type Admin = { user_id: string; email: string | null };
+const configurationLinks = [
+  { href: '/settings/profile', label: 'Profile' },
+  { href: '/settings/business', label: 'Business' },
+  { href: '/settings/services', label: 'Services' },
+  { href: '/settings/notifications', label: 'Notifications' },
+  { href: '/settings/billing', label: 'Billing' },
+];
+
+function hasElevatedAccess(member: TeamMember): boolean {
+  const role = member.role?.toLowerCase() ?? '';
+  if (role.includes('owner') || role.includes('admin') || role.includes('manager')) {
+    return true;
+  }
+
+  if (member.app_permissions && typeof member.app_permissions === 'object') {
+    const flags = member.app_permissions as Record<string, unknown>;
+    return (
+      flags.is_owner === true ||
+      flags.is_manager === true ||
+      flags.can_edit_schedule === true ||
+      flags.can_manage_discounts === true ||
+      flags.can_view_reports === true
+    );
+  }
+
+  return false;
+}
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
+  const {
+    loading: authLoading,
+    session,
+    displayName,
+    email,
+    role,
+    isOwner,
+    permissions,
+    signOut,
+  } = useAuth();
+
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
-  const [name, setName] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [admins, setAdmins] = useState<Admin[]>([]);
-  const [newAdmin, setNewAdmin] = useState('');
 
-  async function load() {
-    setLoading(true); setErr(null);
-
-    const { data: ures, error: uerr } = await supabase.auth.getUser();
-    if (uerr || !ures.user) { setErr(uerr?.message ?? 'Not logged in'); setLoading(false); return; }
-    const user = ures.user;
-    setEmail(user.email ?? null);
-
-    const { data: emp } = await supabase.from('employees').select('name').eq('user_id', user.id).maybeSingle();
-    setName(emp?.name ?? null);
-
-    const { data: adminFlag, error: fErr } = await supabase.rpc('is_admin');
-    const iAmAdmin = !!(adminFlag === true && !fErr);
-    setIsAdmin(iAmAdmin);
-
-    if (iAmAdmin) {
-      const { data: list, error: lerr } = await supabase.rpc('admin_list');
-      setAdmins(!lerr && Array.isArray(list) ? (list as any) : []);
-    } else {
-      setAdmins([]);
+  const loadTeam = useCallback(async () => {
+    if (!isOwner) {
+      setTeam([]);
+      setErr(null);
+      return;
     }
 
-    setLoading(false);
+    setLoading(true);
+    setErr(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id,name,email,role,app_permissions')
+        .order('name');
+
+      if (error) throw error;
+
+      const rows = (data ?? []) as TeamMember[];
+      setTeam(rows.filter(hasElevatedAccess));
+    } catch (error: any) {
+      setErr(error?.message || 'Unable to load team members.');
+      setTeam([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isOwner]);
+
+  useEffect(() => {
+    if (!authLoading && session && isOwner) {
+      void loadTeam();
+    }
+  }, [authLoading, isOwner, loadTeam, session]);
+
+  const roleLabel = useMemo(() => {
+    if (role) return role;
+    return isOwner ? 'Owner' : 'Team Member';
+  }, [isOwner, role]);
+
+  const userEmail = session?.user?.email ?? email ?? null;
+
+  const handleLogout = useCallback(() => {
+    void signOut();
+  }, [signOut]);
+
+  if (authLoading) {
+    return <div className="p-6">Loading settings…</div>;
   }
 
-  useEffect(() => { load(); }, []);
-
-  async function addAdmin() {
-    const e = newAdmin.trim();
-    if (!e) return;
-    const { error } = await supabase.rpc('admin_add', { p_email: e });
-    if (error) setErr(error.message);
-    setNewAdmin('');
-    load();
+  if (!session) {
+    return <div className="p-6">Please log in to view settings.</div>;
   }
 
-  async function removeAdmin(email: string | null) {
-    if (!email) return;
-    const { error } = await supabase.rpc('admin_remove', { p_email: email });
-    if (error) setErr(error.message);
-    load();
+  if (!permissions.canAccessSettings) {
+    return (
+      <div className="space-y-3 p-6">
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p className="text-sm text-white/80">
+          You do not currently have access to this page. Please contact an administrator if you believe this is
+          an error.
+        </p>
+      </div>
+    );
   }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = '/';
-  }
-
-  if (loading) return <div className="p-6">Loading…</div>;
-  if (err) return <div className="p-6 text-red-600">Error: {err}</div>;
 
   return (
-    <div className="p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
-
-      {/* Your existing sub-pages */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Configuration</h2>
-        <ul className="list-disc ml-6 space-y-1">
-          <li><a className="text-blue-600 underline" href="/settings/profile">Profile</a></li>
-          <li><a className="text-blue-600 underline" href="/settings/business">Business</a></li>
-          <li><a className="text-blue-600 underline" href="/settings/services">Services</a></li>
-          <li><a className="text-blue-600 underline" href="/settings/notifications">Notifications</a></li>
-          <li><a className="text-blue-600 underline" href="/settings/billing">Billing</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <p><strong>Logged in as:</strong> {name ?? email}</p>
-        <p><strong>Role:</strong> {isAdmin ? 'Owner / Admin' : 'Employee (limited)'}</p>
-      </div>
-
-      <button onClick={logout} className="px-4 py-2 bg-red-600 text-white rounded">Log out</button>
-
-      {isAdmin && (
+    <div className="space-y-8 p-6">
+      <div className="glass-panel max-w-3xl space-y-4 bg-white/90 p-6 text-brand-navy">
         <div>
-          <h2 className="text-xl font-semibold mt-6">Admin management</h2>
-          <div className="flex gap-2 mt-2">
-            <input
-              type="email"
-              value={newAdmin}
-              onChange={(e) => setNewAdmin(e.target.value)}
-              placeholder="Add admin by email"
-              className="border p-2 flex-1"
-            />
-            <button onClick={addAdmin} className="px-4 py-2 bg-blue-600 text-white rounded">Add</button>
-          </div>
-
-          <table className="mt-4 w-full text-left">
-            <thead><tr className="border-b"><th className="py-1">Email</th><th className="py-1">User ID</th><th className="py-1">Actions</th></tr></thead>
-            <tbody>
-              {admins.length === 0 && <tr><td className="py-2 text-gray-500" colSpan={3}>No admins listed.</td></tr>}
-              {admins.map((a) => (
-                <tr key={a.user_id} className="border-b">
-                  <td className="py-2">{a.email ?? '—'}</td>
-                  <td className="py-2">{a.user_id}</td>
-                  <td className="py-2">
-                    <button onClick={() => removeAdmin(a.email)} className="px-2 py-1 bg-red-500 text-white rounded">Remove</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h1 className="text-3xl font-bold text-brand-navy">Settings</h1>
+          <p className="text-sm text-brand-navy/70">Manage your Scruffy Butts workspace.</p>
         </div>
-      )}
+
+        <div className="rounded-2xl bg-white/70 p-4 shadow-inner">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
+          <p className="text-2xl font-bold text-brand-navy">
+            {displayName ?? userEmail ?? 'Team member'}
+          </p>
+          <p className="text-sm text-brand-navy/70">
+            Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
+          </p>
+          {userEmail && <p className="text-xs text-brand-navy/50">Email: {userEmail}</p>}
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="inline-flex items-center justify-center rounded-full bg-brand-bubble px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-bubbleDark"
+        >
+          Log out
+        </button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="glass-panel space-y-3 bg-white/90 p-6 text-brand-navy">
+          <h2 className="text-xl font-semibold">Configuration</h2>
+          <ul className="list-disc space-y-1 pl-6 text-sm text-brand-navy/80">
+            {configurationLinks.map((link) => (
+              <li key={link.href}>
+                <Link className="text-brand-bubble hover:text-brand-bubbleDark" href={link.href}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {isOwner && (
+          <div className="glass-panel space-y-4 bg-white/90 p-6 text-brand-navy">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Team members with elevated access</h2>
+              <button
+                onClick={() => void loadTeam()}
+                disabled={loading}
+                className="text-sm font-semibold text-brand-bubble transition hover:text-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+            {err && <p className="text-sm font-medium text-red-600">{err}</p>}
+            {!err && team.length === 0 && (
+              <p className="text-sm text-brand-navy/70">
+                No other teammates currently have elevated access.
+              </p>
+            )}
+            <ul className="space-y-3 text-sm">
+              {team.map((member) => (
+                <li
+                  key={member.id ?? member.email ?? Math.random()}
+                  className="rounded-xl border border-brand-navy/10 bg-white/70 p-3 shadow-sm"
+                >
+                  <p className="font-semibold text-brand-navy">
+                    {member.name ?? member.email ?? `Team member #${member.id ?? '—'}`}
+                  </p>
+                  <p className="text-xs text-brand-navy/60">
+                    {member.email ?? '—'} • {member.role ?? 'Team member'}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

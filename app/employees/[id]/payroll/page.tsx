@@ -2,8 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { PostgrestError } from "@supabase/supabase-js";
+
 import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
+import {
+  computeBiweeklyWeekIndex,
+  isMissingColumnError,
+  isMissingRelationError,
+  isPermissionError,
+  readMoney,
+  shouldFallbackToAppointments,
+  toNumber,
+} from "../data-helpers";
 
 type PayrollLine = {
   appointment_id: number;
@@ -49,62 +60,71 @@ export default function EmployeePayrollPage() {
   const loadLines = useCallback(async () => {
     setLoading(true);
     setError(null);
-    let query = supabase
-      .from("payroll_lines_view")
-      .select(
-        "appointment_id,start_time,service,base_price,commission_rate,commission_amount,adjustment_amount,adjustment_reason,final_earnings,week_index"
-      )
-      .eq("staff_id", employee.id)
-      .order("start_time", { ascending: true });
 
-    if (startDate) {
-      query = query.gte("start_time", new Date(startDate).toISOString());
-    }
-    if (endDate) {
-      const endBoundary = new Date(endDate);
-      endBoundary.setDate(endBoundary.getDate() + 1);
-      query = query.lt("start_time", endBoundary.toISOString());
-    }
+    const executeQuery = (columns: string) => {
+      let builder = supabase
+        .from("payroll_lines_view")
+        .select(columns)
+        .eq("staff_id", employee.id)
+        .order("start_time", { ascending: true });
 
-    const { data, error: payrollError } = await query;
-    if (payrollError) {
+      if (startDate) {
+        builder = builder.gte("start_time", new Date(startDate).toISOString());
+      }
+      if (endDate) {
+        const endBoundary = new Date(endDate);
+        endBoundary.setDate(endBoundary.getDate() + 1);
+        builder = builder.lt("start_time", endBoundary.toISOString());
+      }
+
+      return builder;
+    };
+
+    try {
+      let response = await executeQuery(
+        "appointment_id,start_time,service,base_price,base_price_cents,commission_rate,commission_amount,commission_amount_cents,adjustment_amount,adjustment_amount_cents,adjustment_reason,final_earnings,final_earnings_cents,week_index"
+      );
+
+      if (
+        response.error &&
+        (isMissingColumnError(response.error as PostgrestError) || shouldFallbackToAppointments(response.error as PostgrestError))
+      ) {
+        const fallback = await buildPayrollLinesFromAppointments(
+          employee.id,
+          startDate,
+          endDate,
+          employee.commission_rate
+        );
+        setLines(fallback);
+        return;
+      }
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const sanitized = ((response.data as any[]) ?? []).map((line: any) => ({
+        appointment_id: line.appointment_id,
+        start_time: line.start_time,
+        service: line.service,
+        base_price: readMoney(line, ["base_price", "base_price_cents"]) ?? 0,
+        commission_rate: toNumber(line.commission_rate) ?? 0,
+        commission_amount: readMoney(line, ["commission_amount", "commission_amount_cents"]) ?? 0,
+        adjustment_amount: readMoney(line, ["adjustment_amount", "adjustment_amount_cents"]) ?? 0,
+        adjustment_reason: line.adjustment_reason ?? null,
+        final_earnings: readMoney(line, ["final_earnings", "final_earnings_cents"]) ?? 0,
+        week_index: toNumber(line.week_index),
+      }));
+
+      setLines(sanitized as PayrollLine[]);
+    } catch (cause) {
+      console.error("Failed to load payroll lines", cause);
       setError("Unable to load payroll lines");
       setLines([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const sanitized = (data ?? []).map((line: any) => ({
-      appointment_id: line.appointment_id,
-      start_time: line.start_time,
-      service: line.service,
-      base_price: typeof line.base_price === "number" ? line.base_price : line.base_price_cents ? line.base_price_cents / 100 : 0,
-      commission_rate: typeof line.commission_rate === "number" ? line.commission_rate : Number(line.commission_rate),
-      commission_amount:
-        typeof line.commission_amount === "number"
-          ? line.commission_amount
-          : line.commission_amount_cents
-          ? line.commission_amount_cents / 100
-          : 0,
-      adjustment_amount:
-        typeof line.adjustment_amount === "number"
-          ? line.adjustment_amount
-          : line.adjustment_amount_cents
-          ? line.adjustment_amount_cents / 100
-          : 0,
-      adjustment_reason: line.adjustment_reason ?? null,
-      final_earnings:
-        typeof line.final_earnings === "number"
-          ? line.final_earnings
-          : line.final_earnings_cents
-          ? line.final_earnings_cents / 100
-          : 0,
-      week_index: typeof line.week_index === "number" ? line.week_index : Number(line.week_index ?? 0),
-    }));
-
-    setLines(sanitized);
-    setLoading(false);
-  }, [employee.id, endDate, startDate]);
+  }, [employee.commission_rate, employee.id, endDate, startDate]);
 
   useEffect(() => {
     loadLines();
@@ -277,6 +297,119 @@ export default function EmployeePayrollPage() {
       </section>
     </div>
   );
+}
+
+async function buildPayrollLinesFromAppointments(
+  employeeId: number,
+  startDate: string | null,
+  endDate: string | null,
+  commissionRate: number | string | null | undefined
+): Promise<PayrollLine[]> {
+  const runAppointmentsQuery = (columns: string) => {
+    let builder = supabase
+      .from("appointments")
+      .select(columns)
+      .eq("employee_id", employeeId)
+      .order("start_time", { ascending: true });
+
+    if (startDate) {
+      builder = builder.gte("start_time", new Date(startDate).toISOString());
+    }
+    if (endDate) {
+      const endBoundary = new Date(endDate);
+      endBoundary.setDate(endBoundary.getDate() + 1);
+      builder = builder.lt("start_time", endBoundary.toISOString());
+    }
+
+    return builder;
+  };
+
+  let appointmentResponse = await runAppointmentsQuery(
+    "id,start_time,service,price,price_cents,price_amount,price_amount_cents"
+  );
+
+  if (
+    appointmentResponse.error &&
+    isMissingColumnError(appointmentResponse.error as PostgrestError)
+  ) {
+    appointmentResponse = await runAppointmentsQuery("*");
+  }
+
+  if (appointmentResponse.error) {
+    throw appointmentResponse.error;
+  }
+
+  const rows = (appointmentResponse.data as any[]) ?? [];
+  const appointmentIds = rows.map((row) => row.id).filter((id) => typeof id === "number");
+
+  const discountMap = new Map<
+    number,
+    { total: number; reasons: string[] }
+  >();
+
+  if (appointmentIds.length > 0) {
+    const runDiscountQuery = (columns: string) =>
+      supabase
+        .from("appointment_discounts")
+        .select(columns)
+        .in("appointment_id", appointmentIds);
+
+    let discountResponse = await runDiscountQuery("appointment_id,amount,amount_cents,reason");
+
+    if (
+      discountResponse.error &&
+      isMissingColumnError(discountResponse.error as PostgrestError)
+    ) {
+      discountResponse = await runDiscountQuery("appointment_id,amount,reason");
+    }
+
+    if (discountResponse.error) {
+      if (
+        !isMissingRelationError(discountResponse.error as PostgrestError) &&
+        !isPermissionError(discountResponse.error as PostgrestError)
+      ) {
+        throw discountResponse.error;
+      }
+    } else {
+      (discountResponse.data as any[])?.forEach((item: any) => {
+        const id = item.appointment_id;
+        if (typeof id !== "number") return;
+        const amount = readMoney(item, ["amount", "amount_cents"]) ?? 0;
+        const reason = typeof item.reason === "string" && item.reason.trim() ? item.reason.trim() : null;
+        const entry = discountMap.get(id) ?? { total: 0, reasons: [] };
+        entry.total += amount;
+        if (reason) {
+          entry.reasons.push(reason);
+        }
+        discountMap.set(id, entry);
+      });
+    }
+  }
+
+  const rate = toNumber(commissionRate) ?? 0;
+
+  return rows.map((row) => {
+    const id = row.id as number;
+    const base = readMoney(row, ["price", "price_cents", "price_amount", "price_amount_cents"]) ?? 0;
+    const discountInfo = discountMap.get(id);
+    const adjustmentAmount = discountInfo ? -discountInfo.total : 0;
+    const adjustmentReason = discountInfo && discountInfo.reasons.length > 0 ? discountInfo.reasons.join("; ") : null;
+    const commissionAmount = base * rate;
+    const final = base + commissionAmount + adjustmentAmount;
+
+    return {
+      appointment_id: id,
+      start_time: row.start_time,
+      service: row.service ?? null,
+      base_price: base,
+      commission_rate: rate,
+      commission_amount: commissionAmount,
+      adjustment_amount: adjustmentAmount,
+      adjustment_reason: adjustmentReason,
+      final_earnings: final,
+      week_index: computeBiweeklyWeekIndex(row.start_time),
+    } as PayrollLine;
+  });
 }
 
 type TotalCardProps = {

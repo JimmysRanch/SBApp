@@ -1,5 +1,7 @@
 'use client';
 
+import Card from '@/components/Card';
+import PageContainer from '@/components/PageContainer';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -23,9 +25,9 @@ export default function ClientsPage() {
   const [q, setQ] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
   async function load() {
-    setLoading(true); setErr(null);
+    setLoading(true);
+    setErr(null);
 
     let query = supabase
       .from('clients_with_pets')
@@ -50,46 +52,146 @@ export default function ClientsPage() {
   useEffect(() => { load(); }, []);
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Clients</h1>
+    <PageContainer className="space-y-8">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1 text-white">
+          <h1 className="text-3xl font-semibold tracking-tight">Clients</h1>
+          <p className="text-sm text-white/80">Search clients and jump into their details in one click.</p>
+        </div>
+      </header>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <input
-          placeholder="Search name, email, phone, or pet"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && load()}
-          style={{ flex: 1, padding: 8 }}
-        />
-        <button onClick={load} disabled={loading} style={{ padding: '8px 12px' }}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
+      <Card className="space-y-6">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            load();
+          }}
+          className="flex flex-col gap-3 sm:flex-row"
+        >
+          <div className="relative flex-1">
+            <input
+              placeholder="Search name, email, phone, or pet"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-12 w-full rounded-xl border border-white/50 bg-white/90 px-4 pr-12 text-base text-brand-navy shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30"
+            />
+            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-navy/40">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="1.5"
+                stroke="currentColor"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 9 16.5a7.5 7.5 0 0 0 7.65-7.65Z" />
+              </svg>
+            </div>
+          </div>
 
-      {err && <div style={{ color: '#b00020', marginBottom: 12 }}>Failed to load clients: {err}</div>}
-      {!loading && rows.length === 0 && !err && <div>No clients found.</div>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-brand-bubble/40 disabled:cursor-not-allowed disabled:bg-primary/60"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                </svg>
+                Loading…
+              </span>
+            ) : (
+              'Refresh'
+            )}
+          </button>
+        </form>
 
-      <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
-        <thead><tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
-          <th>ID</th><th>Full name</th><th>Email</th><th>Phone</th><th>Pets</th><th>Created</th>
-        </tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
-              <td>{r.id}</td>
-              <td>
-                <Link href={`/clients/${r.id}`}>
-                  {r.full_name ?? '—'}
+        {err && (
+          <div className="rounded-2xl border border-red-300/40 bg-red-100/40 px-4 py-3 text-sm text-red-700">
+            Failed to load clients: {err}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 p-5"
+              >
+                <div className="h-5 w-1/3 animate-pulse rounded-full bg-brand-bubble/20" />
+                <div className="mt-3 h-4 w-1/2 animate-pulse rounded-full bg-brand-bubble/10" />
+              </div>
+            ))
+          ) : rows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-brand-bubble/40 bg-white/70 px-6 py-12 text-center text-sm text-brand-navy/70">
+              No clients found.
+            </div>
+          ) : (
+            rows.map((r) => {
+              const petLabel = r.pet_names?.trim() ? r.pet_names : 'No pets on file';
+              return (
+                <Link
+                  key={r.id}
+                  href={`/clients/${r.id}`}
+                  className="group relative block overflow-hidden rounded-2xl border border-brand-bubble/40 bg-gradient-to-r from-white/95 via-white/90 to-brand-bubble/10 px-5 py-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                >
+                  <span className="pointer-events-none absolute inset-y-3 left-3 w-1 rounded-full bg-gradient-to-b from-brand-bubble via-brand-bubble/80 to-brand-lavender opacity-80 transition-all duration-200 group-hover:inset-y-2 group-hover:w-1.5" />
+                  <div className="relative flex flex-col gap-3 pl-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-base font-semibold text-brand-navy transition-colors group-hover:text-primary-dark">
+                        {r.full_name ?? 'Unnamed client'}
+                      </h2>
+                      <span className="inline-flex items-center gap-2 self-start rounded-full bg-brand-bubble/15 px-3 py-1 text-xs font-medium text-brand-bubble">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth="1.5"
+                          stroke="currentColor"
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733C11.285 4.876 9.623 3.75 7.688 3.75 5.099 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
+                          />
+                        </svg>
+                        {petLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                      <span className="hidden text-xs uppercase tracking-wide text-brand-navy/60 transition-colors group-hover:text-primary sm:inline">
+                        View profile
+                      </span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="h-5 w-5 text-primary transition-transform duration-200 group-hover:translate-x-1"
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
                 </Link>
-              </td>
-              <td>{r.email ?? '—'}</td>
-              <td>{r.phone ?? '—'}</td>
-              <td>{r.pet_names || '—'}</td>
-              <td>{new Date(r.created_at).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              );
+            })
+          )}
+        </div>
+      </Card>
+    </PageContainer>
   );
 }

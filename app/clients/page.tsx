@@ -1,6 +1,7 @@
 'use client';
 
 import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 type Client = {
@@ -44,6 +45,8 @@ export default function ClientsPage() {
     setLoading(false);
   }
 
+  // We only need the initial fetch when the page mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   return (
@@ -74,7 +77,11 @@ export default function ClientsPage() {
           {rows.map((r) => (
             <tr key={r.id} style={{ borderBottom: '1px solid #f3f3f3' }}>
               <td>{r.id}</td>
-              <td>{r.full_name ?? '—'}</td>
+              <td>
+                <Link href={`/clients/${r.id}`}>
+                  {r.full_name ?? '—'}
+                </Link>
+              </td>
               <td>{r.email ?? '—'}</td>
               <td>{r.phone ?? '—'}</td>
               <td>{r.pet_names || '—'}</td>

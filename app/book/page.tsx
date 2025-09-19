@@ -29,12 +29,18 @@ export default function BookPage() {
 
   return (
     <PageContainer>
-      <Card>
-        <h1 className="mb-6 text-3xl font-bold text-primary-dark">Book Appointment</h1>
+      <Card className="space-y-6">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Client portal</p>
+          <h1 className="text-3xl font-semibold text-brand-charcoal">Book an appointment</h1>
+          <p className="text-sm text-slate-500">Share your pup’s details and we’ll prepare the perfect grooming experience.</p>
+        </div>
 
         {session ? (
-          <div className="mb-6 flex items-center justify-between rounded border p-3 text-sm">
-            <span>Logged in as {session.user.email}</span>
+          <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-600 shadow-inner shadow-slate-200/40 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Logged in as <span className="font-semibold text-brand-charcoal">{session.user.email}</span>
+            </span>
             <LogoutButton />
           </div>
         ) : (

@@ -115,33 +115,33 @@ export default function BookingForm() {
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Owner info */}
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Owner Information</h2>
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold text-brand-charcoal">Owner information</h2>
+          <p className="text-sm text-slate-500">Tell us how to reach you before and after the appointment.</p>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <input
             required
             placeholder="First name"
-            className="rounded border p-2"
             value={owner.firstName}
             onChange={(e) => setOwner({ ...owner, firstName: e.target.value })}
           />
           <input
             required
             placeholder="Last name"
-            className="rounded border p-2"
             value={owner.lastName}
             onChange={(e) => setOwner({ ...owner, lastName: e.target.value })}
           />
           <input
             required
             placeholder="Address"
-            className="rounded border p-2 sm:col-span-2"
+            className="sm:col-span-2"
             value={owner.address}
             onChange={(e) => setOwner({ ...owner, address: e.target.value })}
           />
           <input
             required
             placeholder="Phone"
-            className="rounded border p-2"
             value={owner.phone}
             onChange={(e) => setOwner({ ...owner, phone: e.target.value })}
           />
@@ -149,7 +149,6 @@ export default function BookingForm() {
             required
             type="email"
             placeholder="Email"
-            className="rounded border p-2"
             value={owner.email}
             onChange={(e) => setOwner({ ...owner, email: e.target.value })}
           />
@@ -160,18 +159,16 @@ export default function BookingForm() {
       {dogs.map((dog, idx) => {
         const expired = dog.vaccineExpiry && new Date(dog.vaccineExpiry) < new Date();
         return (
-          <section key={idx} className="space-y-4 rounded border p-4">
-            <h3 className="text-lg font-medium">Dog {idx + 1}</h3>
+          <section key={idx} className="space-y-4 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-inner shadow-slate-200/40">
+            <h3 className="text-lg font-semibold text-brand-charcoal">Dog {idx + 1}</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <input
                 required
                 placeholder="Name"
-                className="rounded border p-2"
                 value={dog.name}
                 onChange={(e) => updateDog(idx, { name: e.target.value })}
               />
               <select
-                className="rounded border p-2"
                 value={dog.gender}
                 onChange={(e) => updateDog(idx, { gender: e.target.value as 'm' | 'f' })}
               >
@@ -184,10 +181,9 @@ export default function BookingForm() {
                   checked={dog.fixed}
                   onChange={(e) => updateDog(idx, { fixed: e.target.checked })}
                 />
-                <span>Fixed/Neutered</span>
+                <span className="text-sm text-slate-600">Fixed/Neutered</span>
               </label>
               <select
-                className="rounded border p-2"
                 value={dog.weight}
                 onChange={(e) => updateDog(idx, { weight: e.target.value as Weight })}
               >
@@ -199,7 +195,7 @@ export default function BookingForm() {
                 <input
                   list="breeds"
                   placeholder="Breed"
-                  className="w-full rounded border p-2"
+                  className="w-full"
                   value={dog.breed}
                   onChange={(e) => updateDog(idx, { breed: e.target.value })}
                 />
@@ -210,31 +206,31 @@ export default function BookingForm() {
                 </datalist>
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm">Vaccination record</label>
+                <label className="mb-1 block text-sm font-medium text-slate-600">Vaccination record</label>
                 <input type="file" accept="image/*,.pdf" className="block w-full text-sm" />
                 <input
                   type="date"
-                  className="mt-2 rounded border p-2"
+                  className="mt-2"
                   value={dog.vaccineExpiry}
                   onChange={(e) => updateDog(idx, { vaccineExpiry: e.target.value })}
                 />
                 {expired && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm font-medium text-rose-600">
                     Vaccination record expired!
                   </p>
                 )}
               </div>
               <div className="sm:col-span-2">
-                <p className="mb-2 font-medium">Extras</p>
-                <label className="mr-4 inline-flex items-center">
+                <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Extras</p>
+                <label className="mr-4 inline-flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={dog.extras.nailTrim}
                     onChange={(e) => updateExtras(idx, { nailTrim: e.target.checked })}
                   />
-                  <span className="ml-1">Nail trim (+${extraPrices.nailTrim})</span>
+                  <span className="text-sm text-slate-600">Nail trim (+${extraPrices.nailTrim})</span>
                 </label>
-                <label className="mr-4 inline-flex items-center">
+                <label className="mr-4 inline-flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={dog.extras.teethBrush}
@@ -242,9 +238,9 @@ export default function BookingForm() {
                       updateExtras(idx, { teethBrush: e.target.checked })
                     }
                   />
-                  <span className="ml-1">Teeth brushing (+${extraPrices.teethBrush})</span>
+                  <span className="text-sm text-slate-600">Teeth brushing (+${extraPrices.teethBrush})</span>
                 </label>
-                <label className="inline-flex items-center">
+                <label className="inline-flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={dog.extras.deShedding}
@@ -252,7 +248,7 @@ export default function BookingForm() {
                       updateExtras(idx, { deShedding: e.target.checked })
                     }
                   />
-                  <span className="ml-1">De-shedding (+${extraPrices.deShedding})</span>
+                  <span className="text-sm text-slate-600">De-shedding (+${extraPrices.deShedding})</span>
                 </label>
               </div>
             </div>
@@ -263,21 +259,21 @@ export default function BookingForm() {
       <button
         type="button"
         onClick={addDog}
-        className="rounded bg-secondary px-3 py-1 text-sm text-white hover:bg-secondary-dark"
+        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-charcoal transition hover:border-primary hover:text-primary"
       >
         Add another dog
       </button>
 
-      <div className="flex justify-between border-t pt-4 text-lg font-bold">
-        <span>Total:</span>
+      <div className="flex items-center justify-between rounded-3xl border border-slate-200 bg-white/80 px-6 py-4 text-lg font-semibold text-brand-charcoal shadow-inner shadow-slate-200/40">
+        <span>Total</span>
         <span>${total.toFixed(2)}</span>
       </div>
 
       <button
         type="submit"
-        className="w-full rounded bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
+        className="w-full rounded-2xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark"
       >
-        Submit Request
+        Submit request
       </button>
     </form>
   );

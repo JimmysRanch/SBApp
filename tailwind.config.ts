@@ -9,27 +9,29 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          light: '#63C4FF',
-          DEFAULT: '#1E7BFF',
-          dark: '#0F4ED7'
+          light: '#60A5FA',
+          DEFAULT: '#2563EB',
+          dark: '#1D4ED8'
         },
         secondary: {
-          DEFAULT: '#FF66C4',
-          dark: '#FF3D9E',
-          pink: '#FF66C4',
-          purple: '#7C5CFF',
-          green: '#2CD4A6'
+          DEFAULT: '#F97316',
+          dark: '#EA580C',
+          pink: '#F43F5E',
+          purple: '#8B5CF6',
+          green: '#22C55E'
         },
         brand: {
-          sky: '#5CC2FF',
-          blue: '#1A6BFF',
-          navy: '#08245A',
-          bubble: '#FF66C4',
-          bubbleDark: '#FF3D9E',
-          mint: '#31D8AF',
-          lavender: '#7C5CFF',
-          sunshine: '#FFD166',
-          cream: '#F9FBFF'
+          sky: '#E0F2FE',
+          blue: '#1E3A8A',
+          navy: '#0F172A',
+          bubble: '#F97316',
+          bubbleDark: '#C2410C',
+          mint: '#10B981',
+          lavender: '#8B5CF6',
+          sunshine: '#FACC15',
+          cream: '#F8FAFC',
+          charcoal: '#1F2937',
+          fog: '#E2E8F0'
         }
       },
       fontFamily: {

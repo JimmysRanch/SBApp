@@ -10,11 +10,11 @@ interface WidgetProps {
   headerContent?: ReactNode
 }
 
-const backgroundMap: Record<Required<WidgetProps>['color'], string> = {
-  blue: 'bg-gradient-to-br from-[#1D4DFF] via-[#2E8CFF] to-[#55C3FF]',
-  pink: 'bg-gradient-to-br from-brand-bubble to-brand-bubbleDark',
-  purple: 'bg-gradient-to-br from-brand-lavender via-[#5B7DFF] to-primary',
-  green: 'bg-gradient-to-br from-brand-mint via-[#3CE0B7] to-[#43F0C5]'
+const accentBackground: Record<Required<WidgetProps>['color'], string> = {
+  blue: 'from-sky-500/15 via-sky-400/10 to-transparent',
+  pink: 'from-rose-400/20 via-rose-300/10 to-transparent',
+  purple: 'from-violet-500/20 via-violet-400/10 to-transparent',
+  green: 'from-emerald-400/20 via-emerald-300/10 to-transparent'
 }
 
 export default function Widget({
@@ -25,21 +25,21 @@ export default function Widget({
   hideHeader = false,
   headerContent
 }: WidgetProps) {
-  const gradient = backgroundMap[color]
+  const gradient = accentBackground[color]
 
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-[2rem] border border-white/25 text-white shadow-soft backdrop-blur-xl',
-        gradient,
+        'relative overflow-hidden rounded-3xl border border-slate-200 bg-white text-brand-charcoal shadow-xl shadow-slate-200/60 backdrop-blur',
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/25 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-80 w-80 rounded-full bg-white/10 blur-[160px]" />
+      <div className={clsx('pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br', gradient)} />
+      <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-white/40 blur-[120px]" />
+      <div className="pointer-events-none absolute -left-24 bottom-[-6rem] h-60 w-60 rounded-full bg-white/30 blur-[140px]" />
       {!hideHeader && (
         <div className="relative flex items-center justify-between px-6 pt-6">
-          <h2 className="text-lg font-semibold tracking-tight drop-shadow-md">{title}</h2>
+          <h2 className="text-lg font-semibold text-brand-charcoal">{title}</h2>
           {headerContent}
         </div>
       )}

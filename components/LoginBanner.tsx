@@ -27,7 +27,7 @@ export default function LoginBanner() {
   return (
     <form
       onSubmit={onSubmit}
-      className="glass-panel mb-6 flex flex-wrap items-center gap-3 bg-white/95 p-4 text-sm text-brand-navy"
+      className="mb-6 flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200 bg-white/85 p-5 text-sm text-brand-charcoal shadow-xl shadow-slate-200/60 backdrop-blur"
     >
       <input
         type="email"
@@ -46,11 +46,11 @@ export default function LoginBanner() {
       <button
         type="submit"
         disabled={loading}
-        className="rounded-full bg-brand-bubble px-4 py-2 font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-2xl bg-primary px-4 py-2 font-semibold text-white shadow-md shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Logging in...' : 'Login'}
       </button>
-      {err && <span className="ml-2 font-medium text-red-600">{err}</span>}
+      {err && <span className="ml-2 font-medium text-rose-600">{err}</span>}
     </form>
   );
 }

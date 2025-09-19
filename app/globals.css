@@ -5,8 +5,37 @@
 /* Custom global styles */
 @layer base {
   body {
-    @apply relative min-h-screen;
+    @apply relative min-h-screen bg-slate-100 text-brand-charcoal antialiased;
     background-attachment: fixed;
+    background-image:
+      radial-gradient(1400px circle at 15% -10%, rgba(37, 99, 235, 0.16), transparent 55%),
+      radial-gradient(1200px circle at 85% -15%, rgba(244, 63, 94, 0.12), transparent 62%),
+      linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, #f1f5f9 100%);
+  }
+
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    width: 38rem;
+    height: 38rem;
+    border-radius: 9999px;
+    filter: blur(140px);
+    opacity: 0.45;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  body::before {
+    top: -18rem;
+    left: -12rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.55), rgba(14, 165, 233, 0.4));
+  }
+
+  body::after {
+    right: -10rem;
+    bottom: -18rem;
+    background: linear-gradient(145deg, rgba(249, 115, 22, 0.4), rgba(99, 102, 241, 0.45));
   }
 
   main {
@@ -16,24 +45,20 @@
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-slate-300 bg-white/95 px-4 py-2.5 text-brand-charcoal placeholder:text-slate-400 shadow-sm transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15;
   }
 
   label {
-    @apply text-brand-navy;
+    @apply text-slate-700 font-medium;
   }
 
   ::selection {
-    @apply bg-brand-bubble/70 text-white;
+    @apply bg-primary/25 text-brand-charcoal;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
-  }
-
-  .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-slate-200/70 backdrop-blur;
   }
 }

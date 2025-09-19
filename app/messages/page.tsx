@@ -32,18 +32,26 @@ export default function MessagesPage() {
 
   return (
     <PageContainer>
-      <Card>
-        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Messages</h1>
-        <ul className="divide-y">
-          {rows.map((m) => (
-            <li key={m.id} className="py-3">
-              <div className="text-sm text-gray-500">
-                {new Date(m.created_at).toLocaleString()} — To {m.to_employee || "—"} from {m.from_name || "—"}
-              </div>
-              <div>{m.body}</div>
-            </li>
-          ))}
-        </ul>
+      <Card className="space-y-6">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Inbox</p>
+          <h1 className="text-3xl font-semibold text-brand-charcoal">Messages</h1>
+          <p className="text-sm text-slate-500">Latest updates from clients and teammates land here.</p>
+        </div>
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-200">
+            {rows.map((m) => (
+              <li key={m.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <span>{new Date(m.created_at).toLocaleString()}</span>
+                  <span className="inline-flex h-1.5 w-1.5 rounded-full bg-slate-300" />
+                  <span>To {m.to_employee || '—'} from {m.from_name || '—'}</span>
+                </div>
+                <p className="mt-2 text-sm text-slate-600">{m.body}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Card>
     </PageContainer>
   );

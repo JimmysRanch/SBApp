@@ -167,25 +167,33 @@ export default function ReportsPage() {
 
   return (
     <PageContainer>
-      <Card>
-        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Reports</h1>
-        <div className="mb-4">
-          <label htmlFor="range" className="mr-2 font-medium">Date range:</label>
-          <select
-            id="range"
-            value={range}
-            onChange={(e) => setRange(e.target.value as RangeOption)}
-            className="rounded-full border border-gray-300 px-3 py-2"
-          >
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="year">This Year</option>
-            <option value="all">All Time</option>
-          </select>
+      <Card className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Pulse</p>
+            <h1 className="text-3xl font-semibold text-brand-charcoal">Reports</h1>
+            <p className="text-sm text-slate-500">Key metrics that track the health of your grooming business.</p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm">
+            <label htmlFor="range" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Date range
+            </label>
+            <select
+              id="range"
+              value={range}
+              onChange={(e) => setRange(e.target.value as RangeOption)}
+              className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-brand-charcoal shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+            >
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
         </div>
         {loading ? (
-          <p>Loading…</p>
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-500">Aggregating insights…</div>
         ) : (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -202,21 +210,21 @@ export default function ReportsPage() {
               <ReportCard title="Expected Revenue" value={`$${counts.expectedRevenue.toFixed(2)}`} />
               <ReportCard title="Sales" value={`$${counts.sales.toFixed(2)}`} />
             </div>
-            <Card>
-              <h2 className="mb-2 text-xl font-semibold">Top Services</h2>
+            <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-inner shadow-slate-200/40">
+              <h2 className="mb-2 text-xl font-semibold text-brand-charcoal">Top Services</h2>
               {counts.topServices.length === 0 ? (
-                <p className="text-sm text-gray-500">No services found</p>
+                <p className="text-sm text-slate-500">No services found.</p>
               ) : (
-                <ul className="text-sm">
+                <ul className="divide-y divide-slate-200 text-sm">
                   {counts.topServices.map(([service, count]) => (
-                    <li key={service} className="flex justify-between border-b py-1 last:border-none">
+                    <li key={service} className="flex justify-between py-2 text-brand-charcoal">
                       <span>{service}</span>
-                      <span className="font-medium">{count}</span>
+                      <span className="font-semibold">{count}</span>
                     </li>
                   ))}
                 </ul>
               )}
-            </Card>
+            </div>
           </div>
         )}
       </Card>
@@ -226,9 +234,9 @@ export default function ReportsPage() {
 
 function ReportCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <Card className="text-center">
-      <div className="mb-1 text-sm text-gray-500">{title}</div>
-      <div className="text-3xl font-bold">{value}</div>
-    </Card>
+    <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 text-center shadow-sm shadow-slate-200/50">
+      <div className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{title}</div>
+      <div className="text-3xl font-semibold text-brand-charcoal">{value}</div>
+    </div>
   );
 }

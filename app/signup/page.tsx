@@ -31,21 +31,52 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-md rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur space-y-3">
-        <h1 className="mb-4 text-2xl font-bold text-primary-dark">Create account</h1>
-        <input className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" placeholder="Full name (optional)"
-               value={fullName} onChange={e=>setFullName(e.target.value)} />
-        <input className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" placeholder="Email" type="email"
-               value={email} onChange={e=>setEmail(e.target.value)} required />
-        <input className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" placeholder="Password" type="password"
-               value={password} onChange={e=>setPassword(e.target.value)} required />
-        <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Sign up</button>
-        <div className="mt-3 text-sm text-center">
-          <a className="text-primary-light underline transition-colors hover:text-primary-dark" href="/login">Already have an account? Log in</a>
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-1/2 top-12 h-[26rem] w-[26rem] -translate-x-1/2 rounded-full bg-primary/15 blur-[160px]" />
+        <div className="absolute -right-28 bottom-0 h-[28rem] w-[28rem] rounded-full bg-secondary/15 blur-[200px]" />
+      </div>
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-md space-y-4 rounded-[2.5rem] border border-slate-200 bg-white/85 p-10 text-brand-charcoal shadow-2xl shadow-slate-200/70 backdrop-blur"
+      >
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Welcome</p>
+          <h1 className="text-3xl font-semibold">Create your team account</h1>
+          <p className="text-sm text-slate-500">Invite your teammates later from settings.</p>
         </div>
-        {msg && <p className="mt-3 text-green-700">{msg}</p>}
-        {err && <p className="mt-3 text-red-700">{err}</p>}
+        <input
+          className="w-full"
+          placeholder="Full name (optional)"
+          value={fullName}
+          onChange={e => setFullName(e.target.value)}
+        />
+        <input
+          className="w-full"
+          placeholder="Email"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+        />
+        <input
+          className="w-full"
+          placeholder="Password"
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+        <button className="w-full rounded-2xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark">
+          Sign up
+        </button>
+        <div className="mt-3 text-center text-sm text-slate-600">
+          <a className="font-semibold text-primary hover:text-primary-dark" href="/login">
+            Already have an account? Log in
+          </a>
+        </div>
+        {msg && <p className="text-sm font-medium text-emerald-600">{msg}</p>}
+        {err && <p className="text-sm font-medium text-rose-600">{err}</p>}
       </form>
     </div>
   );

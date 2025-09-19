@@ -51,29 +51,66 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-1/2 top-12 h-[24rem] w-[24rem] -translate-x-1/2 rounded-full bg-primary/15 blur-[150px]" />
+        <div className="absolute -right-24 bottom-0 h-[26rem] w-[26rem] rounded-full bg-secondary/15 blur-[190px]" />
+      </div>
       {stage === 'request' ? (
-        <form onSubmit={sendEmail} className="w-full max-w-sm rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur">
-          <h1 className="mb-4 text-xl font-semibold text-primary-dark">Reset your password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">Email</label>
-          <input className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="email" required
-                 value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Send reset link</button>
+        <form
+          onSubmit={sendEmail}
+          className="w-full max-w-sm space-y-4 rounded-[2.5rem] border border-slate-200 bg-white/85 p-10 text-brand-charcoal shadow-2xl shadow-slate-200/70 backdrop-blur"
+        >
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Reset access</p>
+            <h1 className="text-3xl font-semibold">Reset your password</h1>
+            <p className="text-sm text-slate-500">We’ll send a link to the email associated with your account.</p>
+          </div>
+          {err && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">{err}</div>}
+          {msg && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-600">{msg}</div>}
+          <input
+            className="w-full"
+            type="email"
+            required
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button className="w-full rounded-2xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark">
+            Send reset link
+          </button>
         </form>
       ) : (
-        <form onSubmit={doReset} className="w-full max-w-sm rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur">
-          <h1 className="mb-4 text-xl font-semibold text-primary-dark">Set a new password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">New password</label>
-          <input className="mt-1 mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="password" required
-                 value={password} onChange={(e) => setPassword(e.target.value)} />
-          <label className="block text-sm font-medium">Confirm password</label>
-          <input className="mt-1 mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="password" required
-                 value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Update password</button>
+        <form
+          onSubmit={doReset}
+          className="w-full max-w-sm space-y-4 rounded-[2.5rem] border border-slate-200 bg-white/85 p-10 text-brand-charcoal shadow-2xl shadow-slate-200/70 backdrop-blur"
+        >
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Almost there</p>
+            <h1 className="text-3xl font-semibold">Set a new password</h1>
+            <p className="text-sm text-slate-500">Enter and confirm your new credentials.</p>
+          </div>
+          {err && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">{err}</div>}
+          {msg && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-600">{msg}</div>}
+          <input
+            className="w-full"
+            type="password"
+            required
+            placeholder="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <input
+            className="w-full"
+            type="password"
+            required
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+          <button className="w-full rounded-2xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark">
+            Update password
+          </button>
         </form>
       )}
     </div>

@@ -169,27 +169,27 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
+      className="w-full max-w-md space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-10 text-brand-charcoal shadow-xl shadow-slate-200/70 backdrop-blur"
     >
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">
           Welcome back
         </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
-          Scruffy squad <span className="ml-1">🐶</span>
+        <h1 className="text-3xl font-semibold">
+          Scruffy Butts Control Center <span className="ml-1">🐾</span>
         </h1>
-        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
+        <p className="text-sm text-slate-500">Sign in to manage schedules, teams, and reports.</p>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
           {err}
         </div>
       )}
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Email</label>
+          <label className="block text-sm">Email</label>
           <input
             className="w-full"
             type="email"
@@ -201,7 +201,7 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Password</label>
+          <label className="block text-sm">Password</label>
           <input
             className="w-full"
             type="password"
@@ -216,17 +216,17 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-2xl bg-primary px-5 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <div className="flex justify-between text-sm text-brand-navy/70">
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
-          Create account
+      <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+        <a className="font-semibold text-primary transition-colors hover:text-primary-dark" href="/signup">
+          Create an account
         </a>
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
-          Forgot password?
+        <a className="font-semibold text-primary transition-colors hover:text-primary-dark" href="/reset-password">
+          Forgot your password?
         </a>
       </div>
     </form>

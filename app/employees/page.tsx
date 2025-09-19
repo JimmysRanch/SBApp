@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
 import { useEffect, useState } from "react";
+import clsx from "clsx";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -37,56 +38,91 @@ export default function EmployeesPage() {
 
   return (
     <PageContainer>
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="space-y-4 md:col-span-2">
-          <h1 className="text-3xl font-bold text-primary-dark">Employees</h1>
-          <div>
+      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+        <Card className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Team roster</p>
+              <h1 className="text-3xl font-semibold text-brand-charcoal">Employees</h1>
+              <p className="text-sm text-slate-500">
+                Tap any teammate to preview their status and open their profile.
+              </p>
+            </div>
             <Link
               href="/employees/new"
-              className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
+              className="inline-flex items-center justify-center rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:translate-y-[-2px] hover:bg-primary-dark"
             >
-              Add Employee
+              Add employee
             </Link>
           </div>
           {loading ? (
-            <p>Loading…</p>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-500">
+              Loading roster…
+            </div>
           ) : (
-            <ul className="divide-y">
-              {rows.map((e) => (
-                <li
-                  key={e.id}
-                  onClick={() => setSelected(e)}
-                  className="relative flex cursor-pointer justify-between py-3"
-                >
-                  <span className="font-medium">{e.name}</span>
-                  <span className="text-sm text-gray-600">{e.active ? "Active" : "Inactive"}</span>
-                  {selected?.id === e.id && (
-                    <Link
-                      href={`/employees/${e.id}`}
-                      className="absolute inset-0 flex items-center justify-center bg-primary/80 text-lg font-semibold text-white"
+            <ul className="divide-y divide-slate-200 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+              {rows.map((e) => {
+                const isSelected = selected?.id === e.id;
+                return (
+                  <li
+                    key={e.id}
+                    onClick={() => setSelected(e)}
+                    className="relative flex cursor-pointer items-center justify-between px-5 py-4 transition hover:bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-medium text-brand-charcoal">{e.name}</p>
+                      <p className="text-xs text-slate-500">ID: {e.id}</p>
+                    </div>
+                    <span
+                      className={clsx(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                        e.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600',
+                      )}
                     >
-                      Employee Page
-                    </Link>
-                  )}
-                </li>
-              ))}
+                      {e.active ? 'Active' : 'Inactive'}
+                    </span>
+                    {isSelected && (
+                      <Link
+                        href={`/employees/${e.id}`}
+                        className="absolute inset-2 flex items-center justify-center rounded-2xl bg-primary/90 text-sm font-semibold text-white shadow-lg"
+                      >
+                        View profile
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
-        <Card className="md:col-start-3">
+        <Card>
           {selected ? (
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-primary-dark">Quick View</h2>
-              <p className="font-medium">{selected.name}</p>
-              <p className="text-sm text-gray-600">
-                Status: {selected.active ? "Active" : "Inactive"}
-              </p>
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-brand-charcoal">Quick view</h2>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+                <p className="text-sm uppercase tracking-[0.25em] text-slate-500">Name</p>
+                <p className="text-xl font-semibold text-brand-charcoal">{selected.name}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+                <p className="text-sm uppercase tracking-[0.25em] text-slate-500">Status</p>
+                <p className="text-base font-medium text-brand-charcoal">
+                  {selected.active ? 'Currently active' : 'Marked inactive'}
+                </p>
+              </div>
+              <Link
+                href={`/employees/${selected.id}`}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-charcoal transition hover:border-primary hover:text-primary"
+              >
+                Open full profile
+              </Link>
             </div>
           ) : (
-            <>
-              <h2 className="mb-4 text-lg font-semibold text-primary-dark">Employee Details</h2>
-              <p className="text-sm text-gray-600">Select an employee to view details.</p>
-            </>
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-brand-charcoal">Employee details</h2>
+              <p className="text-sm text-slate-500">
+                Select a teammate from the list to preview their status and jump into their profile page.
+              </p>
+            </div>
           )}
         </Card>
       </div>

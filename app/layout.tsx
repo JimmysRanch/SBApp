@@ -1,18 +1,18 @@
 import TopNav from "@/components/TopNav";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
-import { Nunito } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { mapEmployeeRowToProfile } from "@/lib/auth/profile";
 import type { EmployeeProfile } from "@/lib/auth/profile";
 
 export const metadata = {
   title: "Scruffy Butts",
-  description: "Grooming dashboard",
+  description: "Modern grooming command center",
 };
 export const runtime = "nodejs";
 
-const nunito = Nunito({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
 });
@@ -45,18 +45,37 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className="scroll-smooth">
-      <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
-      >
+      <body className={`${plusJakarta.variable} font-sans text-brand-charcoal antialiased`}> 
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
-          <div className="relative flex min-h-screen flex-col overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+          <div className="relative flex min-h-screen overflow-hidden">
+            {session && <TopNav />}
+            <div className="relative flex min-h-screen flex-1 flex-col">
+              {session && (
+                <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/70 px-6 py-5 backdrop-blur lg:px-10">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Welcome back</p>
+                      <h1 className="text-2xl font-semibold text-brand-charcoal">
+                        {initialProfile?.name ?? session.user.email ?? "Team member"}
+                      </h1>
+                    </div>
+                    <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center">
+                      {initialProfile?.role && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-slate-600 shadow-sm">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          {initialProfile.role}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-slate-600 shadow-sm">
+                        <span className="h-2 w-2 rounded-full bg-sky-400" />
+                        All systems operational
+                      </span>
+                    </div>
+                  </div>
+                </header>
+              )}
+              <main className="relative z-10 flex-1 pb-16 lg:pb-20">{children}</main>
             </div>
-            <TopNav />
-            <main className="relative z-10 flex-1">{children}</main>
           </div>
         </AuthProvider>
       </body>

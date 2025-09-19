@@ -12,11 +12,11 @@ interface Appointment {
 }
 
 const statusStyles: Record<string, string> = {
-  Completed: 'bg-brand-mint/30 text-brand-navy',
-  Upcoming: 'bg-white/40 text-brand-navy',
-  Cancelled: 'bg-brand-bubble/40 text-white',
-  'In Progress': 'bg-brand-sunshine/60 text-brand-navy',
-  'Checked In': 'bg-brand-lavender/40 text-white'
+  Completed: 'bg-emerald-100 text-emerald-700',
+  Upcoming: 'bg-slate-100 text-brand-charcoal',
+  Cancelled: 'bg-rose-100 text-rose-600',
+  'In Progress': 'bg-amber-100 text-amber-700',
+  'Checked In': 'bg-primary/10 text-primary'
 }
 
 export default function TodaysAppointments() {
@@ -56,13 +56,13 @@ export default function TodaysAppointments() {
   }, [])
 
   if (loading) {
-    return <div className="text-white/80">Loading...</div>
+    return <div className="rounded-2xl border border-slate-200 bg-white/70 p-6 text-slate-500">Loading today’s appointments…</div>
   }
 
   if (appointments.length === 0) {
     return (
-      <div className="rounded-3xl border border-white/30 bg-white/10 p-6 text-white/80 backdrop-blur-md">
-        No appointments today.
+      <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 text-slate-500 shadow-inner">
+        No appointments scheduled for today.
       </div>
     )
   }
@@ -75,12 +75,12 @@ export default function TodaysAppointments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between text-white">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
-          <h3 className="text-2xl font-semibold tracking-tight drop-shadow-sm">{today}</h3>
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Today</p>
+          <h3 className="text-2xl font-semibold text-brand-charcoal">{today}</h3>
         </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-lg font-semibold text-white shadow-inner">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold text-brand-charcoal shadow-inner">
           {appointments.length}
         </span>
       </div>
@@ -88,21 +88,21 @@ export default function TodaysAppointments() {
         {appointments.map((appt) => (
           <li
             key={appt.id}
-            className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl bg-white/95 px-5 py-4 text-brand-navy shadow-lg shadow-primary/10 backdrop-blur"
+            className="grid grid-cols-[auto,1fr,auto] items-center gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-brand-charcoal shadow-lg shadow-slate-200/60"
           >
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-bubble/20 text-2xl">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-2xl">
               🐶
             </div>
             <div>
-              <p className="text-sm font-semibold text-brand-navy">{appt.pet_name}</p>
-              <p className="text-xs text-brand-navy/70">{appt.client_name}</p>
+              <p className="text-sm font-semibold text-brand-charcoal">{appt.pet_name}</p>
+              <p className="text-xs text-slate-500">{appt.client_name}</p>
             </div>
             <div className="text-right">
-              <div className="text-sm font-semibold text-brand-navy">{appt.time}</div>
+              <div className="text-sm font-semibold text-brand-charcoal">{appt.time}</div>
               <span
                 className={clsx(
                   'mt-2 inline-flex items-center justify-center rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide',
-                  statusStyles[appt.status] ?? 'bg-white/40 text-brand-navy'
+                  statusStyles[appt.status] ?? 'bg-slate-100 text-brand-charcoal'
                 )}
               >
                 {appt.status}

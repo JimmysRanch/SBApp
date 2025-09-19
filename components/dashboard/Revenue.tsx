@@ -42,19 +42,19 @@ export default function Revenue() {
 
   const format = (value: number | null) => (value ?? 0).toFixed(2)
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="rounded-2xl border border-slate-200 bg-white/70 p-6 text-slate-500">Calculating revenue…</div>
   return (
-    <div className="space-y-4 text-white">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
+    <div className="space-y-4 text-brand-charcoal">
+      <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-inner shadow-slate-200/40">
+        <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Today</p>
         <div className="mt-2 flex items-end gap-2">
-          <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
-          <span className="text-xs text-white/70">so far</span>
+          <span className="text-3xl font-bold">${format(todayRevenue)}</span>
+          <span className="text-xs text-slate-500">so far</span>
         </div>
       </div>
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
-        <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
+      <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-inner shadow-slate-200/40">
+        <p className="text-xs uppercase tracking-[0.35em] text-slate-500">This Week</p>
+        <div className="mt-2 text-xl font-semibold">${format(weekRevenue)}</div>
       </div>
     </div>
   )

@@ -2,7 +2,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/app/lib/supabase';
+import { createBrowserClient } from '@supabase/ssr';
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Row = {
   id: number;
@@ -23,32 +28,25 @@ export default function CalendarPage() {
     setErr(null);
 
     // auth
-    const { data: sess } = await supabase.auth.getSession();
-    const uid = sess.session?.user.id;
-    if (!uid) {
-      setErr('No logged-in user');
-      setLoading(false);
-      return;
-    }
+    const { data: userRes, error: userErr } = await supabase.auth.getUser();
+    if (userErr) { setErr(userErr.message); setLoading(false); return; }
+    const user = userRes.user;
+    if (!user) { setErr('Please log in to see your calendar.'); setLoading(false); return; }
 
-    // find employee
+    // find employee for this user
     const { data: emp, error: empErr } = await supabase
       .from('employees')
       .select('id')
-      .eq('user_id', uid)
+      .eq('user_id', user.id)
       .single();
-    if (empErr || !emp) {
-      setErr(empErr?.message || 'Employee not found');
-      setLoading(false);
-      return;
-    }
+    if (empErr || !emp) { setErr(empErr?.message || 'Employee not found'); setLoading(false); return; }
 
-    // month range with a small buffer
+    // current month range + small buffer
     const now = new Date();
     const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const toISO   = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
 
-    // query with nested relations
+    // query appointments with related pet/service
     const { data, error } = await supabase
       .from('appointments')
       .select(`
@@ -62,13 +60,9 @@ export default function CalendarPage() {
       .in('status', ['booked','checked_in','in_progress','completed'])
       .order('start_time', { ascending: true });
 
-    if (error) {
-      setErr(error.message);
-      setLoading(false);
-      return;
-    }
+    if (error) { setErr(error.message); setLoading(false); return; }
 
-    // normalize pets/services which may arrive as object OR array
+    // normalize pets/services (can be object or array depending on relation)
     const normalized: Row[] = (data ?? []).map((d: any) => ({
       id: d.id,
       start_time: d.start_time,

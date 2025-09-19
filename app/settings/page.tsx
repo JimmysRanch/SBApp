@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@supabase/supabase-js";
 
-type Admin = {
-  email: string;
-  user_id: string;
-};
+type Admin = { email: string; user_id: string };
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function SettingsPage() {
-  const supabase = createClient();
-
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -19,7 +19,6 @@ export default function SettingsPage() {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [newAdmin, setNewAdmin] = useState("");
 
-  // ---------------- LOAD FUNCTION ----------------
   async function load() {
     setLoading(true);
     setErr(null);
@@ -31,7 +30,6 @@ export default function SettingsPage() {
       return;
     }
     const user = ures.user;
-
     setEmail(user.email ?? null);
 
     const { data: emp } = await supabase
@@ -47,8 +45,7 @@ export default function SettingsPage() {
 
     if (iAmAdmin) {
       const { data: list, error: lerr } = await supabase.rpc("admin_list");
-      if (!lerr && Array.isArray(list)) setAdmins(list as any);
-      else setAdmins([]);
+      setAdmins(!lerr && Array.isArray(list) ? (list as any) : []);
     } else {
       setAdmins([]);
     }
@@ -60,7 +57,6 @@ export default function SettingsPage() {
     load();
   }, []);
 
-  // ---------------- ACTIONS ----------------
   async function addAdmin() {
     if (!newAdmin) return;
     const { error } = await supabase.rpc("add_admin_by_email", {
@@ -82,35 +78,38 @@ export default function SettingsPage() {
     window.location.href = "/";
   }
 
-  // ---------------- RENDER ----------------
   if (loading) return <div className="p-6">Loading…</div>;
   if (err) return <div className="p-6 text-red-500">Error: {err}</div>;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       <h1 className="text-2xl font-bold">Settings</h1>
 
+      {/* Quick links to existing settings subpages */}
       <div>
-        <p>
-          <strong>Logged in as:</strong> {name ?? email}
-        </p>
-        <p>
-          <strong>Role:</strong>{" "}
-          {isAdmin ? "Owner / Admin" : "Employee (limited)"}
-        </p>
+        <h2 className="text-lg font-semibold mb-2">Configuration</h2>
+        <ul className="list-disc ml-6 space-y-1">
+          <li><a className="text-blue-600 underline" href="/settings/profile">Profile</a></li>
+          <li><a className="text-blue-600 underline" href="/settings/business">Business</a></li>
+          <li><a className="text-blue-600 underline" href="/settings/services">Services</a></li>
+          <li><a className="text-blue-600 underline" href="/settings/notifications">Notifications</a></li>
+          <li><a className="text-blue-600 underline" href="/settings/billing">Billing</a></li>
+        </ul>
       </div>
 
-      <button
-        onClick={logout}
-        className="px-4 py-2 bg-red-600 text-white rounded"
-      >
+      <div>
+        <p><strong>Logged in as:</strong> {name ?? email}</p>
+        <p><strong>Role:</strong> {isAdmin ? "Owner / Admin" : "Employee (limited)"}</p>
+      </div>
+
+      <button onClick={logout} className="px-4 py-2 bg-red-600 text-white rounded">
         Log out
       </button>
 
       {isAdmin && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold">Admin management</h2>
-          <div className="flex space-x-2 mt-2">
+        <div>
+          <h2 className="text-xl font-semibold mt-6">Admin management</h2>
+          <div className="flex gap-2 mt-2">
             <input
               type="email"
               value={newAdmin}
@@ -118,31 +117,39 @@ export default function SettingsPage() {
               placeholder="Add admin by email"
               className="border p-2 flex-1"
             />
-            <button
-              onClick={addAdmin}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
-            >
+            <button onClick={addAdmin} className="px-4 py-2 bg-blue-600 text-white rounded">
               Add
             </button>
           </div>
-          <ul className="mt-4 space-y-2">
-            {admins.length === 0 && (
-              <li className="text-gray-500">No admins listed.</li>
-            )}
-            {admins.map((a) => (
-              <li key={a.user_id} className="flex justify-between items-center">
-                <span>
-                  {a.email} ({a.user_id})
-                </span>
-                <button
-                  onClick={() => removeAdmin(a.user_id)}
-                  className="px-2 py-1 bg-red-500 text-white rounded"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+
+          <table className="mt-4 w-full text-left">
+            <thead>
+              <tr className="border-b">
+                <th className="py-1">Email</th>
+                <th className="py-1">User ID</th>
+                <th className="py-1">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.length === 0 && (
+                <tr><td className="py-2 text-gray-500" colSpan={3}>No admins listed.</td></tr>
+              )}
+              {admins.map((a) => (
+                <tr key={a.user_id} className="border-b">
+                  <td className="py-2">{a.email}</td>
+                  <td className="py-2">{a.user_id}</td>
+                  <td className="py-2">
+                    <button
+                      onClick={() => removeAdmin(a.user_id)}
+                      className="px-2 py-1 bg-red-500 text-white rounded"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

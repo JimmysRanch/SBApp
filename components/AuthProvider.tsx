@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -99,6 +100,7 @@ export default function AuthProvider({
   const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
   const [profile, setProfile] = useState<EmployeeProfile | null>(initialProfile);
   const [loading, setLoading] = useState(() => !initialSession);
+  const sessionRef = useRef<Session | null>(initialSession ?? null);
   const [email, setEmail] = useState<string | null>(() => {
     if (initialSession?.user?.email) return initialSession.user.email;
     if (typeof window !== "undefined") {
@@ -137,21 +139,29 @@ export default function AuthProvider({
   }, [initialProfile, initialSession]);
 
   useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
     let active = true;
 
     const initialise = async () => {
       try {
-        setLoading(true);
         const {
-          data: { session: initialSession },
+          data: { session: latestSession },
         } = await supabase.auth.getSession();
         if (!active) return;
-        setSession(initialSession ?? null);
-        const initialUser = initialSession?.user ?? null;
-        setUser(initialUser);
-        const nextEmail = initialUser?.email ?? null;
+
+        const effectiveSession = latestSession ?? sessionRef.current ?? null;
+        setSession(effectiveSession);
+
+        const effectiveUser = effectiveSession?.user ?? null;
+        setUser(effectiveUser);
+
+        const nextEmail = effectiveUser?.email ?? null;
         setEmail(nextEmail);
-        const initialProfile = await loadProfile(initialUser);
+
+        const initialProfile = await loadProfile(effectiveUser);
         if (!active) return;
         setProfile(initialProfile);
       } catch (error) {

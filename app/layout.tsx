@@ -1,6 +1,8 @@
+// app/layout.tsx
 import './globals.css';
-import { createServerClient } from '@supabase/ssr';
 import type { Metadata } from 'next';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
   title: 'Scruffy Butts',
@@ -8,15 +10,28 @@ export const metadata: Metadata = {
 };
 
 async function getUser() {
+  const cookieStore = cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => cookieStore.get(name)?.value,
+        // set/remove are no-ops in RSC; middleware handles them
+        set: () => {},
+        remove: () => {},
+      },
+    }
   );
   const { data } = await supabase.auth.getUser();
   return data.user ?? null;
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const user = await getUser();
 
   return (
@@ -36,7 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </header>
         )}
         <main style={{ padding: 16 }}>{children}</main>
-      </body>
+    </body>
     </html>
   );
 }

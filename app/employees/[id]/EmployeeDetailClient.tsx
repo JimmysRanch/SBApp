@@ -196,6 +196,7 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
+      if (flags.can_manage_staff === true) return true;
       if (flags.can_edit_schedule === true) return true;
       if (flags.can_manage_discounts === true) return true;
       if (flags.can_view_reports === true) return true;

@@ -1,10 +1,11 @@
-// app/(app)/calendar/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
-const supabase = createBrowserClient(
+export const dynamic = 'force-dynamic';
+
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
@@ -24,29 +25,15 @@ export default function CalendarPage() {
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
-    setLoading(true);
-    setErr(null);
+    setLoading(true); setErr(null);
 
-    // auth
-    const { data: userRes, error: userErr } = await supabase.auth.getUser();
-    if (userErr) { setErr(userErr.message); setLoading(false); return; }
-    const user = userRes.user;
-    if (!user) { setErr('Please log in to see your calendar.'); setLoading(false); return; }
+    const { data: ures, error: uerr } = await supabase.auth.getUser();
+    if (uerr || !ures.user) { setErr(uerr?.message ?? 'Please log in'); setLoading(false); return; }
 
-    // find employee for this user
-    const { data: emp, error: empErr } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-    if (empErr || !emp) { setErr(empErr?.message || 'Employee not found'); setLoading(false); return; }
-
-    // current month range + small buffer
     const now = new Date();
     const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const toISO   = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
 
-    // query appointments with related pet/service
     const { data, error } = await supabase
       .from('appointments')
       .select(`
@@ -54,7 +41,6 @@ export default function CalendarPage() {
         pets ( name ),
         services ( name )
       `)
-      .eq('employee_id', emp.id)
       .gte('start_time', fromISO)
       .lt('start_time', toISO)
       .in('status', ['booked','checked_in','in_progress','completed'])
@@ -62,7 +48,6 @@ export default function CalendarPage() {
 
     if (error) { setErr(error.message); setLoading(false); return; }
 
-    // normalize pets/services (can be object or array depending on relation)
     const normalized: Row[] = (data ?? []).map((d: any) => ({
       id: d.id,
       start_time: d.start_time,
@@ -72,15 +57,14 @@ export default function CalendarPage() {
       service_name: Array.isArray(d.services) ? d.services[0]?.name ?? null : d.services?.name ?? null,
     }));
 
-    setRows(normalized);
-    setLoading(false);
+    setRows(normalized); setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
 
   return (
     <div style={{ padding: 16 }}>
-      <h1>Employee Calendar</h1>
+      <h1>Store Calendar</h1>
       <button onClick={load} disabled={loading} style={{ marginBottom: 12 }}>
         {loading ? 'Loading…' : 'Refresh'}
       </button>
@@ -91,11 +75,7 @@ export default function CalendarPage() {
       <table width="100%" cellPadding={8} style={{ borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
-            <th>Pet / Service</th>
-            <th>Date</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Status</th>
+            <th>Pet / Service</th><th>Date</th><th>Start</th><th>End</th><th>Status</th>
           </tr>
         </thead>
         <tbody>

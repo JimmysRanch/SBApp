@@ -1,18 +1,9 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next({ request: { headers: req.headers } });
-  const { pathname } = req.nextUrl;
-
-  const PUBLIC = new Set(['/login', '/favicon.ico', '/manifest.webmanifest']);
-  const isStatic =
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/icons/') ||
-    pathname.startsWith('/public/');
-
-  if (PUBLIC.has(pathname) || isStatic) return res;
+  const res = NextResponse.next();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,34 +11,28 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => {
-          res.cookies.set({ name, value, ...(options || {}) });
-        },
-        remove: (name, options) => {
-          res.cookies.set({ name, value: '', ...(options || {}) });
-        },
+        set: (name, value, options) => { res.cookies.set({ name, value, ...options }); },
+        remove: (name, options) => { res.cookies.set({ name, value: '', ...options }); },
       },
     }
   );
 
-  const { data } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAuthPath = req.nextUrl.pathname.startsWith('/login');
 
-  if (!data?.user) {
+  if (!user && !isAuthPath) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
-
-  if (pathname === '/login') {
+  if (user && isAuthPath) {
     const url = req.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
-
   return res;
 }
 
 export const config = {
-  matcher: ['/((?!_next/|icons/|public/|manifest.webmanifest|favicon.ico|login).*)'],
+  matcher: ['/(?!_next/.*|.*\\.(?:png|jpg|jpeg|gif|webp|ico|svg|css|js)$)'],
 };

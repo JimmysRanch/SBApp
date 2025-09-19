@@ -3,8 +3,11 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 
+import type { PostgrestError } from "@supabase/supabase-js";
+
 import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
+import { isMissingColumnError, readMoney } from "../data-helpers";
 
 type HistoryRow = {
   id: number;
@@ -72,53 +75,71 @@ export default function EmployeeHistoryPage() {
   const loadRows = useCallback(async () => {
     setLoading(true);
     setError(null);
-    let query = supabase
-      .from("appointments")
-      .select("id,start_time,end_time,service,status,price,price_cents,tip,tip_amount,tip_cents,pet_name")
-      .eq("employee_id", employee.id)
-      .order("start_time", { ascending: false });
 
-    if (activeFilters.startDate) {
-      query = query.gte("start_time", new Date(activeFilters.startDate).toISOString());
-    }
-    if (activeFilters.endDate) {
-      const end = new Date(activeFilters.endDate);
-      end.setDate(end.getDate() + 1);
-      query = query.lt("start_time", end.toISOString());
-    }
-    if (activeFilters.status && activeFilters.status !== "all") {
-      query = query.eq("status", activeFilters.status);
-    }
-    if (activeFilters.services.length > 0) {
-      query = query.in("service", activeFilters.services);
-    }
+    const executeQuery = (columns: string) => {
+      let builder = supabase
+        .from("appointments")
+        .select(columns)
+        .eq("employee_id", employee.id)
+        .order("start_time", { ascending: false });
 
-    const { data, error: historyError } = await query;
-    if (historyError) {
+      if (activeFilters.startDate) {
+        builder = builder.gte("start_time", new Date(activeFilters.startDate).toISOString());
+      }
+      if (activeFilters.endDate) {
+        const end = new Date(activeFilters.endDate);
+        end.setDate(end.getDate() + 1);
+        builder = builder.lt("start_time", end.toISOString());
+      }
+      if (activeFilters.status && activeFilters.status !== "all") {
+        builder = builder.eq("status", activeFilters.status);
+      }
+      if (activeFilters.services.length > 0) {
+        builder = builder.in("service", activeFilters.services);
+      }
+
+      return builder;
+    };
+
+    try {
+      let response = await executeQuery(
+        "id,start_time,end_time,service,status,price,price_cents,price_amount,price_amount_cents,tip,tip_amount,tip_cents,tip_amount_cents,pet_name"
+      );
+      if (response.error && isMissingColumnError(response.error as PostgrestError)) {
+        response = await executeQuery("*");
+      }
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const mapped = ((response.data as any[]) ?? []).map((item: any) => {
+        const price = readMoney(item, [
+          "price",
+          "price_cents",
+          "price_amount",
+          "price_amount_cents",
+        ]) ?? 0;
+        const tip =
+          readMoney(item, ["tip", "tip_amount", "tip_cents", "tip_amount_cents", "gratuity", "gratuity_cents"]) ?? 0;
+        return {
+          id: item.id,
+          start_time: item.start_time,
+          service: item.service,
+          status: item.status,
+          price,
+          tip,
+          pet_name: item.pet_name ?? null,
+        };
+      });
+      setRows(mapped);
+    } catch (cause) {
+      console.error("Failed to load appointment history", cause);
       setError("Unable to load appointment history");
       setRows([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const mapped = (data ?? []).map((item: any) => {
-      const price = typeof item.price === "number" ? item.price : item.price_cents ? item.price_cents / 100 : 0;
-      let tip = 0;
-      if (typeof item.tip === "number") tip = item.tip;
-      else if (typeof item.tip_amount === "number") tip = item.tip_amount;
-      else if (typeof item.tip_cents === "number") tip = item.tip_cents / 100;
-      return {
-        id: item.id,
-        start_time: item.start_time,
-        service: item.service,
-        status: item.status,
-        price,
-        tip,
-        pet_name: item.pet_name ?? null,
-      };
-    });
-    setRows(mapped);
-    setLoading(false);
   }, [activeFilters, employee.id]);
 
   useEffect(() => {

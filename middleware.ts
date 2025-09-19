@@ -6,13 +6,13 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next({ request: { headers: req.headers } });
   const { pathname } = req.nextUrl;
 
-  // allow only login + static when signed out
-  const publicPaths = ['/login', '/favicon.ico', '/manifest.webmanifest'];
-  if (
-    publicPaths.includes(pathname) ||
+  const PUBLIC = new Set(['/login', '/favicon.ico', '/manifest.webmanifest']);
+  const isStatic =
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/public/')
-  ) return res;
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/public/');
+
+  if (PUBLIC.has(pathname) || isStatic) return res;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,8 +20,12 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
-        remove: (name, options) => res.cookies.set({ name, value: '', ...options }),
+        set: (name, value, options) => {
+          res.cookies.set({ name, value, ...(options || {}) });
+        },
+        remove: (name, options) => {
+          res.cookies.set({ name, value: '', ...(options || {}) });
+        },
       },
     }
   );
@@ -44,4 +48,6 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ['/((?!_next/|public/).*)'] };
+export const config = {
+  matcher: ['/((?!_next/|icons/|public/|manifest.webmanifest|favicon.ico|login).*)'],
+};

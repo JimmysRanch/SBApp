@@ -1,9 +1,18 @@
-// middleware.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const res = NextResponse.next({ request: { headers: req.headers } });
+  const { pathname } = req.nextUrl;
+
+  // allow only login + static when signed out
+  const publicPaths = ['/login', '/favicon.ico', '/manifest.webmanifest'];
+  if (
+    publicPaths.includes(pathname) ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/public/')
+  ) return res;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,30 +20,22 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => { res.cookies.set({ name, value, ...(options || {}) }); },
-        remove: (name, options) => { res.cookies.set({ name, value: '', ...(options || {}) }); },
+        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
+        remove: (name, options) => res.cookies.set({ name, value: '', ...options }),
       },
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const path = req.nextUrl.pathname;
+  const { data } = await supabase.auth.getUser();
 
-  const isAuthPath = path === '/login';
-  const isStatic =
-    path.startsWith('/_next/') ||
-    path.startsWith('/icons/') ||
-    path === '/favicon.ico' ||
-    path === '/manifest.webmanifest';
-
-  if (!user && !isAuthPath && !isStatic) {
+  if (!data?.user) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('redirect', path);
+    url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPath) {
+  if (pathname === '/login') {
     const url = req.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
@@ -43,7 +44,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-// ✅ Simple, valid matcher (no negative lookaheads)
-export const config = {
-  matcher: ['/((?!_next/|icons/|favicon.ico|manifest.webmanifest|login).*)'],
-};
+export const config = { matcher: ['/((?!_next/|public/).*)'] };

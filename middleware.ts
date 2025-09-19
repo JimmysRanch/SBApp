@@ -11,28 +11,39 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => { res.cookies.set({ name, value, ...options }); },
-        remove: (name, options) => { res.cookies.set({ name, value: '', ...options }); },
+        set: (name, value, options) => { res.cookies.set({ name, value, ...(options || {}) }); },
+        remove: (name, options) => { res.cookies.set({ name, value: '', ...(options || {}) }); },
       },
     }
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const isAuthPath = req.nextUrl.pathname.startsWith('/login');
+  const path = req.nextUrl.pathname;
 
-  if (!user && !isAuthPath) {
+  const isAuthPath = path === '/login';
+  const isStatic =
+    path.startsWith('/_next/') ||
+    path.startsWith('/icons/') ||
+    path === '/favicon.ico' ||
+    path === '/manifest.webmanifest';
+
+  if (!user && !isAuthPath && !isStatic) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('redirect', path);
     return NextResponse.redirect(url);
   }
+
   if (user && isAuthPath) {
     const url = req.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
+
   return res;
 }
 
+// ✅ Simple, valid matcher (no negative lookaheads)
 export const config = {
-  matcher: ['/(?!_next/.*|.*\\.(?:png|jpg|jpeg|gif|webp|ico|svg|css|js)$)'],
+  matcher: ['/((?!_next/|icons/|favicon.ico|manifest.webmanifest|login).*)'],
 };

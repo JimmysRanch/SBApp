@@ -1,25 +1,47 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request: { headers: request.headers } })
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next({ request: { headers: req.headers } });
+  const { pathname } = req.nextUrl;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  // allow only login + static when signed out
+  const publicPaths = ['/login', '/favicon.ico', '/manifest.webmanifest'];
+  if (
+    publicPaths.includes(pathname) ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/public/')
+  ) return res;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => req.cookies.get(name)?.value,
+        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
+        remove: (name, options) => res.cookies.set({ name, value: '', ...options }),
+      },
+    }
+  );
+
+  const { data } = await supabase.auth.getUser();
+
+  if (!data?.user) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
   }
 
-  const supabase = createMiddlewareClient(
-    { req: request, res: response },
-    { supabaseUrl, supabaseKey: supabaseAnonKey }
-  )
+  if (pathname === '/login') {
+    const url = req.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
 
-  await supabase.auth.getSession()
-  return response
+  return res;
 }
 
-// run for all routes (or narrow if you prefer)
-export const config = { matcher: ['/(.*)'] }
+export const config = { matcher: ['/((?!_next/|public/).*)'] };

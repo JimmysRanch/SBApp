@@ -116,6 +116,19 @@ type EmployeeDetailContextValue = {
 
 const EmployeeDetailContext = createContext<EmployeeDetailContextValue | null>(null);
 
+function isTruthyFlag(value: unknown) {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  if (typeof value === "string") {
+    const normalised = value.trim().toLowerCase();
+    return ["true", "1", "yes", "y", "on"].includes(normalised);
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value !== 0 : false;
+  }
+  return false;
+}
+
 export function useEmployeeDetail() {
   const ctx = useContext(EmployeeDetailContext);
   if (!ctx) {
@@ -140,7 +153,7 @@ type Props = {
 
 export default function EmployeeDetailClient({ children, employee, goals }: Props) {
   const router = useRouter();
-  const { email } = useAuth();
+  const { email, permissions, isOwner } = useAuth();
 
   const [viewer, setViewer] = useState<ViewerRecord | null>(null);
   const [viewerLoaded, setViewerLoaded] = useState(false);
@@ -181,27 +194,42 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const viewerCanManageDiscounts = useMemo(() => {
+    if (permissions.canManageEmployees) return true;
+    const rawFlags = permissions.raw;
+    if (isTruthyFlag(rawFlags.can_manage_discounts)) return true;
+    if (isTruthyFlag(rawFlags.is_manager)) return true;
     if (!viewer) return false;
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
-      if (flags.can_manage_discounts === true) return true;
-      if (flags.is_manager === true) return true;
+      if (isTruthyFlag(flags.can_manage_discounts)) return true;
+      if (isTruthyFlag(flags.is_manager)) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
-  }, [viewer]);
+    const role = viewer.role?.toLowerCase() ?? "";
+    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+  }, [permissions, viewer]);
 
   const viewerCanEditStaff = useMemo(() => {
+    if (permissions.canManageEmployees || isOwner) return true;
+    const rawFlags = permissions.raw;
+    if (isTruthyFlag(rawFlags.can_manage_staff)) return true;
+    if (isTruthyFlag(rawFlags.can_edit_schedule)) return true;
+    if (isTruthyFlag(rawFlags.can_manage_discounts)) return true;
+    if (isTruthyFlag(rawFlags.can_view_reports)) return true;
+    if (isTruthyFlag(rawFlags.is_manager)) return true;
     if (!viewer) return false;
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
       const flags = perms as Record<string, unknown>;
-      if (flags.can_edit_schedule === true) return true;
-      if (flags.can_manage_discounts === true) return true;
-      if (flags.can_view_reports === true) return true;
+      if (isTruthyFlag(flags.can_manage_staff)) return true;
+      if (isTruthyFlag(flags.can_edit_schedule)) return true;
+      if (isTruthyFlag(flags.can_manage_discounts)) return true;
+      if (isTruthyFlag(flags.can_view_reports)) return true;
+      if (isTruthyFlag(flags.is_manager)) return true;
     }
-    return viewer.role?.toLowerCase().includes("manager") ?? false;
-  }, [viewer]);
+    const role = viewer.role?.toLowerCase() ?? "";
+    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+  }, [isOwner, permissions, viewer]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const pushToast = useCallback((message: string, tone: Toast["tone"] = "info") => {

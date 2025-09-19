@@ -13,17 +13,27 @@ export default function EmployeeWorkload() {
 
   useEffect(() => {
     const fetchWorkloads = async () => {
-      // This query groups appointments by assigned groomer and counts active jobs
+      const now = new Date()
+      const startOfDay = new Date(now)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(now)
+      endOfDay.setHours(23, 59, 59, 999)
+
+      // Only fetch the appointments that could still be "active" today so we avoid
+      // loading the entire historical appointments table (which had started to slow
+      // the dashboard down as more records were added).
       const { data, error } = await supabase
         .from('appointments')
-        .select('groomer_name, status')
+        .select('groomer_name, status, start_time')
+        .in('status', ['Checked In', 'In Progress'])
+        .gte('start_time', startOfDay.toISOString())
+        .lte('start_time', endOfDay.toISOString())
 
       if (!error && data) {
         const counts: Record<string, number> = {}
         data.forEach((row) => {
           const name = row.groomer_name || 'Unassigned'
-          const isActive = ['Checked In', 'In Progress'].includes(row.status)
-          if (isActive) counts[name] = (counts[name] || 0) + 1
+          counts[name] = (counts[name] || 0) + 1
         })
         setWorkloads(Object.entries(counts).map(([employee_name, count]) => ({ employee_name, count })))
       }

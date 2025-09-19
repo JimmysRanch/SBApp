@@ -36,17 +36,26 @@ export default function EmployeeHistoryPage() {
       .select('id')
       .eq('user_id', uid)
       .single();
-
     if (empErr || !emp) {
       setErr(empErr?.message || 'Employee not found');
       setLoading(false);
       return;
     }
 
+    // Force 1:1 related objects using FK labels.
+    // Default FK names from Postgres: appointments_*_fkey
     let query = supabase
       .from('appointments')
       .select(
-        'id,start_time,status,price,clients(full_name),pets(name),services(name)'
+        [
+          'id',
+          'start_time',
+          'status',
+          'price',
+          'clients:clients!appointments_client_id_fkey(full_name)',
+          'pets:pets!appointments_pet_id_fkey(name)',
+          'services:services!appointments_service_id_fkey(name)',
+        ].join(',')
       )
       .eq('employee_id', emp.id)
       .order('start_time', { ascending: false })
@@ -54,16 +63,15 @@ export default function EmployeeHistoryPage() {
 
     if (q.trim()) {
       const pat = `%${q.trim()}%`;
-      // filter on related names + status
+      // filter on leaf fields only
       query = query.or(
-        `clients.full_name.ilike.${pat},pets.name.ilike.${pat},services.name.ilike.${pat},status.ilike.${pat}`
+        `status.ilike.${pat},price::text.ilike.${pat}`
       );
     }
 
-    const { data, error } = await query;
-
-    if (error) setErr(error.message);
-    else setRows(data ?? []);
+    const res = (await query) as unknown as { data: Row[] | null; error: any };
+    if (res.error) setErr(res.error.message);
+    else setRows(res.data ?? []);
 
     setLoading(false);
   }
@@ -79,7 +87,7 @@ export default function EmployeeHistoryPage() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input
-          placeholder="Search client, pet, service, or status"
+          placeholder="Search status or price"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()}
@@ -91,9 +99,7 @@ export default function EmployeeHistoryPage() {
       </div>
 
       {err && (
-        <div style={{ color: '#b00020', marginBottom: 12 }}>
-          Error: {err}
-        </div>
+        <div style={{ color: '#b00020', marginBottom: 12 }}>Error: {err}</div>
       )}
 
       {!loading && rows.length === 0 && !err && <div>No appointments found.</div>}

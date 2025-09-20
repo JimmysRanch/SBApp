@@ -21,7 +21,8 @@ type AppointmentWithParsed = Row & {
   end: Date | null;
 };
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const DAYS_BEFORE = 14;
+const DAYS_AFTER = 14;
 
 const toDateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -51,17 +52,39 @@ export default function CalendarPage() {
   const { loading: authLoading, session, permissions } = useAuth();
   const today = useMemo(() => new Date(), []);
   const todayKey = useMemo(() => toDateKey(today), [today]);
+  const todayStart = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+    [today],
+  );
   const [activeDayKey, setActiveDayKey] = useState<string>(todayKey);
+  const [emptyDayKey, setEmptyDayKey] = useState<string | null>(null);
   const weekDays = useMemo(() => {
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const dayOfWeek = startOfToday.getDay();
+    const startOfWeek = new Date(todayStart);
+    const dayOfWeek = startOfWeek.getDay();
     const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    startOfToday.setDate(startOfToday.getDate() + diff);
-    const startTime = startOfToday.getTime();
-    return Array.from({ length: 7 }, (_, index) => new Date(startTime + index * DAY_IN_MS));
-  }, [today]);
+    startOfWeek.setDate(startOfWeek.getDate() + diff);
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + index);
+      return date;
+    });
+  }, [todayStart]);
   const weekDayKeys = useMemo(() => weekDays.map((day) => toDateKey(day)), [weekDays]);
+  const timelineDays = useMemo(() => {
+    const start = new Date(todayStart);
+    start.setDate(start.getDate() - DAYS_BEFORE);
+    return Array.from({ length: DAYS_BEFORE + DAYS_AFTER + 1 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return date;
+    });
+  }, [todayStart]);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const timelineButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const emptyDayDate = useMemo(() => {
+    if (!emptyDayKey) return null;
+    return timelineDays.find((day) => toDateKey(day) === emptyDayKey) ?? null;
+  }, [emptyDayKey, timelineDays]);
 
   const load = useCallback(async () => {
     if (!session || !permissions.canManageCalendar) return;
@@ -70,9 +93,10 @@ export default function CalendarPage() {
     setErr(null);
 
     try {
-      const now = new Date();
-      const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const toISO = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
+      const rangeStart = new Date(todayStart);
+      rangeStart.setDate(rangeStart.getDate() - DAYS_BEFORE);
+      const rangeEnd = new Date(todayStart);
+      rangeEnd.setDate(rangeEnd.getDate() + DAYS_AFTER + 1);
 
       const { data, error } = await supabase
         .from('appointments')
@@ -81,8 +105,8 @@ export default function CalendarPage() {
           pets ( name ),
           services ( name )
         `)
-        .gte('start_time', fromISO)
-        .lt('start_time', toISO)
+        .gte('start_time', rangeStart.toISOString())
+        .lt('start_time', rangeEnd.toISOString())
         .in('status', ['booked', 'checked_in', 'in_progress', 'completed'])
         .order('start_time', { ascending: true });
 
@@ -104,7 +128,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [permissions.canManageCalendar, session]);
+  }, [permissions.canManageCalendar, session, todayStart]);
 
   const appointmentsByDay = useMemo(() => {
     const grouped = new Map<string, { date: Date; appointments: AppointmentWithParsed[] }>();
@@ -153,6 +177,23 @@ export default function CalendarPage() {
   }, []);
 
   useEffect(() => {
+    const button = timelineButtonRefs.current[activeDayKey];
+    if (button) {
+      button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [activeDayKey]);
+
+  useEffect(() => {
+    const hasSection = Boolean(sectionRefs.current[activeDayKey]);
+    const hasAppointments = appointmentsByDay.has(activeDayKey);
+    if (!hasSection && !hasAppointments) {
+      setEmptyDayKey(activeDayKey);
+    } else {
+      setEmptyDayKey(null);
+    }
+  }, [activeDayKey, appointmentsByDay]);
+
+  useEffect(() => {
     if (authLoading) return;
     if (!session || !permissions.canManageCalendar) {
       setRows([]);
@@ -194,32 +235,101 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {weekDays.map((day) => {
-          const dayKey = toDateKey(day);
-          const count = appointmentsByDay.get(dayKey)?.appointments.length ?? 0;
-          const isActive = activeDayKey === dayKey;
-          const isToday = todayKey === dayKey;
-          const weekdayLabel = day.toLocaleDateString(undefined, { weekday: 'short' });
-          const fullDateLabel = day.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {timelineDays.map((day, index) => {
+            const dayKey = toDateKey(day);
+            const count = appointmentsByDay.get(dayKey)?.appointments.length ?? 0;
+            const isActive = activeDayKey === dayKey;
+            const isToday = todayKey === dayKey;
+            const isPrimaryWeek = weekDayKeys.includes(dayKey);
+            const offsetFromToday = index - DAYS_BEFORE;
+            const isDistant = Math.abs(offsetFromToday) > 7;
+            const weekdayLabel = day.toLocaleDateString(undefined, { weekday: 'short' });
+            const fullDateLabel = day.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+            const buttonBaseClasses =
+              "group relative flex min-w-[160px] flex-col overflow-hidden rounded-3xl border px-5 py-4 text-left transition-all duration-300 transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 before:absolute before:inset-x-6 before:-bottom-3 before:h-3 before:rounded-full before:bg-black/60 before:opacity-0 before:blur before:transition before:duration-300 before:content-['']";
+            const buttonStateClasses = isActive
+              ? 'border-white/70 bg-gradient-to-br from-white/30 via-white/[0.14] to-white/[0.05] shadow-[0_35px_65px_-28px_rgba(15,23,42,0.9)] scale-[1.02] before:-bottom-4 before:opacity-45'
+              : isDistant
+              ? 'border-white/5 bg-white/[0.015] shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)] hover:-translate-y-1.5 hover:border-white/40 hover:bg-white/[0.08] hover:shadow-[0_40px_70px_-32px_rgba(15,23,42,0.9)] group-hover:before:-bottom-4 group-hover:before:opacity-40'
+              : !isPrimaryWeek
+              ? 'border-white/8 bg-white/[0.025] shadow-[0_22px_55px_-32px_rgba(15,23,42,0.8)] hover:-translate-y-1.5 hover:border-white/40 hover:bg-white/[0.08] hover:shadow-[0_40px_70px_-32px_rgba(15,23,42,0.9)] group-hover:before:-bottom-4 group-hover:before:opacity-40'
+              : 'border-white/10 bg-white/[0.04] shadow-[0_24px_60px_-30px_rgba(15,23,42,0.85)] hover:-translate-y-1.5 hover:border-white/40 hover:bg-white/[0.08] hover:shadow-[0_40px_70px_-32px_rgba(15,23,42,0.9)] group-hover:before:-bottom-4 group-hover:before:opacity-40';
+            const weekdayTextClass = isActive
+              ? 'text-slate-900/70'
+              : isDistant
+              ? 'text-white/50'
+              : !isPrimaryWeek
+              ? 'text-white/60'
+              : 'text-white/60';
+            const dateTextClass = isActive
+              ? 'text-slate-900'
+              : isDistant
+              ? 'text-white/75'
+              : !isPrimaryWeek
+              ? 'text-white/80'
+              : 'text-white';
+            const countTextClass = isActive
+              ? 'text-slate-900 drop-shadow-[0_8px_18px_rgba(15,23,42,0.25)]'
+              : isDistant
+              ? 'text-white/70'
+              : !isPrimaryWeek
+              ? 'text-white/80'
+              : 'text-white';
+            const appointmentsTextClass = isActive
+              ? 'text-slate-900/70'
+              : isDistant
+              ? 'text-white/45'
+              : !isPrimaryWeek
+              ? 'text-white/55'
+              : 'text-white/60';
 
-          return (
-            <button
-              key={dayKey}
-              type="button"
-              onClick={() => handleDaySelect(dayKey)}
-              className={`flex min-w-[140px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
-                isActive ? 'border-white/50 bg-white/15 shadow-lg shadow-black/10' : 'border-white/10 bg-white/[0.03]'
-              } ${isToday ? 'ring-1 ring-white/30' : ''}`}
-            >
-              <span className="text-xs font-semibold uppercase tracking-wide text-white/60">{weekdayLabel}</span>
-              <span className="mt-1 text-sm font-semibold text-white">{fullDateLabel}</span>
-              <span className="mt-3 text-2xl font-semibold text-white">{count}</span>
-              <span className="text-xs text-white/60">{count === 1 ? 'Appointment' : 'Appointments'}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={dayKey}
+                ref={(node) => {
+                  if (node) {
+                    timelineButtonRefs.current[dayKey] = node;
+                  } else {
+                    delete timelineButtonRefs.current[dayKey];
+                  }
+                }}
+                type="button"
+                onClick={() => handleDaySelect(dayKey)}
+                className={`${buttonBaseClasses} ${buttonStateClasses} ${isToday ? 'ring-1 ring-white/50' : ''}`}
+                aria-pressed={isActive}
+              >
+                {isToday && (
+                  <span
+                    className={`absolute right-4 top-4 rounded-full border px-2 py-[2px] text-[0.6rem] font-semibold uppercase tracking-wide ${
+                      isActive ? 'border-slate-900/20 bg-white/90 text-slate-900' : 'border-white/30 bg-white/10 text-white'
+                    }`}
+                  >
+                    Today
+                  </span>
+                )}
+                <span className={`text-xs font-semibold uppercase tracking-wide ${weekdayTextClass}`}>{weekdayLabel}</span>
+                <span className={`mt-1 text-sm font-semibold ${dateTextClass}`}>{fullDateLabel}</span>
+                <span className={`mt-3 text-2xl font-semibold ${countTextClass}`}>{count}</span>
+                <span className={`text-xs ${appointmentsTextClass}`}>
+                  {count === 1 ? 'Appointment' : 'Appointments'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {emptyDayDate && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+            No appointments scheduled for{' '}
+            {emptyDayDate.toLocaleDateString(undefined, {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+            .
+          </div>
+        )}
 
       {!err && rows.length === 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-8 text-center text-sm text-white/70">
@@ -301,8 +411,19 @@ export default function CalendarPage() {
               const weekdayLabel = value.date.toLocaleDateString(undefined, { weekday: 'long' });
               const fullDateLabel = value.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 
-              return (
-                <section key={key} className="space-y-4">
+                return (
+                  <section
+                    key={key}
+                    ref={(node) => {
+                      if (node) {
+                        sectionRefs.current[key] = node;
+                      } else {
+                        delete sectionRefs.current[key];
+                      }
+                    }}
+                    id={`day-${key}`}
+                    className="space-y-4"
+                  >
                   <h2 className="text-lg font-semibold text-white">
                     {weekdayLabel}
                     <span className="ml-2 text-sm font-normal text-white/60">{fullDateLabel}</span>

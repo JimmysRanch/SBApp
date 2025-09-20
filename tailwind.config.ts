@@ -24,6 +24,8 @@ const config: Config = {
           sky: '#5CC2FF',
           blue: '#1A6BFF',
           navy: '#08245A',
+          obsidian: '#05060F',
+          charcoal: '#111322',
           bubble: '#FF66C4',
           bubbleDark: '#FF3D9E',
           mint: '#31D8AF',
@@ -36,7 +38,7 @@ const config: Config = {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif']
       },
       boxShadow: {
-        soft: '0 24px 55px -25px rgba(20, 90, 200, 0.55)'
+        soft: '0 32px 90px -40px rgba(5, 10, 45, 0.75)'
       },
       borderRadius: {
         '3xl': '1.75rem',

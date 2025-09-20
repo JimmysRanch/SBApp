@@ -127,38 +127,38 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 p-6">
-      <div className="glass-panel max-w-3xl space-y-4 bg-white/90 p-6 text-brand-navy">
+      <div className="glass-panel max-w-3xl space-y-5 bg-[linear-gradient(150deg,rgba(8,12,28,0.94)_0%,rgba(8,36,90,0.78)_52%,rgba(5,6,18,0.92)_100%)] p-6 backdrop-saturate-150">
         <div>
-          <h1 className="text-3xl font-bold text-brand-navy">Settings</h1>
-          <p className="text-sm text-brand-navy/70">Manage your Scruffy Butts workspace.</p>
+          <h1 className="text-3xl font-bold text-white">Settings</h1>
+          <p className="text-sm text-white/70">Manage your Scruffy Butts workspace.</p>
         </div>
 
-        <div className="rounded-2xl bg-white/70 p-4 shadow-inner">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
-          <p className="text-2xl font-bold text-brand-navy">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/50">Logged in as</p>
+          <p className="text-2xl font-bold text-white">
             {displayName ?? userEmail ?? 'Team member'}
           </p>
-          <p className="text-sm text-brand-navy/70">
-            Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
+          <p className="text-sm text-white/70">
+            Role: <span className="font-semibold text-white">{roleLabel}</span>
           </p>
-          {userEmail && <p className="text-xs text-brand-navy/50">Email: {userEmail}</p>}
+          {userEmail && <p className="text-xs text-white/50">Email: {userEmail}</p>}
         </div>
 
         <button
           onClick={handleLogout}
-          className="inline-flex items-center justify-center rounded-full bg-brand-bubble px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-bubbleDark"
+          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-brand-bubble to-brand-bubbleDark px-5 py-2 text-sm font-semibold text-white shadow-[0_24px_40px_-24px_rgba(255,102,196,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_45px_-22px_rgba(255,61,158,0.9)]"
         >
           Log out
         </button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="glass-panel space-y-3 bg-white/90 p-6 text-brand-navy">
-          <h2 className="text-xl font-semibold">Configuration</h2>
-          <ul className="list-disc space-y-1 pl-6 text-sm text-brand-navy/80">
+        <div className="glass-panel space-y-4 bg-[linear-gradient(150deg,rgba(8,12,28,0.92)_0%,rgba(8,36,90,0.75)_50%,rgba(5,6,18,0.9)_100%)] p-6 backdrop-saturate-150">
+          <h2 className="text-xl font-semibold text-white">Configuration</h2>
+          <ul className="list-disc space-y-1 pl-6 text-sm text-white/70">
             {configurationLinks.map((link) => (
               <li key={link.href}>
-                <Link className="text-brand-bubble hover:text-brand-bubbleDark" href={link.href}>
+                <Link className="text-brand-bubble transition-colors hover:text-brand-bubbleDark" href={link.href}>
                   {link.label}
                 </Link>
               </li>
@@ -167,33 +167,33 @@ export default function SettingsPage() {
         </div>
 
         {isOwner && (
-          <div className="glass-panel space-y-4 bg-white/90 p-6 text-brand-navy">
+          <div className="glass-panel space-y-4 bg-[linear-gradient(150deg,rgba(8,12,28,0.92)_0%,rgba(8,36,90,0.75)_50%,rgba(5,6,18,0.9)_100%)] p-6 backdrop-saturate-150">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Team members with elevated access</h2>
+              <h2 className="text-xl font-semibold text-white">Team members with elevated access</h2>
               <button
                 onClick={() => void loadTeam()}
                 disabled={loading}
-                className="text-sm font-semibold text-brand-bubble transition hover:text-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+                className="text-sm font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Refreshing…' : 'Refresh'}
               </button>
             </div>
-            {err && <p className="text-sm font-medium text-red-600">{err}</p>}
+            {err && <p className="text-sm font-medium text-red-200">{err}</p>}
             {!err && team.length === 0 && (
-              <p className="text-sm text-brand-navy/70">
+              <p className="text-sm text-white/70">
                 No other teammates currently have elevated access.
               </p>
             )}
-            <ul className="space-y-3 text-sm">
+            <ul className="space-y-3 text-sm text-white">
               {team.map((member) => (
                 <li
                   key={member.id ?? member.email ?? Math.random()}
-                  className="rounded-xl border border-brand-navy/10 bg-white/70 p-3 shadow-sm"
+                  className="rounded-xl border border-white/10 bg-white/5 p-3 shadow-[0_18px_38px_-28px_rgba(5,10,35,0.75)]"
                 >
-                  <p className="font-semibold text-brand-navy">
+                  <p className="font-semibold text-white">
                     {member.name ?? member.email ?? `Team member #${member.id ?? '—'}`}
                   </p>
-                  <p className="text-xs text-brand-navy/60">
+                  <p className="text-xs text-white/60">
                     {member.email ?? '—'} • {member.role ?? 'Team member'}
                   </p>
                 </li>

@@ -11,10 +11,10 @@ interface WidgetProps {
 }
 
 const backgroundMap: Record<Required<WidgetProps>['color'], string> = {
-  blue: 'bg-gradient-to-br from-[#1D4DFF] via-[#2E8CFF] to-[#55C3FF]',
-  pink: 'bg-gradient-to-br from-brand-bubble to-brand-bubbleDark',
-  purple: 'bg-gradient-to-br from-brand-lavender via-[#5B7DFF] to-primary',
-  green: 'bg-gradient-to-br from-brand-mint via-[#3CE0B7] to-[#43F0C5]'
+  blue: 'bg-gradient-to-br from-[#3020C9] via-[#4E3AFF] to-[#6FE3FF]',
+  pink: 'bg-gradient-to-br from-[#FF6FAF] via-[#F64085] to-[#FFD1E8]',
+  purple: 'bg-gradient-to-br from-[#271B9D] via-[#7C5CFF] to-[#FF7AB8]',
+  green: 'bg-gradient-to-br from-[#36F9C5] via-[#3ABFF8] to-[#6FE3FF]'
 }
 
 export default function Widget({
@@ -30,20 +30,26 @@ export default function Widget({
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-3xl border border-white/25 text-white shadow-soft backdrop-blur-xl',
+        'relative overflow-hidden rounded-[2.65rem] border border-white/15 text-white shadow-[0_36px_62px_-30px_rgba(5,3,17,0.65)] backdrop-blur-3xl transition-transform duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_44px_70px_-28px_rgba(5,3,17,0.7)]',
         gradient,
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-white/25 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-72 w-72 rounded-full bg-white/10 blur-[160px]" />
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute -left-28 -top-32 h-64 w-64 rounded-full bg-white/30 blur-[140px]" />
+        <div className="absolute -right-32 top-12 h-56 w-56 rounded-full bg-white/25 blur-[160px]" />
+        <div className="absolute inset-x-[-35%] bottom-[-45%] h-80 rounded-full bg-white/15 blur-[180px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      </div>
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-5 pt-5">
-          <h2 className="text-base font-semibold tracking-tight drop-shadow-md">{title}</h2>
+        <div className="relative z-[1] flex items-center justify-between px-6 pt-6">
+          <h2 className="text-lg font-semibold tracking-tight drop-shadow-[0_10px_24px_rgba(5,3,17,0.65)]">
+            {title}
+          </h2>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-5 pb-5', hideHeader ? 'pt-5' : 'pt-4')}>
+      <div className={clsx('relative z-[1] px-6 pb-6', hideHeader ? 'pt-6' : 'pt-5')}>
         {children}
       </div>
     </div>

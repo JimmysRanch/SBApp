@@ -5,18 +5,60 @@
 /* Custom global styles */
 @layer base {
   body {
-    @apply relative min-h-screen;
+    @apply relative min-h-screen overflow-x-hidden antialiased text-white/80;
+    color-scheme: dark;
+    background-color: #050311;
+    background-image:
+      radial-gradient(circle at 8% 10%, rgba(111, 227, 255, 0.25), transparent 62%),
+      radial-gradient(circle at 92% 12%, rgba(255, 122, 184, 0.22), transparent 58%),
+      radial-gradient(circle at 50% 80%, rgba(96, 80, 255, 0.24), transparent 68%),
+      linear-gradient(140deg, #050311 0%, #0b0730 52%, #1b0c44 100%);
     background-attachment: fixed;
   }
 
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -38vmin -20vmin auto;
+    height: 120vmin;
+    width: 120vmin;
+    pointer-events: none;
+    background: radial-gradient(circle at 30% 30%, rgba(111, 227, 255, 0.45), transparent 60%),
+      radial-gradient(circle at 75% 20%, rgba(255, 122, 184, 0.4), transparent 65%);
+    filter: blur(140px);
+    opacity: 0.85;
+    z-index: -1;
+    animation: auroraFloat 26s ease-in-out infinite alternate;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    bottom: -28vh;
+    left: 50%;
+    height: 72vh;
+    width: 165vw;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(96, 80, 255, 0.24) 1px, transparent 0),
+      linear-gradient(90deg, rgba(111, 227, 255, 0.22) 1px, transparent 0);
+    background-size: 120px 120px, 120px 120px;
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.6) 35%, rgba(0, 0, 0, 0.9) 100%);
+    transform: perspective(1100px) rotateX(70deg) translateX(-50%);
+    opacity: 0.32;
+    z-index: -2;
+    animation: gridGlow 20s ease-in-out infinite alternate;
+  }
+
   main {
-    @apply w-full;
+    @apply relative w-full;
   }
 
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-3xl border border-white/30 bg-white/95 px-5 py-3 text-brand-navy placeholder:text-brand-navy/50 transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/45;
+    box-shadow: 0 22px 45px -30px rgba(5, 3, 17, 0.85);
   }
 
   label {
@@ -24,16 +66,127 @@
   }
 
   ::selection {
-    @apply bg-brand-bubble/70 text-white;
+    @apply bg-primary/60 text-brand-cream;
+  }
+}
+
+@keyframes auroraFloat {
+  0% {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 2%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-3%, 5%, 0) scale(1.08);
+  }
+}
+
+@keyframes gridGlow {
+  0%,
+  100% {
+    opacity: 0.28;
+    filter: drop-shadow(0 0 0 rgba(111, 227, 255, 0));
+  }
+  50% {
+    opacity: 0.36;
+    filter: drop-shadow(0 0 22px rgba(111, 227, 255, 0.35));
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
+    @apply relative overflow-hidden rounded-[2.75rem] border border-white/15 bg-white/10 text-white backdrop-blur-3xl transition-transform duration-500 ease-out;
+    box-shadow: 0 36px 60px -30px rgba(8, 6, 32, 0.75);
+  }
+
+  .glass-panel::before,
+  .glass-panel::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: -1;
+  }
+
+  .glass-panel::before {
+    inset: -45% -25% 55% -30%;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.65), transparent 68%);
+    opacity: 0.65;
+  }
+
+  .glass-panel::after {
+    inset: 40% -35% -70% 10%;
+    background: radial-gradient(circle at 80% 20%, rgba(96, 80, 255, 0.45), transparent 62%);
+    filter: blur(70px);
+    opacity: 0.55;
+  }
+
+  .glass-panel:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 42px 65px -28px rgba(8, 6, 32, 0.78);
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply relative overflow-hidden rounded-full px-4 py-2 text-sm font-semibold text-white/75 transition duration-300 ease-out;
+    background: linear-gradient(135deg, rgba(111, 227, 255, 0.12), rgba(96, 80, 255, 0.14));
+    box-shadow: 0 16px 28px -24px rgba(5, 3, 17, 0.85);
+  }
+
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(111, 227, 255, 0.35), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .nav-link:hover {
+    color: theme('colors.brand.cream');
+    transform: translateY(-2px);
+    box-shadow: 0 24px 34px -24px rgba(5, 3, 17, 0.85);
+  }
+
+  .nav-link:hover::after,
+  .nav-link:focus-visible::after {
+    opacity: 1;
+  }
+
+  .depth-card {
+    @apply relative overflow-hidden rounded-[2.5rem] border border-white/20 bg-gradient-to-br from-white/95 via-white/90 to-brand-cream/85 p-6 text-brand-navy transition-all duration-500 ease-out;
+    box-shadow: 0 34px 58px -32px rgba(7, 6, 30, 0.45);
+  }
+
+  .depth-card::before,
+  .depth-card::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.45s ease;
+  }
+
+  .depth-card::before {
+    inset: -20% -40% 70% -15%;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0.9), transparent 65%);
+    opacity: 0.7;
+  }
+
+  .depth-card::after {
+    inset: 55% -25% -45% 15%;
+    background: radial-gradient(circle at 85% 20%, rgba(255, 122, 184, 0.35), transparent 70%);
+    filter: blur(80px);
+    opacity: 0.55;
+  }
+
+  .depth-card:hover {
+    transform: translate3d(0, -6px, 0);
+    box-shadow: 0 42px 68px -30px rgba(7, 6, 30, 0.52);
+  }
+
+  .depth-card > * {
+    position: relative;
+    z-index: 1;
   }
 }

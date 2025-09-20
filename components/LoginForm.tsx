@@ -169,29 +169,29 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
+      className="glass-panel w-full max-w-md space-y-6 bg-[linear-gradient(155deg,rgba(8,12,28,0.95)_0%,rgba(8,36,90,0.78)_52%,rgba(5,6,18,0.92)_100%)] p-10 backdrop-saturate-150"
     >
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/50">
           Welcome back
         </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
-          Scruffy squad <span className="ml-1">🐶</span>
+        <h1 className="text-3xl font-black tracking-tight text-white">
+          Scruffy squad <span className="ml-1 text-brand-bubble">🐶</span>
         </h1>
-        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
+        <p className="text-sm text-white/70">Sign in to keep the tails wagging.</p>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/15 px-3 py-2 text-sm text-red-100 shadow-inner">
           {err}
         </div>
       )}
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Email</label>
+          <label className="block text-sm font-semibold text-white">Email</label>
           <input
-            className="w-full"
+            className="w-full border-white/10 bg-white/10 text-white placeholder:text-white/60 shadow-[0_22px_45px_-30px_rgba(8,36,90,0.8)] focus:border-brand-bubble focus:ring-brand-bubble/40"
             type="email"
             required
             value={email}
@@ -201,9 +201,9 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Password</label>
+          <label className="block text-sm font-semibold text-white">Password</label>
           <input
-            className="w-full"
+            className="w-full border-white/10 bg-white/10 text-white placeholder:text-white/60 shadow-[0_22px_45px_-30px_rgba(8,36,90,0.8)] focus:border-brand-bubble focus:ring-brand-bubble/40"
             type="password"
             required
             value={password}
@@ -216,12 +216,12 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-full bg-gradient-to-r from-brand-bubble to-brand-bubbleDark px-5 py-3 text-base font-semibold text-white shadow-[0_28px_45px_-25px_rgba(255,102,196,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_28px_50px_-23px_rgba(255,61,158,0.9)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <div className="flex justify-between text-sm text-brand-navy/70">
+      <div className="flex justify-between text-sm text-white/60">
         <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
           Create account
         </a>

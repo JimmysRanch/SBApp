@@ -46,14 +46,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
+        className={`${nunito.variable} bg-brand-obsidian font-sans text-white/90 antialiased min-h-screen overflow-x-hidden`}
       >
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-obsidian via-brand-navy/60 to-black" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(30,123,255,0.25),transparent_62%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,102,196,0.22),transparent_58%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(8,36,90,0.5),transparent_65%)]" />
+              <div className="absolute -left-44 -top-40 h-[28rem] w-[28rem] rounded-full bg-primary/20 blur-[220px]" />
+              <div className="absolute right-[-20rem] top-1/3 h-[34rem] w-[34rem] rounded-full bg-brand-bubble/25 blur-[240px]" />
+              <div className="absolute bottom-[-22rem] left-1/4 h-[38rem] w-[38rem] rounded-full bg-brand-mint/22 blur-[220px]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06),transparent_70%)]" />
             </div>
             <TopNav />
             <main className="relative z-10 flex-1">{children}</main>

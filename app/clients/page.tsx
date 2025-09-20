@@ -2,7 +2,7 @@
 
 import Card from '@/components/Card';
 import PageContainer from '@/components/PageContainer';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -15,10 +15,6 @@ type Client = {
   created_at: string;
 };
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function ClientsPage() {
   const [rows, setRows] = useState<Client[]>([]);

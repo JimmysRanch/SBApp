@@ -46,14 +46,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
+        className={`${nunito.variable} font-sans text-slate-100 antialiased bg-slate-950 min-h-screen overflow-x-hidden`}
       >
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+              <div className="absolute inset-0 -z-20 bg-gradient-to-br from-[#050B1A] via-[#0B1E36] to-[#050B1A]" />
+              <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.22),transparent_55%)]" />
+              <div className="absolute -left-32 -top-48 h-[28rem] w-[28rem] rounded-full bg-primary/25 blur-[140px]" />
+              <div className="absolute right-[-18rem] top-16 h-[32rem] w-[32rem] rounded-full bg-brand-bubble/20 blur-[180px]" />
+              <div className="absolute bottom-[-22rem] left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-secondary-sage/15 blur-[200px]" />
             </div>
             <TopNav />
             <main className="relative z-10 flex-1">{children}</main>

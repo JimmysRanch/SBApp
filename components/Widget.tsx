@@ -30,20 +30,21 @@ export default function Widget({
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-3xl border border-white/25 text-white shadow-soft backdrop-blur-xl',
+        'widget-card group relative overflow-hidden rounded-3xl border border-white/25 text-white shadow-soft backdrop-blur-xl',
         gradient,
         className
       )}
     >
+      <div className="widget-card__sheen" aria-hidden="true" />
       <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-white/25 blur-[120px]" />
       <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-72 w-72 rounded-full bg-white/10 blur-[160px]" />
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-5 pt-5">
+        <div className="widget-card__header relative flex items-center justify-between px-5 pt-5">
           <h2 className="text-base font-semibold tracking-tight drop-shadow-md">{title}</h2>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-5 pb-5', hideHeader ? 'pt-5' : 'pt-4')}>
+      <div className={clsx('widget-card__body relative px-5 pb-5', hideHeader ? 'pt-5' : 'pt-4')}>
         {children}
       </div>
     </div>

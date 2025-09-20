@@ -163,7 +163,7 @@ export default function CalendarPage() {
   }, [authLoading, load, permissions.canManageCalendar, session]);
 
   if (authLoading) {
-    return <div className="p-6">Checking your access…</div>;
+    return null;
   }
 
   if (!session) {

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
+const PUBLIC_FILE = /\.(.*)$/;
+
 const ROLE_ROUTES: Record<string, string[]> = {
   master: ['/', '/dashboard', '/calendar', '/clients', '/staff', '/employees', '/reports', '/messages', '/settings'],
   admin: ['/', '/dashboard', '/calendar', '/clients', '/staff', '/employees', '/reports', '/messages', '/settings'],
@@ -18,6 +20,10 @@ function isAllowedPath(role: string | null, path: string) {
 }
 
 export async function middleware(req: NextRequest) {
+  if (PUBLIC_FILE.test(req.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   const res = NextResponse.next({ request: { headers: req.headers } });
   const supabase = createMiddlewareClient({ req, res });
 

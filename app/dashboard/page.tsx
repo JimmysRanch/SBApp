@@ -39,11 +39,11 @@ export default async function DashboardPage() {
             ].map((label) => (
               <button
                 key={label}
-                className="group flex items-center justify-between rounded-2xl bg-white/95 px-5 py-3 text-left font-semibold text-brand-navy shadow-lg transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+                className="group flex items-center justify-between rounded-2xl border border-white/8 bg-brand-onyx/70 px-5 py-3 text-left font-semibold text-brand-cream shadow-[0_26px_60px_-40px_rgba(5,12,32,0.9)] transition duration-200 hover:-translate-y-0.5 hover:border-white/15"
               >
                 <span>{label}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-bubble text-lg text-white shadow-inner transition-transform duration-200 group-hover:scale-105">
-                  →
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-bubble via-secondary.purple to-primary.light text-lg text-white shadow-[0_12px_35px_-15px_rgba(255,10,120,0.6)] transition-transform duration-200 group-hover:scale-105">
+                  ↗
                 </span>
               </button>
             ))}

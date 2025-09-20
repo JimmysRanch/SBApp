@@ -22,14 +22,29 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-md rounded-xl border border-primary-light/30 bg-white/90 p-8 shadow-lg backdrop-blur space-y-3">
-        <h1 className="mb-4 text-2xl font-bold text-primary-dark">Forgot password</h1>
-        <input className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:ring-2 focus:ring-primary-light" type="email" placeholder="Email"
-               value={email} onChange={e=>setEmail(e.target.value)} required />
-        <button className="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark">Send reset link</button>
-        {msg && <p className="mt-3 text-green-700">{msg}</p>}
-        {err && <p className="mt-3 text-red-700">{err}</p>}
+    <div className="relative flex min-h-screen w-full items-center justify-center px-4 py-16">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-28 top-8 h-72 w-72 rounded-full bg-brand-bubble/25 blur-[160px]" />
+        <div className="absolute bottom-[-12rem] right-[-6rem] h-[28rem] w-[28rem] rounded-full bg-primary/25 blur-[210px]" />
+      </div>
+      <form onSubmit={onSubmit} className="glass-panel w-full max-w-md space-y-5 p-10 text-brand-cream">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-brand-cream">Forgot password</h1>
+          <p className="text-sm text-brand-cream/70">We’ll send a secure link to reset your credentials.</p>
+        </div>
+        <input
+          className="w-full"
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button className="w-full rounded-full bg-gradient-to-r from-brand-bubble via-secondary.purple to-primary.light px-5 py-3 font-semibold text-white shadow-[0_24px_55px_-25px_rgba(255,10,120,0.6)] transition-transform hover:-translate-y-0.5">
+          Send reset link
+        </button>
+        {msg && <p className="text-sm text-brand-mint">{msg}</p>}
+        {err && <p className="text-sm text-brand-bubble">{err}</p>}
       </form>
     </div>
   );

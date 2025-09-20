@@ -55,27 +55,50 @@ export default function ResetPasswordClient() {
   return (
     <>
       {stage === 'request' ? (
-        <form onSubmit={sendEmail} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Reset your password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">Email</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="email" required
-                 value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Send reset link</button>
+        <form onSubmit={sendEmail} className="glass-panel w-full max-w-sm space-y-4 p-8 text-brand-cream">
+          <h1 className="text-xl font-semibold">Reset your password</h1>
+          {err && <div className="rounded-2xl border border-brand-bubble/40 bg-brand-bubble/10 px-4 py-2 text-sm text-brand-bubble">{err}</div>}
+          {msg && <div className="rounded-2xl border border-brand-mint/40 bg-brand-mint/10 px-4 py-2 text-sm text-brand-cream">{msg}</div>}
+          <label className="block text-sm font-semibold text-brand-cream" htmlFor="inline-reset-email">Email</label>
+          <input
+            id="inline-reset-email"
+            className="w-full"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+          <button className="w-full rounded-full bg-gradient-to-r from-brand-bubble via-secondary.purple to-primary.light px-5 py-3 font-semibold text-white shadow-[0_24px_55px_-25px_rgba(255,10,120,0.6)] transition-transform hover:-translate-y-0.5">
+            Send reset link
+          </button>
         </form>
       ) : (
-        <form onSubmit={doReset} className="w-full max-w-sm rounded border bg-white p-6">
-          <h1 className="text-xl font-semibold mb-4">Set a new password</h1>
-          {err && <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
-          {msg && <div className="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>}
-          <label className="block text-sm font-medium">New password</label>
-          <input className="mt-1 mb-3 w-full rounded border px-3 py-2" type="password" required
-                 value={password} onChange={(e) => setPassword(e.target.value)} />
-          <label className="block text-sm font-medium">Confirm password</label>
-          <input className="mt-1 mb-4 w-full rounded border px-3 py-2" type="password" required
-                 value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          <button className="w-full rounded bg-black px-4 py-2 text-white">Update password</button>
+        <form onSubmit={doReset} className="glass-panel w-full max-w-sm space-y-4 p-8 text-brand-cream">
+          <h1 className="text-xl font-semibold">Set a new password</h1>
+          {err && <div className="rounded-2xl border border-brand-bubble/40 bg-brand-bubble/10 px-4 py-2 text-sm text-brand-bubble">{err}</div>}
+          {msg && <div className="rounded-2xl border border-brand-mint/40 bg-brand-mint/10 px-4 py-2 text-sm text-brand-cream">{msg}</div>}
+          <label className="block text-sm font-semibold text-brand-cream" htmlFor="inline-new-password">New password</label>
+          <input
+            id="inline-new-password"
+            className="w-full"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <label className="block text-sm font-semibold text-brand-cream" htmlFor="inline-confirm-password">Confirm password</label>
+          <input
+            id="inline-confirm-password"
+            className="w-full"
+            type="password"
+            required
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+          <button className="w-full rounded-full bg-gradient-to-r from-brand-bubble via-secondary.purple to-primary.light px-5 py-3 font-semibold text-white shadow-[0_24px_55px_-25px_rgba(255,10,120,0.6)] transition-transform hover:-translate-y-0.5">
+            Update password
+          </button>
         </form>
       )}
     </>

@@ -5,8 +5,12 @@
 /* Custom global styles */
 @layer base {
   body {
-    @apply relative min-h-screen;
+    @apply relative min-h-screen bg-brand-midnight text-brand-navy antialiased;
     background-attachment: fixed;
+    background-image:
+      radial-gradient(at top left, rgba(255, 10, 120, 0.08), transparent 55%),
+      radial-gradient(at bottom right, rgba(43, 70, 242, 0.16), transparent 60%),
+      linear-gradient(135deg, #05060f 0%, #090f1d 45%, #05060f 100%);
   }
 
   main {
@@ -16,24 +20,24 @@
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-white/10 bg-brand-onyx/70 px-4 py-3 text-brand-cream placeholder:text-brand-cream/40 shadow-[0_24px_60px_-35px_rgba(5,12,32,0.85)] transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30 backdrop-blur;
   }
 
   label {
-    @apply text-brand-navy;
+    @apply text-brand-cream/90;
   }
 
   ::selection {
-    @apply bg-brand-bubble/70 text-white;
+    @apply bg-brand-bubble/60 text-white;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
+    @apply rounded-[2.25rem] border border-white/10 bg-brand-onyx/70 shadow-soft backdrop-blur-2xl;
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply rounded-full px-4 py-2 text-sm font-semibold text-brand-navy/70 transition duration-200 hover:bg-white/10 hover:text-white;
   }
 }

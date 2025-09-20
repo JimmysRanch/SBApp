@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
 import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
 import { supabase } from "@/lib/supabase/client";
@@ -197,7 +197,6 @@ export default function AuthProvider({
 
     const initialise = async () => {
       try {
-        setLoading(true);
         const {
           data: { session: currentSession },
         } = await supabase.auth.getSession();
@@ -220,16 +219,33 @@ export default function AuthProvider({
     void initialise();
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
-      async (_event, nextSession) => {
+      async (event: AuthChangeEvent, nextSession) => {
         if (!active) return;
+
         setSession(nextSession ?? null);
         const nextUser = nextSession?.user ?? null;
         setUser(nextUser);
-        const nextProfile = await loadUserProfile(nextUser);
-        if (!active) return;
-        setProfile(nextProfile);
+
+        if (!nextUser) {
+          setProfile(null);
+          setLoading(false);
+          if (event === "SIGNED_OUT") {
+            router.push("/login");
+          }
+          return;
+        }
+
+        if (event !== "TOKEN_REFRESHED") {
+          const nextProfile = await loadUserProfile(nextUser);
+          if (!active) return;
+          setProfile(nextProfile);
+        }
+
         setLoading(false);
-        router.refresh();
+
+        if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+          router.refresh();
+        }
       }
     );
 

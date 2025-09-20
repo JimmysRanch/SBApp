@@ -25,12 +25,22 @@ export default function Alerts() {
     fetchAlerts()
   }, [])
 
-  if (loading) return <div>Loading...</div>
-  if (!alerts.length) return <div>No alerts.</div>
+  if (loading) return <div className="text-slate-300">Loading...</div>
+  if (!alerts.length)
+    return (
+      <div className="rounded-[1.75rem] border border-dashed border-white/15 bg-slate-950/40 p-6 text-sm text-slate-400 backdrop-blur">
+        No alerts.
+      </div>
+    )
   return (
-    <ul className="space-y-1 list-disc list-inside text-sm">
+    <ul className="space-y-2 text-sm text-brand-cream">
       {alerts.map((alert) => (
-        <li key={alert.id}>{alert.message}</li>
+        <li
+          key={alert.id}
+          className="rounded-[1.5rem] border border-white/10 bg-slate-950/60 px-4 py-3 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.9)] backdrop-blur"
+        >
+          {alert.message}
+        </li>
       ))}
     </ul>
   )

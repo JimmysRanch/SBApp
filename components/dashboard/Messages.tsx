@@ -33,10 +33,10 @@ export default function Messages() {
       minute: '2-digit'
     })
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-slate-300">Loading...</div>
   if (!messages.length)
     return (
-      <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/80 backdrop-blur-lg">
+      <div className="rounded-[1.75rem] border border-dashed border-white/15 bg-slate-950/40 p-6 text-sm text-slate-400 backdrop-blur">
         No messages yet.
       </div>
     )
@@ -45,15 +45,15 @@ export default function Messages() {
       {messages.map((msg) => (
         <li
           key={msg.id}
-          className="rounded-3xl border border-white/25 bg-white/95 p-4 text-brand-navy shadow-lg backdrop-blur"
+          className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5 text-brand-cream shadow-[0_24px_55px_-35px_rgba(15,23,42,0.9)] backdrop-blur"
         >
-          <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-brand-navy/70">
+          <div className="flex items-center justify-between gap-3 text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-slate-400">
             <span>
               {msg.sender} → {msg.recipient}
             </span>
-            <span>{formatTime(msg.created_at)}</span>
+            <span className="text-slate-500">{formatTime(msg.created_at)}</span>
           </div>
-          <p className="mt-2 max-h-14 overflow-hidden text-sm text-brand-navy/80" title={msg.body}>
+          <p className="mt-3 max-h-16 overflow-hidden text-sm text-brand-cream/90" title={msg.body}>
             {msg.body}
           </p>
         </li>

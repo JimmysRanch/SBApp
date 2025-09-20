@@ -11,10 +11,10 @@ interface WidgetProps {
 }
 
 const backgroundMap: Record<Required<WidgetProps>['color'], string> = {
-  blue: 'bg-gradient-to-br from-[#1D4DFF] via-[#2E8CFF] to-[#55C3FF]',
-  pink: 'bg-gradient-to-br from-brand-bubble to-brand-bubbleDark',
-  purple: 'bg-gradient-to-br from-brand-lavender via-[#5B7DFF] to-primary',
-  green: 'bg-gradient-to-br from-brand-mint via-[#3CE0B7] to-[#43F0C5]'
+  blue: 'from-[#2563EB]/40 via-[#312E81]/70 to-[#0B1220]/90',
+  pink: 'from-[#F472B6]/45 via-[#BE185D]/65 to-[#0B1220]/90',
+  purple: 'from-[#C084FC]/45 via-[#7C3AED]/65 to-[#0B1220]/90',
+  green: 'from-[#34D399]/40 via-[#047857]/65 to-[#0B1220]/90'
 }
 
 export default function Widget({
@@ -30,22 +30,22 @@ export default function Widget({
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-3xl border border-white/25 text-white shadow-soft backdrop-blur-xl',
+        'relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-gradient-to-br px-6 py-5 text-brand-navy shadow-[0_35px_80px_-40px_rgba(15,23,42,0.9)] backdrop-blur-2xl',
         gradient,
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-white/25 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-30%] left-[-20%] h-72 w-72 rounded-full bg-white/10 blur-[160px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),transparent_60%)] opacity-60" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(148,163,184,0.2),transparent_65%)] opacity-60" />
       {!hideHeader && (
-        <div className="relative flex items-center justify-between px-5 pt-5">
-          <h2 className="text-base font-semibold tracking-tight drop-shadow-md">{title}</h2>
+        <div className="relative flex items-center justify-between pb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-brand-cream/90 drop-shadow">
+            {title}
+          </h2>
           {headerContent}
         </div>
       )}
-      <div className={clsx('relative px-5 pb-5', hideHeader ? 'pt-5' : 'pt-4')}>
-        {children}
-      </div>
+      <div className={clsx('relative', hideHeader ? 'pt-1' : 'pt-2')}>{children}</div>
     </div>
   )
 }

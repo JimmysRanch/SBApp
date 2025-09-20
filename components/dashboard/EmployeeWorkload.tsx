@@ -42,10 +42,10 @@ export default function EmployeeWorkload() {
     fetchWorkloads()
   }, [])
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-slate-300">Loading...</div>
   if (workloads.length === 0)
     return (
-      <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/85 backdrop-blur-lg">
+      <div className="rounded-[1.75rem] border border-dashed border-white/15 bg-slate-950/40 p-6 text-sm text-slate-400 backdrop-blur">
         No active jobs.
       </div>
     )
@@ -53,24 +53,24 @@ export default function EmployeeWorkload() {
   const max = workloads.length ? Math.max(...workloads.map((w) => w.count), 1) : 1
 
   return (
-    <ul className="space-y-3 text-white/90">
+    <ul className="space-y-3 text-brand-cream">
       {workloads.map((wl) => {
         const width = Math.max((wl.count / max) * 100, 12)
         return (
           <li
             key={wl.employee_name}
-            className="rounded-3xl border border-white/15 bg-white/10 p-4 shadow-inner backdrop-blur"
+            className="space-y-3 rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_50px_-35px_rgba(15,23,42,0.9)] backdrop-blur"
           >
-            <div className="flex items-center justify-between text-sm font-semibold tracking-tight">
-              <span>{wl.employee_name}</span>
-              <span className="flex items-center gap-1 text-xs uppercase">
-                <span className="inline-flex h-2 w-2 rounded-full bg-white/80" />
+            <div className="flex items-center justify-between text-sm font-semibold uppercase tracking-[0.25em] text-slate-300">
+              <span className="text-brand-cream/90">{wl.employee_name}</span>
+              <span className="flex items-center gap-1 text-[0.6rem] text-slate-400">
+                <span className="inline-flex h-2 w-2 rounded-full bg-brand-bubble" />
                 {wl.count} {wl.count === 1 ? 'dog' : 'dogs'}
               </span>
             </div>
-            <div className="mt-3 h-2 rounded-full bg-white/15">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-white/80"
+                className="h-full rounded-full bg-gradient-to-r from-brand-bubble via-primary to-brand-bubble/80 shadow-[0_8px_20px_-10px_rgba(34,211,238,0.6)]"
                 style={{ width: `${width}%` }}
               />
             </div>

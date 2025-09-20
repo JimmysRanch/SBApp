@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Nunito } from "next/font/google";
 
@@ -113,8 +114,15 @@ export default async function RootLayout({
             <header className="sticky top-0 z-40 flex justify-center px-4 pt-6">
               <div className="glass-panel flex w-full max-w-6xl items-center gap-6 px-6 py-4">
                 <Link href="/" className="group flex items-center gap-4 text-white">
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-inner ring-4 ring-white/40 transition-transform duration-300 group-hover:-rotate-12">
-                    🐾
+                  <span className="relative h-12 w-12 overflow-hidden rounded-full shadow-inner ring-4 ring-white/40 transition-transform duration-300 group-hover:-rotate-6">
+                    <Image
+                      src="/scruffy-butts-logo.svg"
+                      alt="Scruffy Butts logo"
+                      fill
+                      priority
+                      sizes="48px"
+                      className="object-cover"
+                    />
                   </span>
                   <div className="flex flex-col leading-tight">
                     <span className="text-xs font-semibold uppercase tracking-[0.4em] text-white/70">Scruffy</span>

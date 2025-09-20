@@ -1,42 +1,41 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  content: [
-    './app/**/*.{js,ts,jsx,tsx}',
-    './components/**/*.{js,ts,jsx,tsx}'
-  ],
+  content: ['./app/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         primary: {
-          light: '#63C4FF',
-          DEFAULT: '#1E7BFF',
-          dark: '#0F4ED7'
+          light: '#60A5FA',
+          DEFAULT: '#2563EB',
+          dark: '#1D4ED8'
         },
         secondary: {
-          DEFAULT: '#FF66C4',
-          dark: '#FF3D9E',
-          pink: '#FF66C4',
-          purple: '#7C5CFF',
-          green: '#2CD4A6'
+          DEFAULT: '#0EA5E9',
+          dark: '#0284C7',
+          moss: '#0F172A',
+          sage: '#14B8A6'
         },
         brand: {
-          sky: '#5CC2FF',
-          blue: '#1A6BFF',
-          navy: '#08245A',
-          bubble: '#FF66C4',
-          bubbleDark: '#FF3D9E',
-          mint: '#31D8AF',
-          lavender: '#7C5CFF',
-          sunshine: '#FFD166',
-          cream: '#F9FBFF'
+          sky: '#38BDF8',
+          blue: '#1E3A8A',
+          navy: '#0B1220',
+          bubble: '#6366F1',
+          bubbleDark: '#4F46E5',
+          mint: '#14B8A6',
+          lavender: '#8B5CF6',
+          sunshine: '#F59E0B',
+          cream: '#F8FAFC',
+          slate: '#1F2937',
+          graphite: '#111827',
+          hotpink: '#F472B6'
         }
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif']
       },
       boxShadow: {
-        soft: '0 24px 55px -25px rgba(20, 90, 200, 0.55)'
+        soft: '0 24px 55px -25px rgba(37, 99, 235, 0.45)'
       },
       borderRadius: {
         '3xl': '1.75rem',
@@ -45,6 +44,6 @@ const config: Config = {
     }
   },
   plugins: []
-}
+};
 
-export default config
+export default config;

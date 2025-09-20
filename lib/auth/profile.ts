@@ -1,41 +1,51 @@
-export type EmployeeProfile = {
-  id: number | null;
-  name: string | null;
-  role: string | null;
-  app_permissions: Record<string, unknown> | null;
+export type Role = 'master' | 'admin' | 'senior_groomer' | 'groomer' | 'receptionist' | 'client';
+
+export type UserProfile = {
+  id: string;
+  full_name: string | null;
+  role: Role;
 };
 
-type RawEmployeeRow = {
-  id?: number | string | null;
-  name?: string | null;
-  role?: string | null;
-  app_permissions?: unknown;
+type RawProfileRow = {
+  id?: unknown;
+  full_name?: unknown;
+  role?: unknown;
 };
-
-export function normaliseRole(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
 
 export function normaliseName(value: unknown): string | null {
-  if (typeof value !== "string") return null;
+  if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function mapEmployeeRowToProfile(row: RawEmployeeRow | null | undefined): EmployeeProfile | null {
+export function normaliseRole(value: unknown): Role {
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toLowerCase();
+    if (isRole(trimmed)) return trimmed;
+  }
+  return 'client';
+}
+
+function isRole(value: string): value is Role {
+  return [
+    'master',
+    'admin',
+    'senior_groomer',
+    'groomer',
+    'receptionist',
+    'client',
+  ].includes(value);
+}
+
+export function mapProfileRow(row: RawProfileRow | null | undefined): UserProfile | null {
   if (!row) return null;
 
-  const idValue = typeof row.id === "number" ? row.id : Number(row.id);
+  const id = typeof row.id === 'string' ? row.id : null;
+  if (!id) return null;
 
   return {
-    id: Number.isFinite(idValue) ? idValue : null,
-    name: normaliseName(row.name),
+    id,
+    full_name: normaliseName(row.full_name),
     role: normaliseRole(row.role),
-    app_permissions:
-      row.app_permissions && typeof row.app_permissions === "object"
-        ? (row.app_permissions as Record<string, unknown>)
-        : null,
   };
 }

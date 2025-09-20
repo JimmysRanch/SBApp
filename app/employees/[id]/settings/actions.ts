@@ -23,6 +23,8 @@ export async function saveProfileAction(
 ) {
   const supabase = createClient();
   const status = input.status || "Active";
+  const normalizedStatus = status.trim().toLowerCase();
+  const isActive = normalizedStatus.startsWith("active");
   const payload = {
     name: input.name || null,
     role: input.role || null,
@@ -36,7 +38,7 @@ export async function saveProfileAction(
     emergency_contact_name: input.emergency_contact_name || null,
     emergency_contact_phone: input.emergency_contact_phone || null,
     status,
-    active: status.toLowerCase().includes("active"),
+    active: isActive,
   };
   const { error } = await supabase.from("employees").update(payload).eq("id", staffId);
   if (error) {

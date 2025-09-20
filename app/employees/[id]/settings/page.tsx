@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   saveCompensationAction,
@@ -26,6 +26,19 @@ const PERMISSION_OPTIONS: PermissionOption[] = [
 
 const STATUS_OPTIONS = ["Active", "Inactive", "On leave"];
 
+function isTruthyFlag(value: unknown) {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return ["true", "1", "yes", "y", "on"].includes(normalized);
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value !== 0;
+  }
+  return false;
+}
+
 export default function EmployeeSettingsPage() {
   const { employee, goals, viewerCanEditStaff, pushToast } = useEmployeeDetail();
 
@@ -38,7 +51,7 @@ export default function EmployeeSettingsPage() {
     };
     if (employee.app_permissions && typeof employee.app_permissions === "object") {
       Object.entries(employee.app_permissions).forEach(([key, value]) => {
-        if (key in base) base[key as PermissionKey] = Boolean(value);
+        if (key in base) base[key as PermissionKey] = isTruthyFlag(value);
       });
     }
     return base;
@@ -64,7 +77,7 @@ export default function EmployeeSettingsPage() {
     commission_rate: employee.commission_rate ?? 0,
     hourly_rate: employee.hourly_rate ?? 0,
     salary_rate: employee.salary_rate ?? 0,
-    app_permissions: permissionState,
+    app_permissions: { ...permissionState },
   });
 
   const [preferences, setPreferences] = useState({
@@ -90,6 +103,51 @@ export default function EmployeeSettingsPage() {
     prefs: false,
     notes: false,
   });
+
+  useEffect(() => {
+    if (editing.profile) return;
+    setProfile({
+      name: employee.name ?? "",
+      role: employee.role ?? "",
+      email: employee.email ?? "",
+      phone: employee.phone ?? "",
+      avatar_url: employee.avatar_url ?? "",
+      status: employee.status ?? (employee.active ? "Active" : "Inactive"),
+      address_street: employee.address_street ?? "",
+      address_city: employee.address_city ?? "",
+      address_state: employee.address_state ?? "",
+      address_zip: employee.address_zip ?? "",
+      emergency_contact_name: employee.emergency_contact_name ?? "",
+      emergency_contact_phone: employee.emergency_contact_phone ?? "",
+    });
+  }, [employee, editing.profile]);
+
+  useEffect(() => {
+    if (editing.comp) return;
+    setCompensation({
+      pay_type: employee.pay_type ?? "hourly",
+      commission_rate: employee.commission_rate ?? 0,
+      hourly_rate: employee.hourly_rate ?? 0,
+      salary_rate: employee.salary_rate ?? 0,
+      app_permissions: { ...permissionState },
+    });
+  }, [employee, permissionState, editing.comp]);
+
+  useEffect(() => {
+    if (editing.prefs) return;
+    setPreferences({
+      preferred_breeds: [...(employee.preferred_breeds ?? [])],
+      not_accepted_breeds: [...(employee.not_accepted_breeds ?? [])],
+      specialties: [...(employee.specialties ?? [])],
+      weekly_revenue_target: goals?.weekly_revenue_target ?? 0,
+      desired_dogs_per_day: goals?.desired_dogs_per_day ?? 0,
+    });
+  }, [employee, goals, editing.prefs]);
+
+  useEffect(() => {
+    if (editing.notes) return;
+    setNotes(employee.manager_notes ?? "");
+  }, [employee.manager_notes, editing.notes]);
 
   const beginEdit = (key: keyof typeof editing) => {
     if (!viewerCanEditStaff) {
@@ -131,12 +189,14 @@ export default function EmployeeSettingsPage() {
 
   const handlePreferencesSave = async () => {
     setSaving((s) => ({ ...s, prefs: true }));
+    const weeklyTargetNumber = Number(preferences.weekly_revenue_target);
+    const dogsPerDayNumber = Number(preferences.desired_dogs_per_day);
     const result = await savePreferencesAction(employee.id, {
       preferred_breeds: preferences.preferred_breeds,
       not_accepted_breeds: preferences.not_accepted_breeds,
       specialties: preferences.specialties,
-      weeklyTarget: Number(preferences.weekly_revenue_target) || null,
-      dogsPerDay: Number(preferences.desired_dogs_per_day) || null,
+      weeklyTarget: Number.isFinite(weeklyTargetNumber) ? weeklyTargetNumber : null,
+      dogsPerDay: Number.isFinite(dogsPerDayNumber) ? dogsPerDayNumber : null,
     });
     setSaving((s) => ({ ...s, prefs: false }));
     if (!result.success) {

@@ -45,15 +45,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className="scroll-smooth">
-      <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
-      >
+      <body className={`${nunito.variable} font-sans`}>
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+              <div className="absolute -left-40 -top-[45%] h-[32rem] w-[32rem] rounded-full bg-primary/35 blur-[160px] opacity-90" />
+              <div className="absolute right-[-18rem] top-0 h-[28rem] w-[28rem] rounded-full bg-secondary/25 blur-[160px] opacity-80" />
+              <div className="absolute inset-x-[-25%] top-[30%] h-72 origin-top bg-[radial-gradient(ellipse_at_center,_rgba(111,227,255,0.25),_transparent_70%)] blur-[140px] opacity-80" />
+              <div className="absolute inset-x-[-35%] bottom-[-45%] h-[30rem] bg-[radial-gradient(circle,_rgba(93,245,207,0.25),_transparent_75%)] blur-[220px] opacity-70" />
+              <div className="absolute inset-x-[10%] top-[48%] h-px bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-70" />
+              <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/20 to-transparent opacity-70" />
             </div>
             <TopNav />
             <main className="relative z-10 flex-1">{children}</main>

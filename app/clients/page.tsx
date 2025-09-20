@@ -17,7 +17,7 @@ type Client = {
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 export default function ClientsPage() {
@@ -52,22 +52,14 @@ export default function ClientsPage() {
   useEffect(() => { load(); }, []);
 
   return (
-    <PageContainer className="space-y-8">
-      <Card className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <PageContainer className="space-y-10">
+      <Card className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/clients/new"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/90 px-5 py-3 text-sm font-semibold text-primary shadow-soft transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
+            className="group inline-flex items-center gap-3 rounded-full border border-brand-bubble/50 bg-brand-bubble/15 px-5 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-brand-cream shadow-[0_24px_55px_-35px_rgba(34,211,238,0.6)] transition hover:-translate-y-1 hover:border-brand-bubble hover:bg-brand-bubble/25"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="h-4 w-4"
-              aria-hidden="true"
-            >
-              <path d="M10 3a.75.75 0 0 1 .75.75V9.25h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5H3.25a.75.75 0 0 1 0-1.5h5.5V3.75A.75.75 0 0 1 10 3Z" />
-            </svg>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-bubble text-base text-brand-cream shadow-[0_12px_30px_-20px_rgba(34,211,238,0.7)]">+</span>
             Add new client
           </Link>
           <form
@@ -77,14 +69,14 @@ export default function ClientsPage() {
             }}
             className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end"
           >
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full sm:w-80">
               <input
                 placeholder="Search name, email, phone, or pet"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                className="h-12 w-full rounded-xl border border-white/50 bg-white/90 px-4 pr-12 text-base text-brand-navy shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30"
+                className="h-12 w-full"
               />
-              <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-navy/40">
+              <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -105,8 +97,9 @@ export default function ClientsPage() {
         </div>
 
         {err && (
-          <div className="rounded-2xl border border-red-300/40 bg-red-100/40 px-4 py-3 text-sm text-red-700">
-            Failed to load clients: {err}
+          <div className="relative overflow-hidden rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-[0_18px_32px_-24px_rgba(248,113,113,0.6)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,_rgba(248,113,113,0.18),transparent_60%)]" />
+            <p className="relative font-medium">Failed to load clients: {err}</p>
           </div>
         )}
 
@@ -115,14 +108,14 @@ export default function ClientsPage() {
             Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
-                className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 p-5"
+                className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/50 p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.9)] backdrop-blur"
               >
                 <div className="h-5 w-1/3 animate-pulse rounded-full bg-brand-bubble/20" />
                 <div className="mt-3 h-4 w-1/2 animate-pulse rounded-full bg-brand-bubble/10" />
               </div>
             ))
           ) : rows.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-brand-bubble/40 bg-white/70 px-6 py-12 text-center text-sm text-brand-navy/70">
+            <div className="rounded-[1.75rem] border border-dashed border-white/15 bg-slate-950/40 px-6 py-12 text-center text-sm text-slate-400 backdrop-blur">
               No clients found.
             </div>
           ) : (
@@ -132,15 +125,15 @@ export default function ClientsPage() {
                 <Link
                   key={r.id}
                   href={`/clients/${r.id}`}
-                  className="group relative block overflow-hidden rounded-2xl border border-brand-bubble/40 bg-gradient-to-r from-white/95 via-white/90 to-brand-bubble/10 px-5 py-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                  className="group relative block overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-5 shadow-[0_28px_60px_-40px_rgba(15,23,42,0.9)] transition duration-200 hover:-translate-y-1 hover:border-brand-bubble/60 hover:bg-slate-900/60"
                 >
-                  <span className="pointer-events-none absolute inset-y-3 left-3 w-1 rounded-full bg-gradient-to-b from-brand-bubble via-brand-bubble/80 to-brand-lavender opacity-80 transition-all duration-200 group-hover:inset-y-2 group-hover:w-1.5" />
-                  <div className="relative flex flex-col gap-3 pl-6 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col gap-1">
-                      <h2 className="text-base font-semibold text-brand-navy transition-colors group-hover:text-primary-dark">
+                  <span className="pointer-events-none absolute inset-y-4 left-4 w-1 rounded-full bg-gradient-to-b from-brand-bubble via-primary to-brand-bubble/50 opacity-80 transition-all duration-300 group-hover:inset-y-2 group-hover:w-1.5" />
+                  <div className="relative flex flex-col gap-4 pl-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-2">
+                      <h2 className="text-lg font-semibold text-brand-cream transition-colors duration-200 group-hover:text-white">
                         {r.full_name ?? 'Unnamed client'}
                       </h2>
-                      <span className="inline-flex items-center gap-2 self-start rounded-full bg-brand-bubble/15 px-3 py-1 text-xs font-medium text-brand-bubble">
+                      <span className="inline-flex items-center gap-2 self-start rounded-full border border-brand-bubble/40 bg-brand-bubble/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-brand-cream">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
@@ -159,8 +152,8 @@ export default function ClientsPage() {
                         {petLabel}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                      <span className="hidden text-xs uppercase tracking-wide text-brand-navy/60 transition-colors group-hover:text-primary sm:inline">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-brand-cream/80">
+                      <span className="hidden text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 transition-colors group-hover:text-brand-cream sm:inline">
                         View profile
                       </span>
                       <svg
@@ -169,7 +162,7 @@ export default function ClientsPage() {
                         viewBox="0 0 24 24"
                         strokeWidth="1.5"
                         stroke="currentColor"
-                        className="h-5 w-5 text-primary transition-transform duration-200 group-hover:translate-x-1"
+                        className="h-5 w-5 text-brand-cream transition-transform duration-200 group-hover:translate-x-1"
                         aria-hidden="true"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />

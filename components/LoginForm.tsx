@@ -97,7 +97,7 @@ export default function LoginForm() {
       gravity: 0.9,
       decay: 0.92,
       zIndex: 2000,
-      colors: ['#f472b6', '#38bdf8', '#facc15', '#34d399', '#a855f7', '#f97316', '#fbbf24'],
+      colors: ['#7C3AED', '#22D3EE', '#F59E0B', '#4ADE80', '#C084FC', '#F97316', '#FDE68A'],
     } as const;
 
     type ConfettiOptions = NonNullable<Parameters<typeof confetti>[0]>;
@@ -169,65 +169,72 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
+      className="relative w-full max-w-lg overflow-hidden rounded-[2.75rem] border border-white/10 bg-slate-950/70 p-10 text-brand-navy shadow-[0_40px_90px_-45px_rgba(15,23,42,0.95)] backdrop-blur-2xl"
     >
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
-          Welcome back
-        </p>
-        <h1 className="text-3xl font-black tracking-tight text-brand-navy">
-          Scruffy squad <span className="ml-1">🐶</span>
-        </h1>
-        <p className="text-sm text-brand-navy/70">Sign in to keep the tails wagging.</p>
-      </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.25),transparent_60%)] opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(124,58,237,0.25),transparent_70%)] opacity-60" />
+      <div className="pointer-events-none absolute -left-32 top-24 h-64 w-64 rounded-full bg-brand-bubble/20 blur-[140px]" />
+      <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-primary/25 blur-[160px]" />
 
-      {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
-          {err}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Email</label>
-          <input
-            className="w-full"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
+      <div className="relative z-10 space-y-6">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.45em] text-slate-400">Welcome back</p>
+          <h1 className="text-3xl font-black tracking-tight text-brand-cream">Scruffy Command Deck</h1>
+          <p className="text-sm text-slate-400">
+            Sign in to orchestrate schedules, keep the humans organized, and make every pup feel legendary.
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-sm font-semibold text-brand-navy">Password</label>
-          <input
-            className="w-full"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-          />
+        {err && (
+          <div className="relative overflow-hidden rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-[0_18px_32px_-24px_rgba(248,113,113,0.7)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,_rgba(248,113,113,0.18),transparent_60%)]" />
+            <p className="relative font-medium">{err}</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="block text-sm font-semibold text-brand-cream">Email</label>
+            <input
+              className="w-full"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-sm font-semibold text-brand-cream">Password</label>
+            <input
+              className="w-full"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
         </div>
-      </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? 'Signing in…' : 'Sign in'}
-      </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="group relative w-full overflow-hidden rounded-full border border-brand-bubble/50 bg-brand-bubble/20 px-5 py-3 text-base font-semibold uppercase tracking-[0.3em] text-brand-cream transition focus:outline-none focus:ring-2 focus:ring-brand-bubble/50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="relative z-10">{loading ? 'Signing in…' : 'Launch Dashboard'}</span>
+          <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-bubble/60 via-primary/40 to-brand-bubble/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        </button>
 
-      <div className="flex justify-between text-sm text-brand-navy/70">
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
-          Create account
-        </a>
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
-          Forgot password?
-        </a>
+        <div className="flex justify-between text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+          <a className="transition hover:text-brand-cream" href="/signup">
+            Create account
+          </a>
+          <a className="transition hover:text-brand-cream" href="/reset-password">
+            Forgot password?
+          </a>
+        </div>
       </div>
     </form>
   );

@@ -42,19 +42,21 @@ export default function Revenue() {
 
   const format = (value: number | null) => (value ?? 0).toFixed(2)
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-slate-300">Loading...</div>
   return (
-    <div className="space-y-4 text-white">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
-        <div className="mt-2 flex items-end gap-2">
-          <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
-          <span className="text-xs text-white/70">so far</span>
+    <div className="space-y-5 text-brand-cream">
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.9)] backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.28),transparent_65%)]" />
+        <p className="relative text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">Today</p>
+        <div className="relative mt-3 flex items-end gap-2">
+          <span className="text-3xl font-bold drop-shadow">${format(todayRevenue)}</span>
+          <span className="text-xs text-slate-400">so far</span>
         </div>
       </div>
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
-        <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.9)] backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(124,58,237,0.28),transparent_65%)]" />
+        <p className="relative text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">This Week</p>
+        <div className="relative mt-3 text-xl font-semibold drop-shadow">${format(weekRevenue)}</div>
       </div>
     </div>
   )

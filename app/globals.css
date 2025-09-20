@@ -2,38 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom global styles */
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
   body {
-    @apply relative min-h-screen;
-    background-attachment: fixed;
+    @apply relative min-h-screen bg-brand-blue text-brand-navy antialiased;
+    background-image:
+      radial-gradient(circle at 0% -10%, rgba(124, 58, 237, 0.45), transparent 55%),
+      radial-gradient(circle at 100% 20%, rgba(14, 165, 233, 0.35), transparent 55%),
+      radial-gradient(circle at 50% 120%, rgba(249, 115, 22, 0.18), transparent 65%),
+      linear-gradient(135deg, #050B1C 0%, #0F172A 40%, #1E293B 100%);
+    color: #E2E8F0;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 0),
+      linear-gradient(0deg, rgba(148, 163, 184, 0.12) 1px, transparent 0);
+    background-size: 140px 140px;
+    mask-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.6), transparent 70%);
+    opacity: 0.35;
+    z-index: -1;
   }
 
   main {
     @apply w-full;
   }
 
-  input:not([type="checkbox"]):not([type="radio"]),
+  input:not([type='checkbox']):not([type='radio']),
   select,
   textarea {
-    @apply rounded-2xl border border-white/40 bg-white/90 px-4 py-3 text-brand-navy placeholder:text-brand-navy/50 shadow-sm transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
+    @apply rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-brand-navy placeholder:text-slate-400 shadow-[0_20px_45px_-30px_rgba(14,165,233,0.45)] transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/40;
   }
 
   label {
-    @apply text-brand-navy;
+    @apply text-slate-200;
   }
 
   ::selection {
-    @apply bg-brand-bubble/70 text-white;
+    @apply bg-brand-bubble/80 text-slate-900;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-[2.25rem] border border-white/20 bg-white/10 shadow-soft backdrop-blur-2xl;
+    @apply rounded-[2.25rem] border border-white/10 bg-slate-950/70 shadow-[0_30px_70px_-35px_rgba(15,23,42,0.9)] backdrop-blur-2xl;
   }
 
   .nav-link {
-    @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-slate-300 transition;
+  }
+
+  .nav-link:hover {
+    color: theme('colors.brand.cream');
+  }
+
+  .nav-link[data-active='true'] {
+    color: theme('colors.brand.cream');
+  }
+
+  .nav-link[data-active='true']::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    background: linear-gradient(120deg, rgba(34, 211, 238, 0.6), rgba(124, 58, 237, 0.6));
+    opacity: 0.8;
+    z-index: -1;
+    box-shadow: 0 12px 25px -18px rgba(34, 211, 238, 0.6);
+  }
+
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 80%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+
+  .nav-link:hover::before {
+    opacity: 1;
   }
 }

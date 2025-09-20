@@ -8,7 +8,7 @@ import type { EmployeeProfile } from "@/lib/auth/profile";
 
 export const metadata = {
   title: "Scruffy Butts",
-  description: "Grooming dashboard",
+  description: "Operations console for the grooming team",
 };
 export const runtime = "nodejs";
 
@@ -45,18 +45,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className="scroll-smooth">
-      <body
-        className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
-      >
+      <body className={`${nunito.variable} font-sans text-brand-navy antialiased`}> 
         <AuthProvider initialSession={session} initialProfile={initialProfile}>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
-              <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
-              <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
+            <div className="pointer-events-none absolute inset-0 -z-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.35),transparent_60%),radial-gradient(circle_at_bottom,_rgba(14,165,233,0.25),transparent_60%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(34,211,238,0.12),rgba(124,58,237,0.18),transparent)] opacity-80 blur-3xl" />
+              <div className="absolute left-1/2 top-1/3 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,_rgba(248,113,113,0.18),transparent_65%)] blur-[140px]" />
+              <div className="absolute -left-32 top-[18%] h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,_rgba(34,211,238,0.22),transparent_70%)] blur-[180px]" />
+              <div className="absolute -right-40 bottom-[-10%] h-[32rem] w-[32rem] rounded-full bg-[radial-gradient(circle,_rgba(248,250,252,0.12),transparent_70%)] blur-[200px]" />
             </div>
+            <div className="pointer-events-none absolute inset-x-0 -z-10 top-0 h-40 bg-gradient-to-b from-[#070D1F] via-transparent to-transparent opacity-90" />
             <TopNav />
-            <main className="relative z-10 flex-1">{children}</main>
+            <main className="relative z-10 flex-1 pb-16">{children}</main>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-60 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           </div>
         </AuthProvider>
       </body>

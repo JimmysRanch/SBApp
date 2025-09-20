@@ -9,34 +9,36 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          light: '#63C4FF',
-          DEFAULT: '#1E7BFF',
-          dark: '#0F4ED7'
+          light: '#6F9BFF',
+          DEFAULT: '#4164FF',
+          dark: '#2338EB'
         },
         secondary: {
-          DEFAULT: '#FF66C4',
-          dark: '#FF3D9E',
-          pink: '#FF66C4',
-          purple: '#7C5CFF',
-          green: '#2CD4A6'
+          DEFAULT: '#38F2FF',
+          dark: '#1496AD',
+          pink: '#EC4899',
+          purple: '#8B5CF6',
+          green: '#2DD4BF'
         },
         brand: {
-          sky: '#5CC2FF',
-          blue: '#1A6BFF',
-          navy: '#08245A',
-          bubble: '#FF66C4',
-          bubbleDark: '#FF3D9E',
-          mint: '#31D8AF',
-          lavender: '#7C5CFF',
-          sunshine: '#FFD166',
-          cream: '#F9FBFF'
+          sky: '#4CC9F0',
+          blue: '#10182F',
+          navy: '#E6ECFF',
+          bubble: '#38F2FF',
+          bubbleDark: '#1FA4F2',
+          mint: '#2DD4BF',
+          lavender: '#8B5CF6',
+          sunshine: '#FACC6B',
+          cream: '#9BA3B5',
+          graphite: '#0B0F19',
+          steel: '#1C2433'
         }
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif']
       },
       boxShadow: {
-        soft: '0 24px 55px -25px rgba(20, 90, 200, 0.55)'
+        soft: '0 40px 80px -35px rgba(8, 15, 40, 0.8)'
       },
       borderRadius: {
         '3xl': '1.75rem',

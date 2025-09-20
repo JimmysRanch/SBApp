@@ -36,4 +36,220 @@
   .nav-link {
     @apply rounded-full px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15;
   }
+
+  .immersive-bg {
+    @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden;
+  }
+
+  .immersive-bg__gradient {
+    @apply absolute inset-0 opacity-70 transition duration-700 ease-out;
+    mix-blend-mode: screen;
+    filter: blur(80px);
+  }
+
+  .immersive-bg__mesh {
+    @apply absolute -inset-[12%];
+    background: conic-gradient(from 220deg at 50% 50%, rgba(26, 107, 255, 0.2), rgba(255, 102, 196, 0.18) 45%, rgba(49, 216, 175, 0.14) 70%, transparent 85%);
+    filter: blur(140px);
+    opacity: 0.6;
+    animation: meshShift 26s ease-in-out infinite alternate;
+  }
+
+  .immersive-bg__grain {
+    @apply absolute inset-0 opacity-30;
+    background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: soft-light;
+    animation: grainShift 12s steps(2, end) infinite;
+  }
+
+  .immersive-bg__orb {
+    @apply absolute rounded-full opacity-80;
+    filter: blur(40px);
+    mix-blend-mode: screen;
+    transform: translate3d(-50%, -50%, 0);
+    animation-name: orbFloat;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+  }
+
+  .page-frame {
+    isolation: isolate;
+    perspective: 1200px;
+    animation: pageRise 0.85s ease-out both;
+  }
+
+  .page-frame__backdrop {
+    @apply pointer-events-none absolute inset-0 -z-10;
+    background: radial-gradient(circle at 0% 20%, rgba(255, 102, 196, 0.22), transparent 55%),
+      radial-gradient(circle at 100% 50%, rgba(124, 92, 255, 0.18), transparent 60%),
+      radial-gradient(circle at 50% 100%, rgba(49, 216, 175, 0.15), transparent 70%);
+    filter: blur(160px);
+    opacity: 0.75;
+    animation: backdropDrift 22s ease-in-out infinite alternate;
+  }
+
+  .page-frame__pulse {
+    @apply pointer-events-none absolute left-1/2 top-[65%] -z-10 h-[56rem] w-[56rem] -translate-x-1/2 rounded-full;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 65%);
+    filter: blur(120px);
+    opacity: 0.45;
+    animation: pulseBloom 18s ease-in-out infinite;
+  }
+
+  .page-frame__content {
+    @apply relative z-10;
+  }
+
+  .widget-card {
+    transition: transform 0.6s cubic-bezier(0.21, 0.72, 0.2, 1), box-shadow 0.6s cubic-bezier(0.21, 0.72, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .widget-card:hover {
+    transform: translateY(-12px) scale(1.01);
+    box-shadow: 0 38px 70px -32px rgba(12, 44, 120, 0.65);
+  }
+
+  .widget-card__sheen {
+    @apply pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition duration-700 ease-out;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 60%);
+    mix-blend-mode: screen;
+  }
+
+  .widget-card:hover .widget-card__sheen {
+    opacity: 0.75;
+    transform: translateY(-6%) scale(1.05);
+  }
+
+  .widget-card__header {
+    filter: drop-shadow(0 10px 25px rgba(12, 44, 120, 0.35));
+  }
+
+  .widget-card__body {
+    animation: widgetFade 0.9s ease-out both;
+  }
+
+  .nav-link-immersive {
+    @apply relative overflow-hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    isolation: isolate;
+    transition: transform 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  .nav-link-immersive__light {
+    position: absolute;
+    inset: 2px;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.6), rgba(59, 130, 246, 0.35) 70%, transparent 100%);
+    opacity: 0;
+    transform: translateY(40%);
+    transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.22, 0.68, 0, 1.01);
+    mix-blend-mode: screen;
+  }
+
+  .nav-link-immersive:hover {
+    transform: translateY(-2px);
+  }
+
+  .nav-link-immersive:hover .nav-link-immersive__light {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+
+  .nav-link-immersive--active {
+    box-shadow: 0 22px 44px -28px rgba(66, 153, 255, 0.85);
+  }
+
+  .nav-link-immersive--active .nav-link-immersive__light {
+    opacity: 0.75;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  @keyframes meshShift {
+    0% {
+      transform: rotate(-6deg) scale(1.05);
+    }
+    50% {
+      transform: rotate(5deg) scale(1.08);
+    }
+    100% {
+      transform: rotate(-4deg) scale(1.02);
+    }
+  }
+
+  @keyframes grainShift {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 200px 120px;
+    }
+  }
+
+  @keyframes orbFloat {
+    0% {
+      transform: translate3d(-50%, -48%, 0) scale(0.96);
+      opacity: 0.65;
+    }
+    50% {
+      transform: translate3d(-45%, -55%, 0) scale(1.05);
+      opacity: 1;
+    }
+    100% {
+      transform: translate3d(-52%, -50%, 0) scale(0.96);
+      opacity: 0.7;
+    }
+  }
+
+  @keyframes backdropDrift {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-2%, -1%, 0) scale(1.05);
+    }
+    100% {
+      transform: translate3d(2%, 1%, 0) scale(1.02);
+    }
+  }
+
+  @keyframes pulseBloom {
+    0%,
+    100% {
+      opacity: 0.25;
+      transform: translate3d(-50%, -52%, 0) scale(0.9);
+    }
+    50% {
+      opacity: 0.6;
+      transform: translate3d(-50%, -48%, 0) scale(1.05);
+    }
+  }
+
+  @keyframes pageRise {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 24px, 0) scale(0.985);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes widgetFade {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
 }

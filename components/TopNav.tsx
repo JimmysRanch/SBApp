@@ -49,13 +49,14 @@ export default function TopNav() {
                 key={link.href}
                 href={link.href}
                 className={clsx(
-                  "nav-link",
+                  "nav-link nav-link-immersive",
                   isActive
-                    ? "bg-white/25 text-white shadow-sm"
+                    ? "bg-white/25 text-white shadow-sm nav-link-immersive--active"
                     : "text-white/80 hover:text-white"
                 )}
               >
-                {link.label}
+                <span className="relative z-10">{link.label}</span>
+                <span className="nav-link-immersive__light" aria-hidden="true" />
               </Link>
             );
           })}

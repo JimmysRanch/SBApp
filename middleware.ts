@@ -1,51 +1,71 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+
+const ROLE_ROUTES: Record<string, string[]> = {
+  master: ['/', '/dashboard', '/calendar', '/clients', '/staff', '/employees', '/reports', '/messages', '/settings'],
+  admin: ['/', '/dashboard', '/calendar', '/clients', '/staff', '/employees', '/reports', '/messages', '/settings'],
+  senior_groomer: ['/', '/dashboard', '/calendar', '/clients', '/messages'],
+  groomer: ['/', '/dashboard', '/calendar', '/clients', '/messages'],
+  receptionist: ['/', '/dashboard', '/calendar', '/clients', '/messages'],
+  client: ['/', '/client', '/client/appointments', '/client/profile'],
+};
+
+function isAllowedPath(role: string | null, path: string) {
+  const allowed = ROLE_ROUTES[role];
+  if (!allowed) return false;
+  return allowed.some((base) => path === base || path.startsWith(`${base}/`));
+}
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next({ request: { headers: req.headers } });
-  const { pathname } = req.nextUrl;
+  const supabase = createMiddlewareClient({ req, res });
 
-  // allow only login + static when signed out
-  const publicPaths = ['/login', '/favicon.ico', '/manifest.webmanifest'];
-  if (
-    publicPaths.includes(pathname) ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/public/')
-  ) return res;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => {
-          res.cookies.set({ name, value, ...options });
-        },
-        remove: (name, options) => {
-          res.cookies.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-
-  const { data } = await supabase.auth.getUser();
-
-  if (!data?.user) {
-    const url = req.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
+  if (!session) {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('redirect', req.nextUrl.pathname + req.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === '/login') {
-    const url = req.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+  const cached = req.cookies.get('sb_role')?.value ?? null;
+  let role = null;
+
+  if (cached) {
+    const [cachedRole, cachedUserId] = cached.split(':');
+    if (cachedRole && cachedUserId === session.user.id) {
+      role = cachedRole;
+    }
+  }
+
+  if (!role) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    role = !error && data?.role ? data.role : 'client';
+    res.cookies.set('sb_role', `${role}:${session.user.id}`, {
+      maxAge: 300,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+
+  const pathname = req.nextUrl.pathname;
+  if (!isAllowedPath(role, pathname)) {
+    const home = role === 'client' ? '/client' : '/dashboard';
+    return NextResponse.redirect(new URL(home, req.url));
   }
 
   return res;
 }
 
-export const config = { matcher: ['/((?!_next/|public/).*)'] };
+export const config = {
+  matcher: ['/((?!_next|favicon|assets|images|api/public|login|signup).*)'],
+};

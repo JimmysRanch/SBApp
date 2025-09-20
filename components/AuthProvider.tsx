@@ -1,4 +1,3 @@
-// components/AuthProvider.tsx
 "use client";
 
 import {
@@ -12,43 +11,44 @@ import {
 import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
-import type { EmployeeProfile } from "@/lib/auth/profile";
-import { mapEmployeeRowToProfile, normaliseName, normaliseRole } from "@/lib/auth/profile";
+import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
 import { supabase } from "@/lib/supabase/client";
 
 type AuthProviderProps = {
   children: React.ReactNode;
   initialSession?: Session | null;
-  initialProfile?: EmployeeProfile | null;
+  initialProfile?: UserProfile | null;
+};
+
+type Permissions = {
+  canAccessSettings: boolean;
+  canManageCalendar: boolean;
+  canManageEmployees: boolean;
+  canViewReports: boolean;
+  raw: Record<string, unknown>;
 };
 
 type AuthContextValue = {
-  loading: boolean
-  session: Session | null
-  user: User | null
-  email: string | null
-  displayName: string | null
-  role: string | null
-  profile: EmployeeProfile | null
-  isOwner: boolean
-  permissions: {
-    canAccessSettings: boolean
-    canManageCalendar: boolean
-    canManageEmployees: boolean
-    canViewReports: boolean
-    raw: Record<string, unknown>
-  }
-  refreshProfile: () => Promise<void>
-  signOut: () => Promise<void>
-}
+  loading: boolean;
+  session: Session | null;
+  user: User | null;
+  email: string | null;
+  displayName: string | null;
+  role: Role;
+  profile: UserProfile | null;
+  isOwner: boolean;
+  permissions: Permissions;
+  refreshProfile: () => Promise<void>;
+  signOut: () => Promise<void>;
+};
 
-const defaultPermissions = {
+const defaultPermissions: Permissions = {
   canAccessSettings: false,
   canManageCalendar: false,
   canManageEmployees: false,
   canViewReports: false,
-  raw: {} as Record<string, unknown>,
-}
+  raw: {},
+};
 
 const AuthContext = createContext<AuthContextValue>({
   loading: true,
@@ -56,7 +56,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   email: null,
   displayName: null,
-  role: null,
+  role: 'client',
   profile: null,
   isOwner: false,
   permissions: defaultPermissions,
@@ -68,25 +68,66 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-async function fetchProfile(user: User): Promise<EmployeeProfile | null> {
-  if (!user.email) return null;
-  try {
-    const { data, error } = await supabase
-      .from("employees")
-      .select("id,name,role,app_permissions")
-      .eq("email", user.email)
-      .maybeSingle();
+function permissionsForRole(role: Role): Permissions {
+  switch (role) {
+    case "master":
+    case "admin":
+      return {
+        canAccessSettings: true,
+        canManageCalendar: true,
+        canManageEmployees: true,
+        canViewReports: true,
+        raw: { role },
+      };
+    case "senior_groomer":
+      return {
+        canAccessSettings: false,
+        canManageCalendar: true,
+        canManageEmployees: false,
+        canViewReports: true,
+        raw: { role },
+      };
+    case "groomer":
+      return {
+        canAccessSettings: false,
+        canManageCalendar: true,
+        canManageEmployees: false,
+        canViewReports: false,
+        raw: { role },
+      };
+    case "receptionist":
+      return {
+        canAccessSettings: false,
+        canManageCalendar: true,
+        canManageEmployees: false,
+        canViewReports: false,
+        raw: { role },
+      };
+    case "client":
+      return {
+        canAccessSettings: false,
+        canManageCalendar: false,
+        canManageEmployees: false,
+        canViewReports: false,
+        raw: { role: role ?? "client" },
+      };
+  }
+}
 
-    if (error) {
-      console.error("Failed to load employee profile", error);
-      return null;
-    }
+async function loadUserProfile(user: User | null): Promise<UserProfile | null> {
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, role")
+    .eq("id", user.id)
+    .maybeSingle();
 
-    return mapEmployeeRowToProfile(data);
-  } catch (error) {
-    console.error("Unexpected error loading profile", error);
+  if (error) {
+    console.error("Failed to load user profile", error);
     return null;
   }
+
+  return mapProfileRow(data);
 }
 
 export default function AuthProvider({
@@ -97,44 +138,59 @@ export default function AuthProvider({
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(initialSession);
   const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
-  const [profile, setProfile] = useState<EmployeeProfile | null>(initialProfile);
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [loading, setLoading] = useState(() => !initialSession);
-  const [email, setEmail] = useState<string | null>(() => {
-    if (initialSession?.user?.email) return initialSession.user.email;
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem("sb-email");
-    }
-    return null;
-  });
-
-  const ownerEmails = useMemo(() => {
-    const combined = [
-      process.env.NEXT_PUBLIC_OWNER_EMAIL ?? "",
-      process.env.NEXT_PUBLIC_OWNER_EMAILS ?? "",
-    ]
-      .filter(Boolean)
-      .join(",");
-
-    return combined
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter((value) => value.length > 0);
-  }, []);
-
-  const loadProfile = useCallback(async (targetUser: User | null) => {
-    if (!targetUser) return null;
-    return fetchProfile(targetUser);
-  }, []);
 
   useEffect(() => {
     setSession(initialSession ?? null);
     setUser(initialSession?.user ?? null);
     setProfile(initialProfile ?? null);
-    if (initialSession?.user?.email) {
-      setEmail(initialSession.user.email);
-    }
     setLoading((prev) => (initialSession ? false : prev));
   }, [initialProfile, initialSession]);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncBrowserSession = async () => {
+      try {
+        const { data: current } = await supabase.auth.getSession();
+        if (!initialSession) {
+          if (active && current.session) {
+            await supabase.auth.signOut();
+          }
+          return;
+        }
+
+        const currentSession = current.session;
+        const accessTokenMatches = currentSession?.access_token === initialSession.access_token;
+        const refreshTokenMatches = currentSession?.refresh_token === initialSession.refresh_token;
+
+        if (!active) return;
+
+        if (!accessTokenMatches || !refreshTokenMatches) {
+          if (!initialSession.refresh_token) {
+            console.warn("Missing refresh token for Supabase session sync");
+            return;
+          }
+          const { error } = await supabase.auth.setSession({
+            access_token: initialSession.access_token,
+            refresh_token: initialSession.refresh_token,
+          });
+          if (error) {
+            console.error("Failed to synchronise Supabase session", error);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to prime Supabase session", error);
+      }
+    };
+
+    void syncBrowserSession();
+
+    return () => {
+      active = false;
+    };
+  }, [initialSession]);
 
   useEffect(() => {
     let active = true;
@@ -143,19 +199,19 @@ export default function AuthProvider({
       try {
         setLoading(true);
         const {
-          data: { session: initialSession },
+          data: { session: currentSession },
         } = await supabase.auth.getSession();
+
         if (!active) return;
-        setSession(initialSession ?? null);
-        const initialUser = initialSession?.user ?? null;
-        setUser(initialUser);
-        const nextEmail = initialUser?.email ?? null;
-        setEmail(nextEmail);
-        const initialProfile = await loadProfile(initialUser);
+
+        setSession(currentSession ?? null);
+        const currentUser = currentSession?.user ?? null;
+        setUser(currentUser);
+        const nextProfile = await loadUserProfile(currentUser);
         if (!active) return;
-        setProfile(initialProfile);
+        setProfile(nextProfile);
       } catch (error) {
-        console.error("Unable to load auth session", error);
+        console.error("Unable to initialise auth session", error);
       } finally {
         if (active) setLoading(false);
       }
@@ -169,9 +225,7 @@ export default function AuthProvider({
         setSession(nextSession ?? null);
         const nextUser = nextSession?.user ?? null;
         setUser(nextUser);
-        const nextEmail = nextUser?.email ?? null;
-        setEmail(nextEmail);
-        const nextProfile = await loadProfile(nextUser);
+        const nextProfile = await loadUserProfile(nextUser);
         if (!active) return;
         setProfile(nextProfile);
         setLoading(false);
@@ -183,161 +237,49 @@ export default function AuthProvider({
       active = false;
       subscription.subscription.unsubscribe();
     };
-  }, [loadProfile, router]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (email) {
-      window.localStorage.setItem("sb-email", email);
-    } else {
-      window.localStorage.removeItem("sb-email");
-    }
-  }, [email]);
-
-  const permissionsRaw = useMemo<Record<string, unknown>>(() => {
-    if (profile?.app_permissions && typeof profile.app_permissions === "object") {
-      return profile.app_permissions as Record<string, unknown>;
-    }
-    return {};
-  }, [profile?.app_permissions]);
-
-  const permissionFlags = useMemo<Record<string, boolean>>(() => {
-    return Object.entries(permissionsRaw).reduce<Record<string, boolean>>((acc, [key, value]) => {
-      if (typeof value === "boolean") {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-  }, [permissionsRaw]);
-
-  const metadataRole = useMemo(() => {
-    if (!user) return null;
-    return (
-      normaliseRole((user.user_metadata as Record<string, unknown> | undefined)?.role) ??
-      null
-    );
-  }, [user]);
-
-  const roleIndicators = useMemo(() => {
-    const roles: string[] = [];
-    if (profile?.role) {
-      roles.push(profile.role);
-    }
-    if (metadataRole) {
-      roles.push(metadataRole);
-    }
-    return roles
-      .map((role) => role.toLowerCase())
-      .filter((role) => role.length > 0);
-  }, [metadataRole, profile?.role]);
-
-  const emailLower = (email ?? "").toLowerCase();
-
-  const isOwner = useMemo(() => {
-    if (emailLower && ownerEmails.includes(emailLower)) return true;
-    if (roleIndicators.some((role) => role.includes("owner") || role.includes("admin"))) {
-      return true;
-    }
-    if (permissionFlags.is_owner === true || permissionFlags.is_manager === true) {
-      return true;
-    }
-    return false;
-  }, [emailLower, ownerEmails, permissionFlags, roleIndicators]);
-
-  const displayName = useMemo(() => {
-    if (profile?.name) return profile.name;
-    const metaName = normaliseName(
-      (user?.user_metadata as Record<string, unknown> | undefined)?.full_name ??
-        (user?.user_metadata as Record<string, unknown> | undefined)?.name
-    );
-    if (metaName) return metaName;
-    return email;
-  }, [email, profile?.name, user]);
-
-  const roleLabel = useMemo(() => {
-    if (profile?.role) return profile.role;
-    if (metadataRole) return metadataRole;
-    if (isOwner) return "Owner";
-    return null;
-  }, [isOwner, metadataRole, profile?.role]);
-
-  const permissions = useMemo(() => {
-    const canManageCalendar =
-      isOwner ||
-      permissionFlags.can_edit_schedule === true ||
-      permissionFlags.is_manager === true;
-    const canManageEmployees =
-      isOwner ||
-      permissionFlags.can_manage_discounts === true ||
-      permissionFlags.is_manager === true;
-    const canViewReports =
-      isOwner || permissionFlags.can_view_reports === true || permissionFlags.is_manager === true;
-    const canAccessSettings = isOwner || canManageEmployees || canViewReports;
-
-    return {
-      canAccessSettings,
-      canManageCalendar,
-      canManageEmployees,
-      canViewReports,
-      raw: permissionsRaw,
-    };
-  }, [isOwner, permissionFlags, permissionsRaw]);
-
-  const refreshProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null);
-      return;
-    }
-    const result = await loadProfile(user);
-    setProfile(result);
-  }, [loadProfile, user]);
-
-  const signOut = useCallback(async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Failed to sign out", error);
-    } finally {
-      setSession(null);
-      setUser(null);
-      setProfile(null);
-      setEmail(null);
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("sb-email");
-      }
-      router.push("/login");
-      router.refresh();
-    }
   }, [router]);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      loading,
-      session,
-      user,
-      email,
-      displayName,
-      role: roleLabel,
-      profile,
-      isOwner,
-      permissions,
-      refreshProfile,
-      signOut,
-    }),
-    [
-      displayName,
-      email,
-      isOwner,
-      loading,
-      permissions,
-      profile,
-      refreshProfile,
-      roleLabel,
-      session,
-      signOut,
-      user,
-    ]
-  );
+  const refreshProfile = useCallback(async () => {
+    const nextProfile = await loadUserProfile(user);
+    setProfile(nextProfile);
+  }, [user]);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    router.push("/login");
+  }, [router]);
+
+  const email = user?.email ?? null;
+  const role = profile?.role ?? "client";
+  const displayName = useMemo(() => {
+    if (profile?.full_name) return profile.full_name;
+    if (user?.user_metadata?.full_name && typeof user.user_metadata.full_name === "string") {
+      const trimmed = user.user_metadata.full_name.trim();
+      if (trimmed.length > 0) return trimmed;
+    }
+    if (email) return email;
+    return null;
+  }, [email, profile?.full_name, user?.user_metadata?.full_name]);
+
+  const permissions = useMemo(() => permissionsForRole(role), [role]);
+  const isOwner = role === "master";
+
+  const value: AuthContextValue = {
+    loading,
+    session,
+    user,
+    email,
+    displayName,
+    role,
+    profile,
+    isOwner,
+    permissions,
+    refreshProfile,
+    signOut,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -167,10 +167,7 @@ export default function LoginForm() {
   };
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="glass-panel w-full max-w-md space-y-5 bg-white/95 p-10 text-brand-navy"
-    >
+    <form onSubmit={onSubmit} className="glass-panel w-full max-w-md space-y-6 p-10">
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">
           Welcome back
@@ -182,7 +179,7 @@ export default function LoginForm() {
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-100/60 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
           {err}
         </div>
       )}
@@ -216,16 +213,16 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-brand-bubble px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-full bg-[linear-gradient(135deg,rgba(56,242,255,0.32),rgba(139,92,246,0.26))] px-5 py-3 text-base font-semibold text-brand-navy shadow-[0_18px_40px_-20px_rgba(56,242,255,0.6)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,rgba(56,242,255,0.42),rgba(139,92,246,0.34))] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
       <div className="flex justify-between text-sm text-brand-navy/70">
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/signup">
+        <a className="font-semibold text-brand-sky transition-colors hover:text-brand-bubble" href="/signup">
           Create account
         </a>
-        <a className="font-semibold text-brand-bubble transition-colors hover:text-brand-bubbleDark" href="/reset-password">
+        <a className="font-semibold text-brand-sky transition-colors hover:text-brand-bubble" href="/reset-password">
           Forgot password?
         </a>
       </div>

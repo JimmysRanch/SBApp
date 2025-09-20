@@ -42,18 +42,18 @@ export default function Revenue() {
 
   const format = (value: number | null) => (value ?? 0).toFixed(2)
 
-  if (loading) return <div className="text-white/80">Loading...</div>
+  if (loading) return <div className="text-brand-cream/70">Loading...</div>
   return (
-    <div className="space-y-4 text-white">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
+    <div className="space-y-4 text-brand-cream">
+      <div className="rounded-3xl border border-white/10 bg-brand-onyx/70 p-5 shadow-[0_24px_60px_-40px_rgba(5,12,32,0.9)] backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.35em] text-brand-cream/60">Today</p>
         <div className="mt-2 flex items-end gap-2">
           <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
-          <span className="text-xs text-white/70">so far</span>
+          <span className="text-xs text-brand-cream/60">so far</span>
         </div>
       </div>
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
+      <div className="rounded-3xl border border-white/10 bg-brand-onyx/70 p-5 shadow-[0_24px_60px_-40px_rgba(5,12,32,0.9)] backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.35em] text-brand-cream/60">This Week</p>
         <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
       </div>
     </div>

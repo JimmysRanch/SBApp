@@ -14,8 +14,9 @@ export default function PageContainer({ children, className = '', variant = 'def
   return (
     <div className={clsx('relative z-10 flex w-full justify-center', paddingClass)}>
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-0 top-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-brand-bubble/10 blur-[160px]" />
+        <div className="absolute left-[-10%] top-0 h-72 w-72 rounded-full bg-brand-bubble/20 blur-[140px]" />
+        <div className="absolute right-[-12%] top-20 h-[26rem] w-[26rem] rounded-full bg-primary/20 blur-[180px]" />
+        <div className="absolute bottom-[-16%] left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-brand-blue/30 blur-[200px]" />
       </div>
       <div className={clsx('w-full max-w-6xl space-y-6', className)}>{children}</div>
     </div>

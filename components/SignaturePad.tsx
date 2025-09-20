@@ -64,7 +64,7 @@ export default function SignaturePad() {
         ref={canvasRef}
         width={500}
         height={160}
-        className="w-full touch-none rounded border border-gray-300 bg-white"
+        className="w-full touch-none rounded border border-white/10 bg-brand-onyx/80 shadow-[0_18px_55px_-30px_rgba(5,12,32,0.85)]"
         onPointerDown={start}
         onPointerMove={draw}
         onPointerUp={end}
@@ -73,7 +73,7 @@ export default function SignaturePad() {
       <button
         type="button"
         onClick={clear}
-        className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300"
+        className="rounded-full border border-white/10 bg-brand-onyx/70 px-3 py-1 text-sm font-semibold text-brand-cream shadow-[0_12px_35px_-20px_rgba(5,12,32,0.85)] transition hover:-translate-y-0.5"
       >
         Clear
       </button>

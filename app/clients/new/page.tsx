@@ -34,10 +34,10 @@ const emptyDog: DogForm = {
 };
 
 const textInputClass =
-  'h-11 w-full rounded-xl border border-white/50 bg-white/95 px-4 text-base text-brand-navy placeholder:text-brand-navy/50 shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30';
+  'h-11 w-full rounded-xl border border-white/10 bg-brand-onyx/70 px-4 text-base text-brand-cream placeholder:text-brand-cream/40 shadow-[0_20px_55px_-35px_rgba(5,12,32,0.85)] transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30 backdrop-blur';
 const textAreaClass =
-  'min-h-[96px] w-full rounded-xl border border-white/50 bg-white/95 px-4 py-3 text-base text-brand-navy placeholder:text-brand-navy/50 shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30';
-const labelClass = 'text-sm font-semibold text-brand-navy';
+  'min-h-[96px] w-full rounded-xl border border-white/10 bg-brand-onyx/70 px-4 py-3 text-base text-brand-cream placeholder:text-brand-cream/40 shadow-[0_20px_55px_-35px_rgba(5,12,32,0.85)] transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30 backdrop-blur';
+const labelClass = 'text-sm font-semibold text-brand-cream';
 
 const hearAboutUsOptions = [
   { value: '', label: 'Select one' },
@@ -177,29 +177,29 @@ export default function NewClientPage() {
       <Card className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-navy/50">Create client</p>
-            <h1 className="text-3xl font-bold text-brand-navy">Add new client</h1>
-            <p className="text-sm text-brand-navy/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-cream/60">Create client</p>
+            <h1 className="text-3xl font-bold text-brand-cream">Add new client</h1>
+            <p className="text-sm text-brand-cream/70">
               Record owner details and their dogs so you can start scheduling appointments right away.
             </p>
           </div>
           <Link
             href="/clients"
-            className="inline-flex items-center justify-center rounded-xl border border-white/40 bg-white/80 px-4 py-2 text-sm font-semibold text-brand-navy shadow-sm transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-brand-onyx/70 px-4 py-2 text-sm font-semibold text-brand-cream shadow-[0_20px_55px_-35px_rgba(5,12,32,0.85)] transition hover:-translate-y-0.5 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
           >
             Cancel
           </Link>
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-300/60 bg-red-100/70 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-2xl border border-brand-bubble/40 bg-brand-bubble/10 px-4 py-3 text-sm text-brand-cream">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-10">
           <section className="space-y-6">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-brand-navy">Owner information</h2>
-              <p className="text-sm text-brand-navy/60">Tell us about the person who owns the pets.</p>
+              <h2 className="text-lg font-semibold text-brand-cream">Owner information</h2>
+              <p className="text-sm text-brand-cream/60">Tell us about the person who owns the pets.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -240,7 +240,7 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-2">
                 <label className={labelClass} htmlFor="phone">
-                  Phone number <span className="font-normal text-brand-navy/60">(10 digits)</span>
+                  Phone number <span className="font-normal text-brand-cream/60">(10 digits)</span>
                 </label>
                 <input
                   id="phone"
@@ -259,7 +259,7 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-2">
                 <label className={labelClass} htmlFor="email">
-                  Email <span className="font-normal text-brand-navy/60">(optional)</span>
+                  Email <span className="font-normal text-brand-cream/60">(optional)</span>
                 </label>
                 <input
                   id="email"
@@ -277,7 +277,7 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <label className={labelClass} htmlFor="address">
-                  Address <span className="font-normal text-brand-navy/60">(optional)</span>
+                  Address <span className="font-normal text-brand-cream/60">(optional)</span>
                 </label>
                 <input
                   id="address"
@@ -295,7 +295,7 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <label className={labelClass} htmlFor="hearAboutUs">
-                  How did they hear about you? <span className="font-normal text-brand-navy/60">(optional)</span>
+                  How did they hear about you? <span className="font-normal text-brand-cream/60">(optional)</span>
                 </label>
                 <select
                   id="hearAboutUs"
@@ -319,15 +319,15 @@ export default function NewClientPage() {
 
           <section className="space-y-6">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-brand-navy">Dog information</h2>
-              <p className="text-sm text-brand-navy/60">Add each dog the client will bring in. Leave blank to skip.</p>
+              <h2 className="text-lg font-semibold text-brand-cream">Dog information</h2>
+              <p className="text-sm text-brand-cream/60">Add each dog the client will bring in. Leave blank to skip.</p>
             </div>
 
             <div className="space-y-6">
               {dogs.map((dog, index) => (
                 <div
                   key={index}
-                  className="space-y-5 rounded-2xl border border-brand-bubble/40 bg-white/75 p-5 shadow-sm"
+                  className="space-y-5 rounded-2xl border border-brand-bubble/30 bg-brand-onyx/60 p-5 shadow-[0_24px_55px_-35px_rgba(5,12,32,0.9)]"
                 >
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
@@ -358,8 +358,8 @@ export default function NewClientPage() {
                     </div>
                     <div className="space-y-2">
                       <span className={labelClass}>Gender</span>
-                      <div className="flex items-center gap-6 rounded-xl border border-white/50 bg-white/70 px-4 py-3">
-                        <label className="flex items-center gap-2 text-sm text-brand-navy">
+                      <div className="flex items-center gap-6 rounded-xl border border-white/10 bg-brand-onyx/70 px-4 py-3">
+                        <label className="flex items-center gap-2 text-sm text-brand-cream">
                           <input
                             type="radio"
                             name={`dog-gender-${index}`}
@@ -370,7 +370,7 @@ export default function NewClientPage() {
                           />
                           Male
                         </label>
-                        <label className="flex items-center gap-2 text-sm text-brand-navy">
+                        <label className="flex items-center gap-2 text-sm text-brand-cream">
                           <input
                             type="radio"
                             name={`dog-gender-${index}`}
@@ -425,7 +425,7 @@ export default function NewClientPage() {
                   </div>
 
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-brand-navy">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-brand-cream">
                       <input
                         type="checkbox"
                         checked={dog.neutered}
@@ -436,7 +436,7 @@ export default function NewClientPage() {
                     </label>
                     <div className="space-y-2 md:w-1/2">
                       <label className={labelClass} htmlFor={`dog-photo-${index}`}>
-                        Photo <span className="font-normal text-brand-navy/60">(optional)</span>
+                        Photo <span className="font-normal text-brand-cream/60">(optional)</span>
                       </label>
                       <input
                         id={`dog-photo-${index}`}
@@ -444,14 +444,14 @@ export default function NewClientPage() {
                         accept="image/*"
                         capture="environment"
                         onChange={(event) => handleDogPhotoChange(index, event)}
-                        className="block w-full text-sm text-brand-navy file:mr-4 file:rounded-full file:border-0 file:bg-brand-bubble file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary"
+                        className="block w-full text-sm text-brand-cream file:mr-4 file:rounded-full file:border-0 file:bg-brand-bubble file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className={labelClass} htmlFor={`dog-medical-${index}`}>
-                      Medical notes / allergies <span className="font-normal text-brand-navy/60">(optional)</span>
+                      Medical notes / allergies <span className="font-normal text-brand-cream/60">(optional)</span>
                     </label>
                     <textarea
                       id={`dog-medical-${index}`}
@@ -486,14 +486,14 @@ export default function NewClientPage() {
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               href="/clients"
-              className="inline-flex items-center justify-center rounded-xl border border-white/40 bg-white/80 px-4 py-2 text-sm font-semibold text-brand-navy shadow-sm transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
+              className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-brand-onyx/70 px-4 py-2 text-sm font-semibold text-brand-cream shadow-[0_20px_55px_-35px_rgba(5,12,32,0.85)] transition hover:-translate-y-0.5 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
             >
               Back to clients
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-brand-bubble/40 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-brand-bubble via-secondary.purple to-primary.light px-6 py-3 text-sm font-semibold text-white shadow-[0_28px_65px_-35px_rgba(255,10,120,0.65)] transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-brand-bubble/40 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Create client'}
             </button>

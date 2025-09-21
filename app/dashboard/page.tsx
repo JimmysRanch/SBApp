@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageContainer from '@/components/PageContainer'
 import Widget from '@/components/Widget'
 import TodaysAppointments from '@/components/dashboard/TodaysAppointments'
-import EmployeeWorkload from '@/components/dashboard/EmployeeWorkload'
+import StaffWorkload from '@/components/dashboard/StaffWorkload'
 import Messages from '@/components/dashboard/Messages'
 import Revenue from '@/components/dashboard/Revenue'
 
@@ -21,8 +21,8 @@ export default async function DashboardPage() {
         <Widget title="Today's Appointments" color="blue" hideHeader>
           <TodaysAppointments />
         </Widget>
-        <Widget title="Employee Workload" color="purple">
-          <EmployeeWorkload />
+        <Widget title="Staff Workload" color="purple">
+          <StaffWorkload />
         </Widget>
         <Widget title="Revenue" color="green">
           <Revenue />

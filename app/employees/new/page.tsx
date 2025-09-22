@@ -102,6 +102,12 @@ type FormState = {
   name: string;
   email: string;
   phone: string;
+  addressStreet: string;
+  addressCity: string;
+  addressState: string;
+  addressZip: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
   role: string;
   status: (typeof STATUS_OPTIONS)[number];
   payType: PayType;
@@ -125,6 +131,12 @@ export default function NewEmployeePage() {
     name: "",
     email: "",
     phone: "",
+    addressStreet: "",
+    addressCity: "",
+    addressState: "",
+    addressZip: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
     role: "",
     status: "Active",
     payType: "hourly",
@@ -217,6 +229,12 @@ export default function NewEmployeePage() {
           role: trimmedRole,
           email: form.email.trim(),
           phone: form.phone,
+          address_street: form.addressStreet.trim() || null,
+          address_city: form.addressCity.trim() || null,
+          address_state: form.addressState.trim() || null,
+          address_zip: form.addressZip.trim() || null,
+          emergency_contact_name: form.emergencyContactName.trim() || null,
+          emergency_contact_phone: form.emergencyContactPhone.trim() || null,
           status: form.status,
           pay_type: form.payType,
           commission_rate: commissionValue,
@@ -364,6 +382,88 @@ export default function NewEmployeePage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1 md:col-span-2">
+                <label className={labelClass} htmlFor="employee-address-street">
+                  Street address
+                </label>
+                <input
+                  id="employee-address-street"
+                  className={inputClass}
+                  value={form.addressStreet}
+                  onChange={(event) => setForm((prev) => ({ ...prev, addressStreet: event.target.value }))}
+                  placeholder="1234 Bark Lane"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelClass} htmlFor="employee-address-city">
+                  City
+                </label>
+                <input
+                  id="employee-address-city"
+                  className={inputClass}
+                  value={form.addressCity}
+                  onChange={(event) => setForm((prev) => ({ ...prev, addressCity: event.target.value }))}
+                  placeholder="Scruffyville"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelClass} htmlFor="employee-address-state">
+                  State
+                </label>
+                <input
+                  id="employee-address-state"
+                  className={inputClass}
+                  value={form.addressState}
+                  onChange={(event) => setForm((prev) => ({ ...prev, addressState: event.target.value }))}
+                  placeholder="WA"
+                  maxLength={32}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelClass} htmlFor="employee-address-zip">
+                  ZIP / Postal code
+                </label>
+                <input
+                  id="employee-address-zip"
+                  className={inputClass}
+                  value={form.addressZip}
+                  onChange={(event) => setForm((prev) => ({ ...prev, addressZip: event.target.value }))}
+                  placeholder="98101"
+                  maxLength={20}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className={labelClass} htmlFor="employee-emergency-name">
+                  Emergency contact name
+                </label>
+                <input
+                  id="employee-emergency-name"
+                  className={inputClass}
+                  value={form.emergencyContactName}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, emergencyContactName: event.target.value }))
+                  }
+                  placeholder="Alex Pawsworth"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelClass} htmlFor="employee-emergency-phone">
+                  Emergency contact phone
+                </label>
+                <input
+                  id="employee-emergency-phone"
+                  className={inputClass}
+                  value={form.emergencyContactPhone}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, emergencyContactPhone: event.target.value }))
+                  }
+                  placeholder="(555) 555-7890"
+                />
               </div>
             </div>
           </section>
@@ -601,7 +701,7 @@ export default function NewEmployeePage() {
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-brand-navy/60">
-              Staff can be edited later to add addresses, emergency contacts, and scheduling preferences.
+              Staff can be edited later to fine-tune scheduling preferences and other profile details.
             </p>
             <button
               type="submit"

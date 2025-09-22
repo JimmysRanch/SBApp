@@ -283,8 +283,7 @@ export default function NewEmployeePage() {
       <Card className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-navy/50">New team member</p>
-            <h1 className="text-3xl font-bold text-brand-navy">Add employee</h1>
+            <h1 className="text-3xl font-bold text-brand-navy">Add staff member</h1>
             <p className="text-sm text-brand-navy/70">
               Create a staff profile so they can be scheduled, tracked, and included in your reports.
             </p>

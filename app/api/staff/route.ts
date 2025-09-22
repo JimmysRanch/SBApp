@@ -4,6 +4,17 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import {
+  clonePlan,
+  defaultCompensationPlan,
+  derivePayType,
+  getCommissionRate,
+  getHourlyRate,
+  getSalaryRate,
+  normaliseCompensationPlan,
+  planHasConfiguration,
+  toStoredPlan,
+} from "@/lib/compensationPlan";
 
 const PERMISSION_KEYS = [
   "can_view_reports",
@@ -103,16 +114,67 @@ const goalsSchema = z
     };
   });
 
+const compensationPlanSchema = z
+  .union([
+    z
+      .object({
+        commission: z
+          .object({
+            enabled: z.boolean().optional(),
+            rate: optionalNumber,
+          })
+          .optional(),
+        hourly: z
+          .object({
+            enabled: z.boolean().optional(),
+            rate: optionalNumber,
+          })
+          .optional(),
+        salary: z
+          .object({
+            enabled: z.boolean().optional(),
+            rate: optionalNumber,
+          })
+          .optional(),
+        guarantee: z
+          .object({
+            enabled: z.boolean().optional(),
+            weekly_amount: optionalNumber,
+            commission_rate: optionalNumber,
+          })
+          .optional(),
+        overrides: z
+          .array(
+            z.object({
+              subordinate_id: z.number().int().positive(),
+              percentage: optionalNumber,
+            }),
+          )
+          .optional(),
+      })
+      .strict(),
+    z.null(),
+    z.undefined(),
+  ])
+  .transform((value) => {
+    if (!value) {
+      return clonePlan(defaultCompensationPlan);
+    }
+    const normalised = normaliseCompensationPlan(value);
+    return toStoredPlan(normalised);
+  });
+
 const staffSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   role: z.string().trim().min(1, "Role is required"),
   email: optionalEmail,
   phone: optionalPhone,
   status: optionalText,
-  pay_type: z.enum(["hourly", "commission", "salary", "hybrid"]).default("hourly"),
+  pay_type: z.enum(["hourly", "commission", "salary", "hybrid", "guarantee", "custom"]).default("hourly"),
   commission_rate: optionalNumber,
   hourly_rate: optionalNumber,
   salary_rate: optionalNumber,
+  compensation_plan: compensationPlanSchema.optional(),
   app_permissions: permissionsSchema,
   avatar_url: optionalText,
   address_street: optionalText,
@@ -169,9 +231,15 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
-  const commissionRate = data.commission_rate ?? 0;
-  const hourlyRate = data.hourly_rate ?? 0;
-  const salaryRate = data.salary_rate ?? 0;
+  const compensationPlan = data.compensation_plan
+    ? toStoredPlan(data.compensation_plan)
+    : clonePlan(defaultCompensationPlan);
+  const planConfigured = planHasConfiguration(compensationPlan);
+
+  const commissionRate = planConfigured ? getCommissionRate(compensationPlan) : data.commission_rate ?? 0;
+  const hourlyRate = planConfigured ? getHourlyRate(compensationPlan) : data.hourly_rate ?? 0;
+  const salaryRate = planConfigured ? getSalaryRate(compensationPlan) : data.salary_rate ?? 0;
+  const finalPayType = planConfigured ? derivePayType(compensationPlan) : data.pay_type ?? "hourly";
 
   if (commissionRate < 0 || commissionRate > 1) {
     return NextResponse.json(
@@ -219,10 +287,11 @@ export async function POST(req: Request) {
     address_zip: data.address_zip,
     emergency_contact_name: data.emergency_contact_name,
     emergency_contact_phone: data.emergency_contact_phone,
-    pay_type: data.pay_type,
+    pay_type: finalPayType,
     commission_rate: commissionRate,
     hourly_rate: hourlyRate,
     salary_rate: salaryRate,
+    compensation_plan: compensationPlan,
     app_permissions: data.app_permissions,
     manager_notes: data.manager_notes,
   };

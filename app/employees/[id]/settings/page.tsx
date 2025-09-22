@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   saveCompensationAction,
@@ -8,6 +8,19 @@ import {
   savePreferencesAction,
   saveProfileAction,
 } from "./actions";
+import {
+  CompensationPlan,
+  CompensationPlanDraft,
+  draftFromPlan,
+  derivePayType,
+  getCommissionRate,
+  getHourlyRate,
+  getSalaryRate,
+  parseDraft,
+  planFromRecord,
+  toStoredPlan,
+} from "@/lib/compensationPlan";
+import { supabase } from "@/lib/supabase/client";
 
 type PermissionKey =
   | "can_view_reports"
@@ -59,13 +72,38 @@ export default function EmployeeSettingsPage() {
     emergency_contact_phone: employee.emergency_contact_phone ?? "",
   });
 
-  const [compensation, setCompensation] = useState({
-    pay_type: employee.pay_type ?? "hourly",
-    commission_rate: employee.commission_rate ?? 0,
-    hourly_rate: employee.hourly_rate ?? 0,
-    salary_rate: employee.salary_rate ?? 0,
-    app_permissions: permissionState,
-  });
+  const {
+    compensation_plan: employeeCompensationPlan,
+    commission_rate: employeeCommissionRate,
+    hourly_rate: employeeHourlyRate,
+    salary_rate: employeeSalaryRate,
+    pay_type: employeePayType,
+  } = employee;
+
+  const initialPlan = useMemo(
+    () =>
+      toStoredPlan(
+        planFromRecord({
+          compensation_plan: employeeCompensationPlan,
+          commission_rate: employeeCommissionRate,
+          hourly_rate: employeeHourlyRate,
+          salary_rate: employeeSalaryRate,
+          pay_type: employeePayType,
+        }),
+      ),
+    [
+      employeeCompensationPlan,
+      employeeCommissionRate,
+      employeeHourlyRate,
+      employeeSalaryRate,
+      employeePayType,
+    ],
+  );
+
+  const [currentPlan, setCurrentPlan] = useState<CompensationPlan>(initialPlan);
+  const [compensationDraft, setCompensationDraft] = useState<CompensationPlanDraft>(() => draftFromPlan(initialPlan));
+  const [appPermissions, setAppPermissions] = useState(permissionState);
+  const [staffOptions, setStaffOptions] = useState<{ id: number; name: string | null }[]>([]);
 
   const [preferences, setPreferences] = useState({
     preferred_breeds: [...(employee.preferred_breeds ?? [])],
@@ -93,10 +131,49 @@ export default function EmployeeSettingsPage() {
     notes: false,
   });
 
+  useEffect(() => {
+    setAppPermissions(permissionState);
+  }, [permissionState]);
+
+  useEffect(() => {
+    if (!editing.comp) {
+      setCurrentPlan(initialPlan);
+      setCompensationDraft(draftFromPlan(initialPlan));
+    }
+  }, [initialPlan, editing.comp]);
+
+  useEffect(() => {
+    let active = true;
+    const loadStaffOptions = async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id,name")
+        .order("name", { ascending: true });
+      if (!active) return;
+      if (error) {
+        console.error("Failed to load staff list", error);
+        setStaffOptions([]);
+        return;
+      }
+      const rows = (data as { id: number; name: string | null }[]) ?? [];
+      setStaffOptions(rows.filter((row) => row.id !== employee.id));
+    };
+    void loadStaffOptions();
+    return () => {
+      active = false;
+    };
+  }, [employee.id]);
+
   const beginEdit = (key: keyof typeof editing) => {
     if (!viewerCanEditStaff) {
       pushToast("You don't have permission to edit staff settings", "error");
       return;
+    }
+    if (key === "comp") {
+      setCompensationDraft(draftFromPlan(currentPlan));
+    }
+    if (key === "perms") {
+      setAppPermissions(permissionState);
     }
     setEditing((e) => ({ ...e, [key]: true }));
   };
@@ -113,32 +190,48 @@ export default function EmployeeSettingsPage() {
     pushToast("Profile updated", "success");
   };
 
-  const persistCompensation = async (section: "comp" | "perms") => {
+  const savePlanAndPermissions = async (
+    plan: CompensationPlan,
+    permissions: Record<string, boolean>,
+    section: "comp" | "perms",
+  ) => {
     setSaving((s) => ({ ...s, [section]: true }));
+    const storedPlan = toStoredPlan(plan);
     const result = await saveCompensationAction(employee.id, {
-      pay_type: compensation.pay_type,
-      commission_rate: Number(compensation.commission_rate) || 0,
-      hourly_rate: Number(compensation.hourly_rate) || 0,
-      salary_rate: Number(compensation.salary_rate) || 0,
-      app_permissions: compensation.app_permissions,
+      pay_type: derivePayType(storedPlan),
+      commission_rate: getCommissionRate(storedPlan),
+      hourly_rate: getHourlyRate(storedPlan),
+      salary_rate: getSalaryRate(storedPlan),
+      compensation_plan: storedPlan,
+      app_permissions: permissions,
     });
     setSaving((s) => ({ ...s, [section]: false }));
     if (!result.success) {
       const errorMessage =
         section === "comp" ? "Failed to save compensation" : "Failed to save permissions";
       pushToast(result.error ?? errorMessage, "error");
-      return;
+      return false;
     }
     setEditing((e) => ({ ...e, [section]: false }));
     pushToast(section === "comp" ? "Compensation updated" : "Permissions updated", "success");
+    return true;
   };
 
-  const handleCompensationSave = () => {
-    void persistCompensation("comp");
+  const handleCompensationSave = async () => {
+    const draftResult = parseDraft(compensationDraft);
+    if (draftResult.errors.length > 0) {
+      pushToast(draftResult.errors.join(" "), "error");
+      return;
+    }
+    const success = await savePlanAndPermissions(draftResult.plan, appPermissions, "comp");
+    if (success) {
+      setCurrentPlan(draftResult.plan);
+      setCompensationDraft(draftFromPlan(draftResult.plan));
+    }
   };
 
-  const handlePermissionsSave = () => {
-    void persistCompensation("perms");
+  const handlePermissionsSave = async () => {
+    await savePlanAndPermissions(currentPlan, appPermissions, "perms");
   };
 
   const handlePreferencesSave = async () => {
@@ -223,21 +316,20 @@ export default function EmployeeSettingsPage() {
           isEditing={editing.perms}
           isSaving={saving.perms}
           onEdit={() => beginEdit("perms")}
-          onSave={handlePermissionsSave}
+          onSave={() => {
+            void handlePermissionsSave();
+          }}
         />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {PERMISSION_OPTIONS.map((option) => (
             <label key={option.key} className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"
-                checked={!!compensation.app_permissions[option.key]}
+                checked={!!appPermissions[option.key]}
                 onChange={(e) =>
-                  setCompensation((prev) => ({
+                  setAppPermissions((prev) => ({
                     ...prev,
-                    app_permissions: {
-                      ...prev.app_permissions,
-                      [option.key]: e.target.checked,
-                    },
+                    [option.key]: e.target.checked,
                   }))
                 }
                 disabled={!editing.perms || saving.perms}
@@ -256,34 +348,284 @@ export default function EmployeeSettingsPage() {
           isEditing={editing.comp}
           isSaving={saving.comp}
           onEdit={() => beginEdit("comp")}
-          onSave={handleCompensationSave}
+          onSave={() => {
+            void handleCompensationSave();
+          }}
         />
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <SelectField
-            label="Pay type"
-            value={compensation.pay_type}
-            options={["hourly", "commission", "salary", "hybrid"]}
-            onChange={(v) => setCompensation((p) => ({ ...p, pay_type: v }))}
+        <div className="mt-4 space-y-4">
+          <CompensationCard
+            title="Commission on personal grooms"
+            description="Pay a percentage of every dog this employee personally grooms."
+            enabled={compensationDraft.commission.enabled}
+            onToggle={(next) =>
+              setCompensationDraft((prev) => ({
+                ...prev,
+                commission: {
+                  ...prev.commission,
+                  enabled: next,
+                },
+              }))
+            }
             disabled={!editing.comp || saving.comp}
-          />
-          <NumberField
-            label="Commission %"
-            value={Number(compensation.commission_rate ?? 0) * 100}
-            onChange={(v) => setCompensation((p) => ({ ...p, commission_rate: v / 100 }))}
+          >
+            {compensationDraft.commission.enabled && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <FieldGroup label="Commission %">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={compensationDraft.commission.rate}
+                    onChange={(event) =>
+                      setCompensationDraft((prev) => ({
+                        ...prev,
+                        commission: { ...prev.commission, rate: event.target.value },
+                      }))
+                    }
+                    disabled={!editing.comp || saving.comp}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                  />
+                </FieldGroup>
+              </div>
+            )}
+          </CompensationCard>
+
+          <CompensationCard
+            title="Hourly pay"
+            description="Guarantee an hourly base rate alongside other earnings."
+            enabled={compensationDraft.hourly.enabled}
+            onToggle={(next) =>
+              setCompensationDraft((prev) => ({
+                ...prev,
+                hourly: {
+                  ...prev.hourly,
+                  enabled: next,
+                },
+              }))
+            }
             disabled={!editing.comp || saving.comp}
-          />
-          <NumberField
-            label="Hourly rate"
-            value={Number(compensation.hourly_rate ?? 0)}
-            onChange={(v) => setCompensation((p) => ({ ...p, hourly_rate: v }))}
+          >
+            {compensationDraft.hourly.enabled && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <FieldGroup label="Hourly rate ($)">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={compensationDraft.hourly.rate}
+                    onChange={(event) =>
+                      setCompensationDraft((prev) => ({
+                        ...prev,
+                        hourly: { ...prev.hourly, rate: event.target.value },
+                      }))
+                    }
+                    disabled={!editing.comp || saving.comp}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                  />
+                </FieldGroup>
+              </div>
+            )}
+          </CompensationCard>
+
+          <CompensationCard
+            title="Salary"
+            description="Track an annual salary amount for reporting."
+            enabled={compensationDraft.salary.enabled}
+            onToggle={(next) =>
+              setCompensationDraft((prev) => ({
+                ...prev,
+                salary: {
+                  ...prev.salary,
+                  enabled: next,
+                },
+              }))
+            }
             disabled={!editing.comp || saving.comp}
-          />
-          <NumberField
-            label="Salary rate"
-            value={Number(compensation.salary_rate ?? 0)}
-            onChange={(v) => setCompensation((p) => ({ ...p, salary_rate: v }))}
+          >
+            {compensationDraft.salary.enabled && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <FieldGroup label="Salary (annual $)">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={compensationDraft.salary.rate}
+                    onChange={(event) =>
+                      setCompensationDraft((prev) => ({
+                        ...prev,
+                        salary: { ...prev.salary, rate: event.target.value },
+                      }))
+                    }
+                    disabled={!editing.comp || saving.comp}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                  />
+                </FieldGroup>
+              </div>
+            )}
+          </CompensationCard>
+
+          <CompensationCard
+            title="Weekly guarantee vs. commission"
+            description="Compare a guaranteed weekly amount against commission and pay the higher amount."
+            enabled={compensationDraft.guarantee.enabled}
+            onToggle={(next) =>
+              setCompensationDraft((prev) => ({
+                ...prev,
+                guarantee: {
+                  ...prev.guarantee,
+                  enabled: next,
+                },
+              }))
+            }
             disabled={!editing.comp || saving.comp}
-          />
+          >
+            {compensationDraft.guarantee.enabled && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <FieldGroup label="Weekly guarantee ($)">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={compensationDraft.guarantee.weeklyAmount}
+                    onChange={(event) =>
+                      setCompensationDraft((prev) => ({
+                        ...prev,
+                        guarantee: { ...prev.guarantee, weeklyAmount: event.target.value },
+                      }))
+                    }
+                    disabled={!editing.comp || saving.comp}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                  />
+                </FieldGroup>
+                <FieldGroup label="Commission % to compare">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={compensationDraft.guarantee.commissionRate}
+                    onChange={(event) =>
+                      setCompensationDraft((prev) => ({
+                        ...prev,
+                        guarantee: { ...prev.guarantee, commissionRate: event.target.value },
+                      }))
+                    }
+                    disabled={!editing.comp || saving.comp}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Leave blank to reuse the standard commission rate.
+                  </p>
+                </FieldGroup>
+              </div>
+            )}
+          </CompensationCard>
+
+          <CompensationCard
+            title="Team overrides"
+            description="Share a portion of the commission earned by groomers they manage."
+            enabled={compensationDraft.overridesEnabled}
+            onToggle={(next) =>
+              setCompensationDraft((prev) => ({
+                ...prev,
+                overridesEnabled: next,
+                overrides:
+                  next && prev.overrides.length === 0
+                    ? [{ subordinateId: null, percentage: "" }]
+                    : prev.overrides,
+              }))
+            }
+            disabled={!editing.comp || saving.comp}
+          >
+            {compensationDraft.overridesEnabled && (
+              <div className="space-y-3">
+                {staffOptions.length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    Add more staff members to assign override relationships.
+                  </p>
+                )}
+                {compensationDraft.overrides.map((entry, index) => (
+                  <div key={`override-${index}`} className="grid gap-3 md:grid-cols-2">
+                    <FieldGroup label="Team member">
+                      <select
+                        value={entry.subordinateId ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setCompensationDraft((prev) => {
+                            const next = [...prev.overrides];
+                            next[index] = {
+                              ...next[index],
+                              subordinateId: value ? Number(value) : null,
+                            };
+                            return { ...prev, overrides: next };
+                          });
+                        }}
+                        disabled={!editing.comp || saving.comp}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                      >
+                        <option value="">Select a groomer</option>
+                        {staffOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name ?? `Staff #${option.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldGroup>
+                    <FieldGroup label="Commission % share">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={entry.percentage}
+                          onChange={(event) =>
+                            setCompensationDraft((prev) => {
+                              const next = [...prev.overrides];
+                              next[index] = {
+                                ...next[index],
+                                percentage: event.target.value,
+                              };
+                              return { ...prev, overrides: next };
+                            })
+                          }
+                          disabled={!editing.comp || saving.comp}
+                          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:bg-slate-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCompensationDraft((prev) => ({
+                              ...prev,
+                              overrides: prev.overrides.filter((_, idx) => idx !== index),
+                            }))
+                          }
+                          disabled={!editing.comp || saving.comp}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </FieldGroup>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCompensationDraft((prev) => ({
+                      ...prev,
+                      overrides: [...prev.overrides, { subordinateId: null, percentage: "" }],
+                    }))
+                  }
+                  disabled={!editing.comp || saving.comp || staffOptions.length === 0}
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Add override
+                </button>
+              </div>
+            )}
+          </CompensationCard>
         </div>
       </section>
 
@@ -356,6 +698,50 @@ export default function EmployeeSettingsPage() {
           placeholder="Add private notes for this staff member"
         />
       </section>
+    </div>
+  );
+}
+
+type CompensationCardProps = {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  disabled?: boolean;
+  children?: ReactNode;
+};
+
+function CompensationCard({ title, description, enabled, onToggle, disabled, children }: CompensationCardProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => onToggle(event.target.checked)}
+            disabled={disabled}
+            className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue/40 disabled:cursor-not-allowed"
+          />
+          <span>Enable</span>
+        </label>
+      </div>
+      {children && <div className="mt-3 space-y-3 text-sm text-slate-600">{children}</div>}
+    </div>
+  );
+}
+
+type FieldGroupProps = { label: string; children: ReactNode };
+
+function FieldGroup({ label, children }: FieldGroupProps) {
+  return (
+    <div className="flex flex-col gap-1 text-sm text-slate-600">
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      {children}
     </div>
   );
 }

@@ -482,82 +482,87 @@ export default function NewEmployeePage() {
             ) : null}
           </section>
 
-          <section className="space-y-6">
+          <section className="space-y-4">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-brand-navy">Compensation & access</h2>
+              <h2 className="text-xl font-semibold text-brand-navy">Compensation</h2>
+              <p className="text-sm text-brand-navy/70">Set how this employee is paid and rewarded.</p>
+            </div>
+            <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="employee-pay-type">
+                    Pay type
+                  </label>
+                  <select
+                    id="employee-pay-type"
+                    className={inputClass}
+                    value={form.payType}
+                    onChange={(event) => setForm((prev) => ({ ...prev, payType: event.target.value as PayType }))}
+                  >
+                    {PAY_TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option.charAt(0).toUpperCase() + option.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="employee-commission">
+                    Commission %
+                  </label>
+                  <input
+                    id="employee-commission"
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={form.commissionPercent}
+                    onChange={(event) => setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="employee-hourly">
+                    Hourly rate
+                  </label>
+                  <input
+                    id="employee-hourly"
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.hourlyRate}
+                    onChange={(event) => setForm((prev) => ({ ...prev, hourlyRate: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="employee-salary">
+                    Salary rate
+                  </label>
+                  <input
+                    id="employee-salary"
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.salaryRate}
+                    onChange={(event) => setForm((prev) => ({ ...prev, salaryRate: event.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-brand-navy">App permissions</h2>
               <p className="text-sm text-brand-navy/70">
-                Configure how this employee is paid and the tools they can manage inside Scruffy Butts.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="employee-pay-type">
-                  Pay type
-                </label>
-                <select
-                  id="employee-pay-type"
-                  className={inputClass}
-                  value={form.payType}
-                  onChange={(event) => setForm((prev) => ({ ...prev, payType: event.target.value as PayType }))}
-                >
-                  {PAY_TYPE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="employee-commission">
-                  Commission %
-                </label>
-                <input
-                  id="employee-commission"
-                  className={inputClass}
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.1"
-                  value={form.commissionPercent}
-                  onChange={(event) => setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="employee-hourly">
-                  Hourly rate
-                </label>
-                <input
-                  id="employee-hourly"
-                  className={inputClass}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.hourlyRate}
-                  onChange={(event) => setForm((prev) => ({ ...prev, hourlyRate: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="employee-salary">
-                  Salary rate
-                </label>
-                <input
-                  id="employee-salary"
-                  className={inputClass}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.salaryRate}
-                  onChange={(event) => setForm((prev) => ({ ...prev, salaryRate: event.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="rounded-2xl border border-brand-bubble/30 bg-brand-bubble/10 p-4">
-              <h3 className="text-sm font-semibold text-brand-navy">App permissions</h3>
-              <p className="mt-1 text-xs text-brand-navy/70">
                 Choose which areas of the workspace this team member can access. Role templates above will pre-select the
                 common access, and you can fine-tune anything here or later in their settings.
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+            </div>
+            <div className="rounded-2xl border border-brand-bubble/30 bg-brand-bubble/10 p-4">
+              <div className="grid gap-3 md:grid-cols-2">
                 {PERMISSION_OPTIONS.map((option) => (
                   <label key={option.key} className="flex items-start gap-2 text-sm text-brand-navy">
                     <input

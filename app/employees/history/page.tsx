@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { resolveCurrentEmployee } from '@/lib/employees/current-employee';
 
 type Row = {
   id: number;
@@ -24,20 +25,9 @@ export default function EmployeeHistoryPage() {
     setLoading(true);
     setErr(null);
 
-    const uid = (await supabase.auth.getUser()).data.user?.id;
-    if (!uid) {
-      setErr('No logged-in user');
-      setLoading(false);
-      return;
-    }
-
-    const { data: emp, error: empErr } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('user_id', uid)
-      .single();
-    if (empErr || !emp) {
-      setErr(empErr?.message || 'Employee not found');
+    const { employeeId, error: employeeError } = await resolveCurrentEmployee();
+    if (!employeeId) {
+      setErr(employeeError || 'Employee not found');
       setLoading(false);
       return;
     }
@@ -57,7 +47,7 @@ export default function EmployeeHistoryPage() {
           'services:services!appointments_service_id_fkey(name)',
         ].join(',')
       )
-      .eq('employee_id', emp.id)
+      .eq('employee_id', employeeId)
       .order('start_time', { ascending: false })
       .limit(200);
 

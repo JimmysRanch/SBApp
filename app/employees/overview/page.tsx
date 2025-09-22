@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { resolveCurrentEmployee } from '@/lib/employees/current-employee';
 
 type Appt = { start_time: string; price: number | null };
 
@@ -22,39 +23,32 @@ export default function EmployeeOverviewPage() {
     (async () => {
       setLoading(true);
       setErr(null);
-      setDiag('getUser');
+      setDiag('resolveEmployee');
+      const resolution = await resolveCurrentEmployee();
+      setUid(resolution.userId);
 
-      // 1) Logged-in user?
-      const u = await supabase.auth.getUser();
-      const uidVal = u.data.user?.id ?? null;
-      setUid(uidVal);
-      if (!uidVal) {
-        setErr('No logged-in user');
+      if (!resolution.employeeId) {
+        setErr(resolution.error || 'Employee not found for this user');
+        setDiag(
+          resolution.method
+            ? `resolve:${resolution.method}:failed`
+            : 'resolve:missing'
+        );
         setLoading(false);
         return;
       }
 
-      // 2) employees.user_id -> my employee row?
-      setDiag('getEmployee');
-      const { data: emp, error: empErr } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', uidVal)
-        .single();
-
-      if (empErr || !emp) {
-        setErr(empErr?.message || 'Employee not found for this user_id');
-        setLoading(false);
-        return;
-      }
-      setEmpId(emp.id);
+      setEmpId(resolution.employeeId);
+      setDiag(
+        resolution.method ? `resolve:${resolution.method}` : 'resolve:ok'
+      );
 
       // 3) appointments for me (uses start_time, price)
       setDiag('getAppointments');
       const { data: appts, error: apptErr } = await supabase
         .from('appointments')
         .select('start_time, price')
-        .eq('employee_id', emp.id);
+        .eq('employee_id', resolution.employeeId);
 
       if (apptErr) {
         setErr(apptErr.message);

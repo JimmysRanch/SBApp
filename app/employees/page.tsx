@@ -39,13 +39,13 @@ export default function EmployeesPage() {
     <PageContainer>
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="space-y-4 md:col-span-2">
-          <h1 className="text-3xl font-bold text-primary-dark">Employees</h1>
+          <h1 className="text-3xl font-bold text-primary-dark">Staff</h1>
           <div>
             <Link
               href="/employees/new"
               className="inline-block rounded-full bg-primary px-4 py-2 text-white shadow hover:bg-primary-dark"
             >
-              Add Employee
+              Add Staff Member
             </Link>
           </div>
           {loading ? (

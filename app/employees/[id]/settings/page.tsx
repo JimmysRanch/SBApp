@@ -215,6 +215,39 @@ export default function EmployeeSettingsPage() {
         </div>
       </section>
 
+      {/* App permissions */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader
+          title="App Permissions"
+          subtitle="Choose which parts of Scruffy Butts this employee can manage."
+          isEditing={editing.perms}
+          isSaving={saving.perms}
+          onEdit={() => beginEdit("perms")}
+          onSave={handlePermissionsSave}
+        />
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {PERMISSION_OPTIONS.map((option) => (
+            <label key={option.key} className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={!!compensation.app_permissions[option.key]}
+                onChange={(e) =>
+                  setCompensation((prev) => ({
+                    ...prev,
+                    app_permissions: {
+                      ...prev.app_permissions,
+                      [option.key]: e.target.checked,
+                    },
+                  }))
+                }
+                disabled={!editing.perms || saving.perms}
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+      </section>
+
       {/* Compensation */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
@@ -251,39 +284,6 @@ export default function EmployeeSettingsPage() {
             onChange={(v) => setCompensation((p) => ({ ...p, salary_rate: v }))}
             disabled={!editing.comp || saving.comp}
           />
-        </div>
-      </section>
-
-      {/* App permissions */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="App Permissions"
-          subtitle="Choose which parts of Scruffy Butts this employee can manage."
-          isEditing={editing.perms}
-          isSaving={saving.perms}
-          onEdit={() => beginEdit("perms")}
-          onSave={handlePermissionsSave}
-        />
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {PERMISSION_OPTIONS.map((option) => (
-            <label key={option.key} className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={!!compensation.app_permissions[option.key]}
-                onChange={(e) =>
-                  setCompensation((prev) => ({
-                    ...prev,
-                    app_permissions: {
-                      ...prev.app_permissions,
-                      [option.key]: e.target.checked,
-                    },
-                  }))
-                }
-                disabled={!editing.perms || saving.perms}
-              />
-              {option.label}
-            </label>
-          ))}
         </div>
       </section>
 

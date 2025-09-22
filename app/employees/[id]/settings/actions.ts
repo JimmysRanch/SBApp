@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import type { CompensationPlan } from "@/lib/compensationPlan";
+import { toStoredPlan } from "@/lib/compensationPlan";
 
 export async function saveProfileAction(
   staffId: number,
@@ -53,6 +55,7 @@ export async function saveCompensationAction(
     commission_rate: number;
     hourly_rate: number;
     salary_rate: number;
+    compensation_plan: CompensationPlan;
     app_permissions: Record<string, boolean>;
   }
 ) {
@@ -62,6 +65,7 @@ export async function saveCompensationAction(
     commission_rate: Number.isFinite(input.commission_rate) ? input.commission_rate : 0,
     hourly_rate: Number.isFinite(input.hourly_rate) ? input.hourly_rate : 0,
     salary_rate: Number.isFinite(input.salary_rate) ? input.salary_rate : 0,
+    compensation_plan: toStoredPlan(input.compensation_plan),
     app_permissions: input.app_permissions,
   };
   const { error } = await supabase.from("employees").update(payload).eq("id", staffId);

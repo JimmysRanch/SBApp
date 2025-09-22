@@ -36,6 +36,7 @@ export type StaffRecord = {
   commission_rate?: number | null;
   hourly_rate?: number | null;
   salary_rate?: number | null;
+  compensation_plan?: Record<string, unknown> | null;
   app_permissions?: Record<string, unknown> | null;
   preferred_breeds?: string[] | null;
   not_accepted_breeds?: string[] | null;

@@ -80,6 +80,7 @@ export default function EmployeeSettingsPage() {
   const [editing, setEditing] = useState({
     profile: false,
     comp: false,
+    perms: false,
     prefs: false,
     notes: false,
   });
@@ -87,6 +88,7 @@ export default function EmployeeSettingsPage() {
   const [saving, setSaving] = useState({
     profile: false,
     comp: false,
+    perms: false,
     prefs: false,
     notes: false,
   });
@@ -111,8 +113,8 @@ export default function EmployeeSettingsPage() {
     pushToast("Profile updated", "success");
   };
 
-  const handleCompensationSave = async () => {
-    setSaving((s) => ({ ...s, comp: true }));
+  const persistCompensation = async (section: "comp" | "perms") => {
+    setSaving((s) => ({ ...s, [section]: true }));
     const result = await saveCompensationAction(employee.id, {
       pay_type: compensation.pay_type,
       commission_rate: Number(compensation.commission_rate) || 0,
@@ -120,13 +122,23 @@ export default function EmployeeSettingsPage() {
       salary_rate: Number(compensation.salary_rate) || 0,
       app_permissions: compensation.app_permissions,
     });
-    setSaving((s) => ({ ...s, comp: false }));
+    setSaving((s) => ({ ...s, [section]: false }));
     if (!result.success) {
-      pushToast(result.error ?? "Failed to save compensation", "error");
+      const errorMessage =
+        section === "comp" ? "Failed to save compensation" : "Failed to save permissions";
+      pushToast(result.error ?? errorMessage, "error");
       return;
     }
-    setEditing((e) => ({ ...e, comp: false }));
-    pushToast("Compensation updated", "success");
+    setEditing((e) => ({ ...e, [section]: false }));
+    pushToast(section === "comp" ? "Compensation updated" : "Permissions updated", "success");
+  };
+
+  const handleCompensationSave = () => {
+    void persistCompensation("comp");
+  };
+
+  const handlePermissionsSave = () => {
+    void persistCompensation("perms");
   };
 
   const handlePreferencesSave = async () => {
@@ -206,8 +218,8 @@ export default function EmployeeSettingsPage() {
       {/* Compensation */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          title="Compensation & Permissions"
-          subtitle="Control pay structures and access for this employee."
+          title="Compensation"
+          subtitle="Control pay structures for this employee."
           isEditing={editing.comp}
           isSaving={saving.comp}
           onEdit={() => beginEdit("comp")}
@@ -240,29 +252,38 @@ export default function EmployeeSettingsPage() {
             disabled={!editing.comp || saving.comp}
           />
         </div>
-        <div className="mt-6">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">App permissions</div>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {PERMISSION_OPTIONS.map((option) => (
-              <label key={option.key} className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={!!compensation.app_permissions[option.key]}
-                  onChange={(e) =>
-                    setCompensation((prev) => ({
-                      ...prev,
-                      app_permissions: {
-                        ...prev.app_permissions,
-                        [option.key]: e.target.checked,
-                      },
-                    }))
-                  }
-                  disabled={!editing.comp || saving.comp}
-                />
-                {option.label}
-              </label>
-            ))}
-          </div>
+      </section>
+
+      {/* App permissions */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader
+          title="App Permissions"
+          subtitle="Choose which parts of Scruffy Butts this employee can manage."
+          isEditing={editing.perms}
+          isSaving={saving.perms}
+          onEdit={() => beginEdit("perms")}
+          onSave={handlePermissionsSave}
+        />
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {PERMISSION_OPTIONS.map((option) => (
+            <label key={option.key} className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={!!compensation.app_permissions[option.key]}
+                onChange={(e) =>
+                  setCompensation((prev) => ({
+                    ...prev,
+                    app_permissions: {
+                      ...prev.app_permissions,
+                      [option.key]: e.target.checked,
+                    },
+                  }))
+                }
+                disabled={!editing.perms || saving.perms}
+              />
+              {option.label}
+            </label>
+          ))}
         </div>
       </section>
 

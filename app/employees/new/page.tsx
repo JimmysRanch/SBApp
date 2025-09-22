@@ -13,6 +13,7 @@ import {
   CompensationPlanDraft,
   defaultCompensationPlan,
   draftFromPlan,
+  getCommissionRate,
   parseDraft,
 } from "@/lib/compensationPlan";
 import { supabase } from "@/lib/supabase/client";
@@ -123,6 +124,10 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
   can_manage_staff: false,
 };
 
+function formatPercent(value: number) {
+  return `${Number((value * 100).toFixed(2))}%`;
+}
+
 export default function NewEmployeePage() {
   const router = useRouter();
   const { loading: authLoading, session, permissions } = useAuth();
@@ -154,6 +159,28 @@ export default function NewEmployeePage() {
   const [error, setError] = useState<string | null>(null);
 
   const canManageEmployees = useMemo(() => permissions.canManageEmployees, [permissions.canManageEmployees]);
+
+  const staffNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const option of staffOptions) {
+      map.set(option.id, option.name ?? `Staff #${option.id}`);
+    }
+    return map;
+  }, [staffOptions]);
+
+  const compensationPreview = useMemo(() => {
+    const { plan } = parseDraft(compensationDraft);
+    const commissionRate = getCommissionRate(plan);
+    const overrides = plan.overrides ?? [];
+    const overrideTotal = overrides.reduce((sum, entry) => sum + (entry.percentage ?? 0), 0);
+    const directBusinessShare = commissionRate > 0 ? Math.max(0, 1 - commissionRate) : null;
+    return {
+      commissionRate: commissionRate > 0 ? commissionRate : null,
+      directBusinessShare,
+      overrides,
+      overrideTotal,
+    };
+  }, [compensationDraft]);
 
   const applyPermissionPreset = (keys: PermissionKey[]) => {
     setPermissionState({
@@ -861,7 +888,8 @@ export default function NewEmployeePage() {
                   <div>
                     <h3 className="text-base font-semibold text-brand-navy">Team overrides</h3>
                     <p className="text-sm text-brand-navy/70">
-                      Share a portion of the commission from groomers they manage.
+                      Pay them an extra share of the appointments completed by groomers they manage. This amount comes out of
+                      the business share—the groomers below them keep their full commission.
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-brand-navy">
@@ -922,7 +950,7 @@ export default function NewEmployeePage() {
                         </div>
                         <div className="space-y-1">
                           <label className={labelClass} htmlFor={`override-percent-${index}`}>
-                            Commission % share
+                            Override % of appointment revenue
                           </label>
                           <div className="flex items-center gap-2">
                             <input
@@ -976,6 +1004,43 @@ export default function NewEmployeePage() {
                   </div>
                 )}
               </div>
+              {(compensationPreview.commissionRate || compensationPreview.overrideTotal > 0) && (
+                <div className="rounded-2xl border border-white/50 bg-white/70 p-4 shadow-inner">
+                  <div className="space-y-2 text-sm text-brand-navy">
+                    {compensationPreview.commissionRate && (
+                      <p>
+                        Their own grooms pay <strong>{formatPercent(compensationPreview.commissionRate)}</strong> to this team
+                        member, leaving <strong>{formatPercent(compensationPreview.directBusinessShare ?? 0)}</strong> for the
+                        business.
+                      </p>
+                    )}
+                    {compensationPreview.overrideTotal > 0 && (
+                      <div className="space-y-2">
+                        <p>
+                          Team overrides add <strong>{formatPercent(compensationPreview.overrideTotal)}</strong> from the
+                          groomers they manage. This comes entirely out of the business share while each groomer below keeps
+                          their full commission.
+                        </p>
+                        {compensationPreview.overrides.length > 0 && (
+                          <ul className="list-inside list-disc text-xs text-brand-navy/80">
+                            {compensationPreview.overrides.map((entry) => (
+                              <li key={entry.subordinate_id}>
+                                {formatPercent(entry.percentage)} from {staffNameMap.get(entry.subordinate_id) ?? `Staff #${entry.subordinate_id}`}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <p className="text-xs text-brand-navy/70">
+                          Example: if a groomer underneath them earns 50%, giving this employee {formatPercent(
+                            compensationPreview.overrideTotal,
+                          )} leaves <strong>{formatPercent(Math.max(0, 0.5 - compensationPreview.overrideTotal))}</strong> for
+                          the business on those appointments.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 

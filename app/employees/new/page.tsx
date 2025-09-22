@@ -1,7 +1,7 @@
 "use client";
 export const runtime = "nodejs";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,14 +9,21 @@ import clsx from "clsx";
 import Card from "@/components/Card";
 import PageContainer from "@/components/PageContainer";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  CompensationPlanDraft,
+  defaultCompensationPlan,
+  draftFromPlan,
+  parseDraft,
+  planHasConfiguration,
+  planSummaryLines,
+} from "@/lib/compensationPlan";
+import { supabase } from "@/lib/supabase/client";
 
 type PermissionKey =
   | "can_view_reports"
   | "can_edit_schedule"
   | "can_manage_discounts"
   | "can_manage_staff";
-
-type PayType = "hourly" | "commission" | "salary" | "hybrid";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-white/50 bg-white/95 px-4 text-base text-brand-navy placeholder:text-brand-navy/50 shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30";
@@ -25,7 +32,6 @@ const textareaClass =
 const labelClass = "text-sm font-semibold text-brand-navy";
 
 const STATUS_OPTIONS = ["Active", "Inactive", "On leave"] as const;
-const PAY_TYPE_OPTIONS: PayType[] = ["hourly", "commission", "salary", "hybrid"];
 const PERMISSION_OPTIONS: { key: PermissionKey; label: string; helper: string }[] = [
   {
     key: "can_edit_schedule",
@@ -110,10 +116,6 @@ type FormState = {
   emergencyContactPhone: string;
   role: string;
   status: (typeof STATUS_OPTIONS)[number];
-  payType: PayType;
-  commissionPercent: string;
-  hourlyRate: string;
-  salaryRate: string;
 };
 
 const defaultPermissions: Record<PermissionKey, boolean> = {
@@ -139,21 +141,37 @@ export default function NewEmployeePage() {
     emergencyContactPhone: "",
     role: "",
     status: "Active",
-    payType: "hourly",
-    commissionPercent: "0",
-    hourlyRate: "",
-    salaryRate: "",
   });
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [customRoleDraft, setCustomRoleDraft] = useState("");
   const [permissionState, setPermissionState] = useState<Record<PermissionKey, boolean>>({
     ...defaultPermissions,
   });
+  const [compensationDraft, setCompensationDraft] = useState<CompensationPlanDraft>(() =>
+    draftFromPlan(defaultCompensationPlan),
+  );
+  const [staffOptions, setStaffOptions] = useState<{ id: number; name: string | null }[]>([]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canManageEmployees = useMemo(() => permissions.canManageEmployees, [permissions.canManageEmployees]);
+
+  const staffNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const option of staffOptions) {
+      map.set(option.id, option.name ?? `Staff #${option.id}`);
+    }
+    return map;
+  }, [staffOptions]);
+
+  const compensationPreview = useMemo(() => {
+    const { plan } = parseDraft(compensationDraft);
+    return {
+      summary: planSummaryLines(plan, { staffNameMap }),
+      hasConfiguration: planHasConfiguration(plan),
+    };
+  }, [compensationDraft, staffNameMap]);
 
   const applyPermissionPreset = (keys: PermissionKey[]) => {
     setPermissionState({
@@ -163,6 +181,27 @@ export default function NewEmployeePage() {
       can_manage_staff: keys.includes("can_manage_staff"),
     });
   };
+
+  useEffect(() => {
+    let active = true;
+    const loadStaffOptions = async () => {
+      const { data, error: staffError } = await supabase
+        .from("employees")
+        .select("id,name")
+        .order("name", { ascending: true });
+      if (!active) return;
+      if (staffError) {
+        console.error("Failed to load staff list", staffError);
+        setStaffOptions([]);
+        return;
+      }
+      setStaffOptions((data as { id: number; name: string | null }[]) ?? []);
+    };
+    void loadStaffOptions();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleRoleTemplateSelect = (template: RoleTemplate) => {
     setSelectedRoleId(template.id);
@@ -193,27 +232,9 @@ export default function NewEmployeePage() {
       return;
     }
 
-    const commissionValue = form.commissionPercent.trim() === ""
-      ? null
-      : Number(form.commissionPercent.replace(/,/g, ".")) / 100;
-    if (commissionValue !== null && !Number.isFinite(commissionValue)) {
-      setError("Commission percentage must be a valid number");
-      return;
-    }
-    if (commissionValue !== null && (commissionValue < 0 || commissionValue > 1)) {
-      setError("Commission percentage must be between 0% and 100%");
-      return;
-    }
-
-    const hourlyValue = form.hourlyRate.trim() === "" ? null : Number(form.hourlyRate);
-    if (hourlyValue !== null && (!Number.isFinite(hourlyValue) || hourlyValue < 0)) {
-      setError("Hourly rate must be zero or greater");
-      return;
-    }
-
-    const salaryValue = form.salaryRate.trim() === "" ? null : Number(form.salaryRate);
-    if (salaryValue !== null && (!Number.isFinite(salaryValue) || salaryValue < 0)) {
-      setError("Salary rate must be zero or greater");
+    const draftResult = parseDraft(compensationDraft);
+    if (draftResult.errors.length > 0) {
+      setError(draftResult.errors.join(" "));
       return;
     }
 
@@ -236,10 +257,11 @@ export default function NewEmployeePage() {
           emergency_contact_name: form.emergencyContactName.trim() || null,
           emergency_contact_phone: form.emergencyContactPhone.trim() || null,
           status: form.status,
-          pay_type: form.payType,
-          commission_rate: commissionValue,
-          hourly_rate: hourlyValue,
-          salary_rate: salaryValue,
+          pay_type: draftResult.payType,
+          commission_rate: draftResult.commissionRate,
+          hourly_rate: draftResult.hourlyRate,
+          salary_rate: draftResult.salaryRate,
+          compensation_plan: draftResult.plan,
           app_permissions: permissionState,
           manager_notes: notes.trim() ? notes.trim() : null,
         }),
@@ -618,71 +640,378 @@ export default function NewEmployeePage() {
           <section className="space-y-4">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-brand-navy">Compensation</h2>
-              <p className="text-sm text-brand-navy/70">Set how this employee is paid and rewarded.</p>
+              <p className="text-sm text-brand-navy/70">
+                Combine hourly pay, commission, guarantees, and team overrides to match how this team member earns.
+              </p>
             </div>
-            <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1">
-                  <label className={labelClass} htmlFor="employee-pay-type">
-                    Pay type
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-brand-navy">Commission on personal grooms</h3>
+                    <p className="text-sm text-brand-navy/70">
+                      Pay a percentage of every dog this staff member personally grooms.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={compensationDraft.commission.enabled}
+                      onChange={(event) =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          commission: {
+                            ...prev.commission,
+                            enabled: event.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>Enable</span>
                   </label>
-                  <select
-                    id="employee-pay-type"
-                    className={inputClass}
-                    value={form.payType}
-                    onChange={(event) => setForm((prev) => ({ ...prev, payType: event.target.value as PayType }))}
-                  >
-                    {PAY_TYPE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option.charAt(0).toUpperCase() + option.slice(1)}
-                      </option>
-                    ))}
-                  </select>
                 </div>
-                <div className="space-y-1">
-                  <label className={labelClass} htmlFor="employee-commission">
-                    Commission %
-                  </label>
-                  <input
-                    id="employee-commission"
-                    className={inputClass}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.1"
-                    value={form.commissionPercent}
-                    onChange={(event) => setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass} htmlFor="employee-hourly">
-                    Hourly rate
-                  </label>
-                  <input
-                    id="employee-hourly"
-                    className={inputClass}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.hourlyRate}
-                    onChange={(event) => setForm((prev) => ({ ...prev, hourlyRate: event.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass} htmlFor="employee-salary">
-                    Salary rate
-                  </label>
-                  <input
-                    id="employee-salary"
-                    className={inputClass}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.salaryRate}
-                    onChange={(event) => setForm((prev) => ({ ...prev, salaryRate: event.target.value }))}
-                  />
-                </div>
+                {compensationDraft.commission.enabled && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className={labelClass} htmlFor="comp-commission-rate">
+                        Commission %
+                      </label>
+                      <input
+                        id="comp-commission-rate"
+                        className={inputClass}
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        value={compensationDraft.commission.rate}
+                        onChange={(event) =>
+                          setCompensationDraft((prev) => ({
+                            ...prev,
+                            commission: { ...prev.commission, rate: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+
+              <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-brand-navy">Hourly pay</h3>
+                    <p className="text-sm text-brand-navy/70">
+                      Guarantee an hourly base rate in addition to any other earnings.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={compensationDraft.hourly.enabled}
+                      onChange={(event) =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          hourly: {
+                            ...prev.hourly,
+                            enabled: event.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>Enable</span>
+                  </label>
+                </div>
+                {compensationDraft.hourly.enabled && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className={labelClass} htmlFor="comp-hourly-rate">
+                        Hourly rate ($)
+                      </label>
+                      <input
+                        id="comp-hourly-rate"
+                        className={inputClass}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={compensationDraft.hourly.rate}
+                        onChange={(event) =>
+                          setCompensationDraft((prev) => ({
+                            ...prev,
+                            hourly: { ...prev.hourly, rate: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-brand-navy">Salary</h3>
+                    <p className="text-sm text-brand-navy/70">
+                      Track an annual salary amount for reporting and payroll exports.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={compensationDraft.salary.enabled}
+                      onChange={(event) =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          salary: {
+                            ...prev.salary,
+                            enabled: event.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>Enable</span>
+                  </label>
+                </div>
+                {compensationDraft.salary.enabled && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className={labelClass} htmlFor="comp-salary-rate">
+                        Salary (annual $)
+                      </label>
+                      <input
+                        id="comp-salary-rate"
+                        className={inputClass}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={compensationDraft.salary.rate}
+                        onChange={(event) =>
+                          setCompensationDraft((prev) => ({
+                            ...prev,
+                            salary: { ...prev.salary, rate: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-brand-navy">Weekly guarantee vs. commission</h3>
+                    <p className="text-sm text-brand-navy/70">
+                      Guarantee pay per week or the commission percentage you choose—whichever is higher is what they’ll be
+                      paid.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={compensationDraft.guarantee.enabled}
+                      onChange={(event) =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          guarantee: {
+                            ...prev.guarantee,
+                            enabled: event.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>Enable</span>
+                  </label>
+                </div>
+                {compensationDraft.guarantee.enabled && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className={labelClass} htmlFor="comp-guarantee-amount">
+                        Weekly guarantee ($)
+                      </label>
+                      <input
+                        id="comp-guarantee-amount"
+                        className={inputClass}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={compensationDraft.guarantee.weeklyAmount}
+                        onChange={(event) =>
+                          setCompensationDraft((prev) => ({
+                            ...prev,
+                            guarantee: { ...prev.guarantee, weeklyAmount: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className={labelClass} htmlFor="comp-guarantee-commission">
+                        Commission % to compare
+                      </label>
+                      <input
+                        id="comp-guarantee-commission"
+                        className={inputClass}
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        value={compensationDraft.guarantee.commissionRate}
+                        onChange={(event) =>
+                          setCompensationDraft((prev) => ({
+                            ...prev,
+                            guarantee: { ...prev.guarantee, commissionRate: event.target.value },
+                          }))
+                        }
+                      />
+                      <p className="text-xs text-brand-navy/70">
+                        Leave blank to reuse the standard commission rate.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/50 bg-white/80 p-4 shadow-inner">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-brand-navy">Team overrides</h3>
+                    <p className="text-sm text-brand-navy/70">
+                      Pay them an extra share of the appointments completed by groomers they manage. This amount comes out of
+                      the business share—the groomers below them keep their full commission.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={compensationDraft.overridesEnabled}
+                      onChange={(event) =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          overridesEnabled: event.target.checked,
+                          overrides:
+                            event.target.checked && prev.overrides.length === 0
+                              ? [{ subordinateId: null, percentage: "" }]
+                              : prev.overrides,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>Enable</span>
+                  </label>
+                </div>
+                {compensationDraft.overridesEnabled && (
+                  <div className="mt-4 space-y-4">
+                    {staffOptions.length === 0 && (
+                      <p className="text-sm text-brand-navy/70">
+                        Add additional staff members first to set up override relationships.
+                      </p>
+                    )}
+                    {compensationDraft.overrides.map((entry, index) => (
+                      <div key={`override-${index}`} className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className={labelClass} htmlFor={`override-groomer-${index}`}>
+                            Team member
+                          </label>
+                          <select
+                            id={`override-groomer-${index}`}
+                            className={inputClass}
+                            value={entry.subordinateId ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setCompensationDraft((prev) => {
+                                const next = [...prev.overrides];
+                                next[index] = {
+                                  ...next[index],
+                                  subordinateId: value ? Number(value) : null,
+                                };
+                                return { ...prev, overrides: next };
+                              });
+                            }}
+                          >
+                            <option value="">Select a groomer</option>
+                            {staffOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name ?? `Staff #${option.id}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className={labelClass} htmlFor={`override-percent-${index}`}>
+                            Override % of appointment revenue
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id={`override-percent-${index}`}
+                              className={inputClass}
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.1"
+                              value={entry.percentage}
+                              onChange={(event) =>
+                                setCompensationDraft((prev) => {
+                                  const next = [...prev.overrides];
+                                  next[index] = {
+                                    ...next[index],
+                                    percentage: event.target.value,
+                                  };
+                                  return { ...prev, overrides: next };
+                                })
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCompensationDraft((prev) => ({
+                                  ...prev,
+                                  overrides: prev.overrides.filter((_, idx) => idx !== index),
+                                }))
+                              }
+                              className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCompensationDraft((prev) => ({
+                          ...prev,
+                          overrides: [...prev.overrides, { subordinateId: null, percentage: "" }],
+                        }))
+                      }
+                      disabled={staffOptions.length === 0}
+                      className="inline-flex items-center justify-center rounded-full border border-brand-bubble/40 px-4 py-2 text-sm font-semibold text-brand-navy transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Add override
+                    </button>
+                  </div>
+                )}
+              </div>
+              {compensationPreview.hasConfiguration && (
+                <div className="rounded-2xl border border-white/50 bg-white/70 p-4 shadow-inner">
+                  <h4 className="text-sm font-semibold text-brand-navy">Pay summary</h4>
+                  {compensationPreview.summary.length > 0 ? (
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-brand-navy">
+                      {compensationPreview.summary.map((line, index) => (
+                        <li key={`pay-summary-${index}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-brand-navy/70">
+                      Enter rates above to preview how they’ll be paid.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 

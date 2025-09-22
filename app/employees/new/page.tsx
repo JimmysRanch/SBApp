@@ -484,6 +484,39 @@ export default function NewEmployeePage() {
 
           <section className="space-y-4">
             <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-brand-navy">App permissions</h2>
+              <p className="text-sm text-brand-navy/70">
+                Choose which areas of the workspace this team member can access. Role templates above will pre-select the
+                common access, and you can fine-tune anything here or later in their settings.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-brand-bubble/30 bg-brand-bubble/10 p-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                {PERMISSION_OPTIONS.map((option) => (
+                  <label key={option.key} className="flex items-start gap-2 text-sm text-brand-navy">
+                    <input
+                      type="checkbox"
+                      checked={permissionState[option.key]}
+                      onChange={(event) =>
+                        setPermissionState((prev) => ({
+                          ...prev,
+                          [option.key]: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
+                    />
+                    <span>
+                      <span className="font-semibold">{option.label}</span>
+                      <span className="block text-xs text-brand-navy/70">{option.helper}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="space-y-1">
               <h2 className="text-xl font-semibold text-brand-navy">Compensation</h2>
               <p className="text-sm text-brand-navy/70">Set how this employee is paid and rewarded.</p>
             </div>
@@ -549,39 +582,6 @@ export default function NewEmployeePage() {
                     onChange={(event) => setForm((prev) => ({ ...prev, salaryRate: event.target.value }))}
                   />
                 </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-brand-navy">App permissions</h2>
-              <p className="text-sm text-brand-navy/70">
-                Choose which areas of the workspace this team member can access. Role templates above will pre-select the
-                common access, and you can fine-tune anything here or later in their settings.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-brand-bubble/30 bg-brand-bubble/10 p-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                {PERMISSION_OPTIONS.map((option) => (
-                  <label key={option.key} className="flex items-start gap-2 text-sm text-brand-navy">
-                    <input
-                      type="checkbox"
-                      checked={permissionState[option.key]}
-                      onChange={(event) =>
-                        setPermissionState((prev) => ({
-                          ...prev,
-                          [option.key]: event.target.checked,
-                        }))
-                      }
-                      className="mt-1 h-4 w-4 rounded border-brand-bubble/50 text-brand-bubble focus:ring-brand-bubble/50"
-                    />
-                    <span>
-                      <span className="font-semibold">{option.label}</span>
-                      <span className="block text-xs text-brand-navy/70">{option.helper}</span>
-                    </span>
-                  </label>
-                ))}
               </div>
             </div>
           </section>

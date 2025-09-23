@@ -21,7 +21,9 @@
       "node",
       "react",
       "react-dom",
-      "jsdom"
+      "jsdom",
+      "@playwright/test",
+      "vitest"
     ],
     "baseUrl": ".",
     "paths": {

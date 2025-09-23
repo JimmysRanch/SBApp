@@ -1,207 +1,244 @@
-'use client';
+"use client";
+import React, { useState } from "react";
+import { SettingsNav, Section } from "@/components/settings/SettingsNav";
+import { useSettings } from "@/components/settings/useSettings";
+import { Field } from "@/components/settings/Field";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+export default function SettingsPage(){
+  const {loading, data, set, save, reset, error} = useSettings();
+  const [section, setSection] = useState<Section>("General");
+  const canSave = !loading && !!data;
 
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/lib/supabase/client';
-
-export const dynamic = 'force-dynamic';
-
-type TeamMember = {
-  id: number | null;
-  name: string | null;
-  email: string | null;
-  role: string | null;
-  app_permissions: Record<string, unknown> | null;
-};
-
-const configurationLinks = [
-  { href: '/settings/profile', label: 'Profile' },
-  { href: '/settings/business', label: 'Business' },
-  { href: '/settings/services', label: 'Services' },
-  { href: '/settings/notifications', label: 'Notifications' },
-  { href: '/settings/billing', label: 'Billing' },
-];
-
-function hasElevatedAccess(member: TeamMember): boolean {
-  const role = member.role?.toLowerCase() ?? '';
-  if (role.includes('owner') || role.includes('admin') || role.includes('manager')) {
-    return true;
-  }
-
-  if (member.app_permissions && typeof member.app_permissions === 'object') {
-    const flags = member.app_permissions as Record<string, unknown>;
-    return (
-      flags.is_owner === true ||
-      flags.is_manager === true ||
-      flags.can_edit_schedule === true ||
-      flags.can_manage_discounts === true ||
-      flags.can_view_reports === true
-    );
-  }
-
-  return false;
-}
-
-export default function SettingsPage() {
-  const {
-    loading: authLoading,
-    session,
-    displayName,
-    email,
-    role,
-    isOwner,
-    permissions,
-    signOut,
-  } = useAuth();
-
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const loadTeam = useCallback(async () => {
-    if (!isOwner) {
-      setTeam([]);
-      setErr(null);
-      return;
-    }
-
-    setLoading(true);
-    setErr(null);
-
-    try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id,name,email,role,app_permissions')
-        .order('name');
-
-      if (error) throw error;
-
-      const rows = (data ?? []) as TeamMember[];
-      setTeam(rows.filter(hasElevatedAccess));
-    } catch (error: any) {
-      setErr(error?.message || 'Unable to load team members.');
-      setTeam([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOwner]);
-
-  useEffect(() => {
-    if (!authLoading && session && isOwner) {
-      void loadTeam();
-    }
-  }, [authLoading, isOwner, loadTeam, session]);
-
-  const roleLabel = useMemo(() => {
-    if (role) return role;
-    return isOwner ? 'Owner' : 'Team Member';
-  }, [isOwner, role]);
-
-  const userEmail = session?.user?.email ?? email ?? null;
-
-  const handleLogout = useCallback(() => {
-    void signOut();
-  }, [signOut]);
-
-  if (authLoading) {
-    return <div className="p-6">Loading settings…</div>;
-  }
-
-  if (!session) {
-    return <div className="p-6">Please log in to view settings.</div>;
-  }
-
-  if (!permissions.canAccessSettings) {
-    return (
-      <div className="space-y-3 p-6">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-white/80">
-          You do not currently have access to this page. Please contact an administrator if you believe this is
-          an error.
-        </p>
+  const Header = (
+    <header className="flex justify-between p-4 border-b border-gray-100">
+      <input placeholder="Search settings" aria-label="Search settings" className="w-[360px] p-2 border rounded" />
+      <div className="flex gap-2">
+        <button onClick={reset} disabled={!canSave} className="px-3 py-2 border rounded">Reset</button>
+        <button onClick={async()=>{ await save(); alert("Saved"); }} disabled={!canSave} className="px-3 py-2 border rounded">Save</button>
+        <button onClick={()=>window.open("/settings/self-test","_blank")} className="px-3 py-2 border rounded">Run Self-Test</button>
       </div>
+    </header>
+  );
+
+  function renderGeneral(){
+    if(!data) return null;
+    return (
+      <>
+        <Field label="Business name" hint="Shown on receipts and messages">
+          {({ id, hintId }) => (
+            <input
+              id={id}
+              aria-describedby={hintId}
+              className="border rounded p-2 w-full"
+              value={data.org.general.name}
+              onChange={e=>set(d=>{d.org.general.name=e.target.value; return d;})}
+            />
+          )}
+        </Field>
+        <Field label="Timezone">
+          {({ id }) => (
+            <input
+              id={id}
+              className="border rounded p-2 w-full"
+              value={data.org.general.timezone}
+              onChange={e=>set(d=>{d.org.general.timezone=e.target.value; return d;})}
+            />
+          )}
+        </Field>
+        <Field label="Week start">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.general.weekStart}
+              onChange={e=>set(d=>{d.org.general.weekStart=e.target.value as any; return d;})}
+            >
+              <option value="Mon">Monday</option><option value="Sun">Sunday</option>
+            </select>
+          )}
+        </Field>
+      </>
     );
+  }
+  function renderScheduling(){
+    if(!data) return null;
+    return (
+      <>
+        <Field label="Slot minutes">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.scheduling.slotMinutes}
+              onChange={e=>set(d=>{d.org.scheduling.slotMinutes=Number(e.target.value) as any; return d;})}
+            >
+              {[5,10,15,20,30].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Overlap policy">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.scheduling.overlap}
+              onChange={e=>set(d=>{d.org.scheduling.overlap=e.target.value as any; return d;})}
+            >
+              <option value="disallow">Disallow</option><option value="warn">Warn</option><option value="allow">Allow</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Auto-assign">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.scheduling.autoAssign}
+              onChange={e=>set(d=>{d.org.scheduling.autoAssign=e.target.value as any; return d;})}
+            >
+              <option value="revenue-balance">Revenue balance</option>
+              <option value="round-robin">Round robin</option>
+              <option value="preference">Preference</option>
+            </select>
+          )}
+        </Field>
+      </>
+    );
+  }
+  function renderPayroll(){
+    if(!data) return null;
+    return (
+      <>
+        <Field label="Frequency">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.payroll.frequency}
+              onChange={e=>set(d=>{d.org.payroll.frequency=e.target.value as any; return d;})}
+            >
+              {["weekly","biweekly","semimonthly","monthly"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Payday">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.payroll.payday}
+              onChange={e=>set(d=>{d.org.payroll.payday=e.target.value as any; return d;})}
+            >
+              {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Period start">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.payroll.periodStart}
+              onChange={e=>set(d=>{d.org.payroll.periodStart=e.target.value as any; return d;})}
+            >
+              {["Monday","Sunday"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+      </>
+    );
+  }
+  function renderTheme(){
+    if(!data) return null;
+    return (
+      <>
+        <Field label="Theme mode">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.theme.mode}
+              onChange={e=>set(d=>{d.org.theme.mode=e.target.value as any; return d;})}
+            >
+              {["light","dark","auto"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Motion">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.theme.motion}
+              onChange={e=>set(d=>{d.org.theme.motion=e.target.value as any; return d;})}
+            >
+              {["standard","reduced"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Background">
+          {({ id }) => (
+            <select
+              id={id}
+              className="border rounded p-2"
+              value={data.org.theme.background}
+              onChange={e=>set(d=>{d.org.theme.background=e.target.value as any; return d;})}
+            >
+              {["static","parallax","liquid"].map(v=><option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Brand colors">
+          {({ id, labelId }) => {
+            const accentId = `${id}-accent`;
+            return (
+              <div className="flex gap-2" role="group" aria-labelledby={labelId}>
+                <label className="text-sm" htmlFor={id}>
+                  Primary
+                  <input
+                    id={id}
+                    className="border rounded p-2 ml-1"
+                    type="text"
+                    value={data.org.theme.brand.primary}
+                    onChange={e=>set(d=>{d.org.theme.brand.primary=e.target.value; return d;})}
+                  />
+                </label>
+                <label className="text-sm" htmlFor={accentId}>
+                  Accent
+                  <input
+                    id={accentId}
+                    className="border rounded p-2 ml-1"
+                    type="text"
+                    value={data.org.theme.brand.accent}
+                    onChange={e=>set(d=>{d.org.theme.brand.accent=e.target.value; return d;})}
+                  />
+                </label>
+              </div>
+            );
+          }}
+        </Field>
+      </>
+    );
+  }
+
+  let body: React.ReactNode = null;
+  switch(section){
+    case "General": body = renderGeneral(); break;
+    case "Scheduling": body = renderScheduling(); break;
+    case "Payroll": body = renderPayroll(); break;
+    case "Theme": body = renderTheme(); break;
   }
 
   return (
-    <div className="space-y-8 p-6">
-      <div className="glass-panel max-w-3xl space-y-4 bg-white/90 p-6 text-brand-navy">
-        <div>
-          <h1 className="text-3xl font-bold text-brand-navy">Settings</h1>
-          <p className="text-sm text-brand-navy/70">Manage your Scruffy Butts workspace.</p>
+    <div className="flex min-h-screen">
+      <SettingsNav current={section} onSelect={setSection} />
+      <main className="flex-1 flex flex-col">
+        {Header}
+        <div className="p-4 max-w-[900px]">
+          {error && <div className="text-red-600 mb-2">{error}</div>}
+          {loading ? <div>Loading…</div> : body}
         </div>
-
-        <div className="rounded-2xl bg-white/70 p-4 shadow-inner">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
-          <p className="text-2xl font-bold text-brand-navy">
-            {displayName ?? userEmail ?? 'Team member'}
-          </p>
-          <p className="text-sm text-brand-navy/70">
-            Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
-          </p>
-          {userEmail && <p className="text-xs text-brand-navy/50">Email: {userEmail}</p>}
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="inline-flex items-center justify-center rounded-full bg-brand-bubble px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-bubbleDark"
-        >
-          Log out
-        </button>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="glass-panel space-y-3 bg-white/90 p-6 text-brand-navy">
-          <h2 className="text-xl font-semibold">Configuration</h2>
-          <ul className="list-disc space-y-1 pl-6 text-sm text-brand-navy/80">
-            {configurationLinks.map((link) => (
-              <li key={link.href}>
-                <Link className="text-brand-bubble hover:text-brand-bubbleDark" href={link.href}>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {isOwner && (
-          <div className="glass-panel space-y-4 bg-white/90 p-6 text-brand-navy">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Team members with elevated access</h2>
-              <button
-                onClick={() => void loadTeam()}
-                disabled={loading}
-                className="text-sm font-semibold text-brand-bubble transition hover:text-brand-bubbleDark disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? 'Refreshing…' : 'Refresh'}
-              </button>
-            </div>
-            {err && <p className="text-sm font-medium text-red-600">{err}</p>}
-            {!err && team.length === 0 && (
-              <p className="text-sm text-brand-navy/70">
-                No other teammates currently have elevated access.
-              </p>
-            )}
-            <ul className="space-y-3 text-sm">
-              {team.map((member) => (
-                <li
-                  key={member.id ?? member.email ?? Math.random()}
-                  className="rounded-xl border border-brand-navy/10 bg-white/70 p-3 shadow-sm"
-                >
-                  <p className="font-semibold text-brand-navy">
-                    {member.name ?? member.email ?? `Team member #${member.id ?? '—'}`}
-                  </p>
-                  <p className="text-xs text-brand-navy/60">
-                    {member.email ?? '—'} • {member.role ?? 'Team member'}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   );
 }

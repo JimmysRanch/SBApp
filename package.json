@@ -8,8 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-specifier-resolution=node --loader ts-node/esm --test tests/*.test.ts"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:all",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "npm run typecheck && npm run test:unit && npm run test:e2e",
+    "verify:manifest": "node scripts/verify-manifest.cjs"
   },
   "keywords": [],
   "author": "",
@@ -31,17 +35,20 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/jsdom": "^21.1.7",
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.19.17",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.14",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.0.0",
     "jsdom": "^23.2.0",
+    "playwright": "^1.55.0",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.3.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "vitest": "^1.6.1"
   }
 }

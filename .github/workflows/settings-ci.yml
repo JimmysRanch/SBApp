@@ -1,0 +1,33 @@
+name: Settings CI
+on:
+  push:
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "components/**"
+      - "scripts/**"
+      - "tests/**"
+      - "supabase/**"
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: "npm" }
+      - run: npm ci
+      - name: Verify manifest
+        run: npm run verify:manifest
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build Next
+        run: npx next build
+      - name: Start app
+        run: E2E_BYPASS_AUTH=true npx next start & sleep 3
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+      - name: Tests
+        run: npm run test:all

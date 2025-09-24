@@ -1,6 +1,4 @@
-"use client";
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 interface Message {
   id: string
@@ -10,36 +8,30 @@ interface Message {
   created_at: string
 }
 
-export default function Messages() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(true)
+function formatTime(date: string) {
+  return new Date(date).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (!error && data) setMessages(data as unknown as Message[])
-      setLoading(false)
-    }
-    fetchMessages()
-  }, [])
+export default async function Messages() {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('messages')
+    .select('id, sender, recipient, body, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5)
 
-  const formatTime = (date: string) =>
-    new Date(date).toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const messages = (data ?? []) as Message[]
 
-  if (loading) return <div className="text-white/80">Loading...</div>
   if (!messages.length)
     return (
       <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/80 backdrop-blur-lg">
         No messages yet.
       </div>
     )
+
   return (
     <ul className="space-y-3">
       {messages.map((msg) => (

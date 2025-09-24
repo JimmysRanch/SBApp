@@ -8,9 +8,11 @@ import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   computeBiweeklyWeekIndex,
+  isInvalidInputError,
   isMissingColumnError,
   isMissingRelationError,
   isPermissionError,
+  parseDate,
   readMoney,
   shouldFallbackToAppointments,
   toNumber,
@@ -18,7 +20,7 @@ import {
 
 type PayrollLine = {
   appointment_id: number;
-  start_time: string;
+  start_time: string | null;
   service: string | null;
   base_price: number | null;
   commission_rate: number | null;
@@ -91,6 +93,7 @@ export default function EmployeePayrollPage() {
       ) {
         const fallback = await buildPayrollLinesFromAppointments(
           employee.id,
+          employee.user_id,
           startDate,
           endDate,
           employee.commission_rate
@@ -124,7 +127,7 @@ export default function EmployeePayrollPage() {
     } finally {
       setLoading(false);
     }
-  }, [employee.commission_rate, employee.id, endDate, startDate]);
+  }, [employee.commission_rate, employee.id, employee.user_id, endDate, startDate]);
 
   useEffect(() => {
     loadLines();
@@ -250,7 +253,7 @@ export default function EmployeePayrollPage() {
                   return (
                     <tr key={`${line.appointment_id}-${line.start_time}`} className="transition hover:bg-slate-50">
                       <td className="px-3 py-2 text-slate-600">
-                        {new Date(line.start_time).toLocaleString()}
+                        {line.start_time ? new Date(line.start_time).toLocaleString() : "—"}
                       </td>
                       <td className="px-3 py-2 text-slate-600">{line.service ?? "—"}</td>
                       <td className="px-3 py-2 text-slate-600">{formatMoney(line.base_price ?? 0)}</td>
@@ -301,46 +304,329 @@ export default function EmployeePayrollPage() {
 
 async function buildPayrollLinesFromAppointments(
   employeeId: number,
+  employeeUserId: string | null | undefined,
   startDate: string | null,
   endDate: string | null,
   commissionRate: number | string | null | undefined
 ): Promise<PayrollLine[]> {
-  const runAppointmentsQuery = (columns: string) => {
-    let builder = supabase
-      .from("appointments")
-      .select(columns)
-      .eq("employee_id", employeeId)
-      .order("start_time", { ascending: true });
+  const staffIdColumns = [
+    "employee_id",
+    "staff_id",
+    "groomer_id",
+    "user_id",
+    "assigned_employee_id",
+    "assigned_staff_id",
+    "team_member_id",
+  ];
+  const startTimeColumns = [
+    "start_time",
+    "starts_at",
+    "start",
+    "starts_on",
+    "scheduled_at",
+    "scheduled_for",
+    "start_date",
+    "service_date",
+    "appointment_date",
+    "date",
+  ];
+  const selectColumns = [
+    "id,start_time,service,price,price_cents,price_amount,price_amount_cents,starts_at,start,starts_on,scheduled_at,scheduled_for,start_date,service_date,appointment_date,date,service_name,service_type,base_price,base_price_cents",
+    "*",
+  ];
 
-    if (startDate) {
-      builder = builder.gte("start_time", new Date(startDate).toISOString());
-    }
-    if (endDate) {
-      const endBoundary = new Date(endDate);
-      endBoundary.setDate(endBoundary.getDate() + 1);
-      builder = builder.lt("start_time", endBoundary.toISOString());
-    }
+  type StaffCandidate = { value: number | string };
 
+  const staffCandidates: StaffCandidate[] = [];
+  const candidateKeys = new Set<string>();
+  const pushCandidate = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const key = `string:${trimmed}`;
+      if (candidateKeys.has(key)) return;
+      candidateKeys.add(key);
+      staffCandidates.push({ value: trimmed });
+      return;
+    }
+    if (!Number.isFinite(value)) return;
+    const key = `number:${value}`;
+    if (candidateKeys.has(key)) return;
+    candidateKeys.add(key);
+    staffCandidates.push({ value });
+  };
+
+  pushCandidate(employeeId);
+  if (Number.isFinite(employeeId)) {
+    pushCandidate(String(employeeId));
+  }
+  const normalisedUserId =
+    typeof employeeUserId === "string" && employeeUserId.trim() ? employeeUserId.trim() : null;
+  pushCandidate(normalisedUserId);
+
+  const stringCandidateValues = new Set(
+    staffCandidates
+      .map((candidate) => (typeof candidate.value === "string" ? candidate.value : String(candidate.value)))
+      .filter((value) => value.length > 0)
+  );
+  const numericCandidateValues = new Set(
+    staffCandidates
+      .map((candidate) =>
+        typeof candidate.value === "number"
+          ? candidate.value
+          : Number.isFinite(Number(candidate.value))
+          ? Number(candidate.value)
+          : null
+      )
+      .filter((value): value is number => value !== null)
+  );
+
+  let matchedStaffColumn: string | null = null;
+
+  const matchesStaff = (row: Record<string, unknown>) => {
+    if (staffCandidates.length === 0) return true;
+    const dynamicColumns = new Set<string>([...staffIdColumns, "employee", "staff", "groomer"]);
+    if (matchedStaffColumn) {
+      dynamicColumns.add(matchedStaffColumn);
+      if (!Object.prototype.hasOwnProperty.call(row, matchedStaffColumn)) {
+        return true;
+      }
+    }
+    const candidateColumns = Array.from(dynamicColumns);
+    return candidateColumns.some((column) => {
+      if (!Object.prototype.hasOwnProperty.call(row, column)) return false;
+      const raw = row[column as keyof typeof row];
+      if (raw === null || raw === undefined) return false;
+      if (typeof raw === "number") {
+        return numericCandidateValues.has(raw);
+      }
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return false;
+        if (stringCandidateValues.has(trimmed)) return true;
+        const asNumber = Number(trimmed);
+        if (Number.isFinite(asNumber)) {
+          return numericCandidateValues.has(asNumber);
+        }
+        return false;
+      }
+      return false;
+    });
+  };
+
+  const runAppointmentsQuery = (
+    columns: string,
+    staffColumn: string,
+    staffValue: number | string,
+    timeColumn: string | null,
+    useBounds: boolean
+  ) => {
+    let builder = supabase.from("appointments").select(columns).eq(staffColumn, staffValue);
+    if (timeColumn) {
+      builder = builder.order(timeColumn, { ascending: true });
+      if (useBounds) {
+        let scoped = builder;
+        if (startDate) {
+          const value =
+            timeColumn.includes("date") && !timeColumn.includes("time")
+              ? startDate
+              : new Date(startDate).toISOString();
+          scoped = scoped.gte(timeColumn, value);
+        }
+        if (endDate) {
+          const endBoundary = new Date(endDate);
+          if (!timeColumn.includes("date") || timeColumn.includes("time")) {
+            endBoundary.setDate(endBoundary.getDate() + 1);
+          }
+          const value =
+            timeColumn.includes("date") && !timeColumn.includes("time")
+              ? endDate
+              : endBoundary.toISOString();
+          scoped = scoped.lt(timeColumn, value);
+        }
+        builder = scoped;
+      }
+    }
     return builder;
   };
 
-  let appointmentResponse = await runAppointmentsQuery(
-    "id,start_time,service,price,price_cents,price_amount,price_amount_cents"
-  );
+  let rows: any[] | null = null;
+  let lastError: PostgrestError | null = null;
 
-  if (
-    appointmentResponse.error &&
-    isMissingColumnError(appointmentResponse.error as PostgrestError)
-  ) {
-    appointmentResponse = await runAppointmentsQuery("*");
+  outer: for (const staffColumn of staffIdColumns) {
+    candidateLoop: for (const candidate of staffCandidates) {
+      for (const timeColumn of startTimeColumns) {
+        for (const columnSet of selectColumns) {
+          const response = await runAppointmentsQuery(
+            columnSet,
+            staffColumn,
+            candidate.value,
+            timeColumn,
+            true
+          );
+          if (!response.error) {
+            const data = (response.data as any[]) ?? [];
+            if (data.length > 0) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+              break outer;
+            }
+            if (!rows) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+            }
+            continue;
+          }
+
+          const typedError = response.error as PostgrestError;
+          lastError = typedError;
+
+          if (isMissingColumnError(typedError)) {
+            continue;
+          }
+          if (isInvalidInputError(typedError)) {
+            continue candidateLoop;
+          }
+          if (isMissingRelationError(typedError) || isPermissionError(typedError)) {
+            throw typedError;
+          }
+          throw typedError;
+        }
+      }
+    }
   }
 
-  if (appointmentResponse.error) {
-    throw appointmentResponse.error;
+  if (!rows || rows.length === 0) {
+    outerNoBounds: for (const staffColumn of staffIdColumns) {
+      candidateLoopNoBounds: for (const candidate of staffCandidates) {
+        for (const columnSet of selectColumns) {
+          const response = await runAppointmentsQuery(
+            columnSet,
+            staffColumn,
+            candidate.value,
+            null,
+            false
+          );
+          if (!response.error) {
+            const data = (response.data as any[]) ?? [];
+            if (data.length > 0) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+              break outerNoBounds;
+            }
+            if (!rows) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+            }
+            continue;
+          }
+
+          const typedError = response.error as PostgrestError;
+          lastError = typedError;
+
+          if (isMissingColumnError(typedError)) {
+            continue;
+          }
+          if (isInvalidInputError(typedError)) {
+            continue candidateLoopNoBounds;
+          }
+          if (isMissingRelationError(typedError) || isPermissionError(typedError)) {
+            throw typedError;
+          }
+          throw typedError;
+        }
+      }
+      if (rows && rows.length > 0) {
+        break;
+      }
+    }
   }
 
-  const rows = (appointmentResponse.data as any[]) ?? [];
-  const appointmentIds = rows.map((row) => row.id).filter((id) => typeof id === "number");
+  if ((!rows || rows.length === 0) && staffCandidates.length > 0) {
+    matchedStaffColumn = null;
+    for (const columnSet of selectColumns) {
+      const probe = await supabase
+        .from("appointments")
+        .select(columnSet)
+        .limit(1000);
+      if (!probe.error) {
+        const data = ((probe.data as any[]) ?? []).filter((row) => matchesStaff(row));
+        if (data.length > 0) {
+          rows = data;
+          lastError = null;
+          matchedStaffColumn = null;
+          break;
+        }
+        if (!rows) {
+          rows = data;
+          matchedStaffColumn = null;
+        }
+        continue;
+      }
+
+      const typedError = probe.error as PostgrestError;
+      lastError = typedError;
+      if (!isMissingColumnError(typedError)) {
+        break;
+      }
+    }
+  }
+
+  if (!rows) {
+    if (lastError) {
+      throw lastError;
+    }
+    return [];
+  }
+
+  const startBoundary = startDate ? new Date(startDate) : null;
+  const endBoundary = endDate ? new Date(endDate) : null;
+  if (endBoundary) {
+    endBoundary.setDate(endBoundary.getDate() + 1);
+  }
+
+  const filteredRows = rows.filter((row) => {
+    if (!matchesStaff(row)) {
+      return false;
+    }
+
+    const value =
+      row.start_time ??
+      row.starts_at ??
+      row.start ??
+      row.starts_on ??
+      row.scheduled_at ??
+      row.scheduled_for ??
+      row.start_date ??
+      row.service_date ??
+      row.appointment_date ??
+      row.date ??
+      null;
+
+    let date: Date | null = null;
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === "number") {
+      const parsed = new Date(value);
+      date = Number.isNaN(parsed.getTime()) ? null : parsed;
+    } else if (typeof value === "string") {
+      date = parseDate(value);
+    }
+
+    if (!date) return true;
+    if (startBoundary && date < startBoundary) return false;
+    if (endBoundary && date >= endBoundary) return false;
+    return true;
+  });
+
+  const appointmentIds = filteredRows
+    .map((row) => row.id)
+    .filter((id) => typeof id === "number");
 
   const discountMap = new Map<
     number,
@@ -388,26 +674,62 @@ async function buildPayrollLinesFromAppointments(
 
   const rate = toNumber(commissionRate) ?? 0;
 
-  return rows.map((row) => {
+  return filteredRows.map((row) => {
     const id = row.id as number;
-    const base = readMoney(row, ["price", "price_cents", "price_amount", "price_amount_cents"]) ?? 0;
+    const base =
+      readMoney(row, [
+        "price",
+        "price_cents",
+        "price_amount",
+        "price_amount_cents",
+        "base_price",
+        "base_price_cents",
+        "amount",
+        "amount_cents",
+      ]) ?? 0;
     const discountInfo = discountMap.get(id);
     const adjustmentAmount = discountInfo ? -discountInfo.total : 0;
     const adjustmentReason = discountInfo && discountInfo.reasons.length > 0 ? discountInfo.reasons.join("; ") : null;
     const commissionAmount = base * rate;
     const final = base + commissionAmount + adjustmentAmount;
 
+    const startValue =
+      row.start_time ??
+      row.starts_at ??
+      row.start ??
+      row.starts_on ??
+      row.scheduled_at ??
+      row.scheduled_for ??
+      row.start_date ??
+      row.service_date ??
+      row.appointment_date ??
+      row.date ??
+      null;
+    const startTime =
+      typeof startValue === "string"
+        ? startValue
+        : startValue instanceof Date
+        ? startValue.toISOString()
+        : typeof startValue === "number"
+        ? new Date(startValue).toISOString()
+        : startValue
+        ? String(startValue)
+        : null;
+
+    const serviceName =
+      row.service ?? row.service_name ?? row.service_type ?? row.title ?? row.service_label ?? null;
+
     return {
       appointment_id: id,
-      start_time: row.start_time,
-      service: row.service ?? null,
+      start_time: startTime,
+      service: serviceName,
       base_price: base,
       commission_rate: rate,
       commission_amount: commissionAmount,
       adjustment_amount: adjustmentAmount,
       adjustment_reason: adjustmentReason,
       final_earnings: final,
-      week_index: computeBiweeklyWeekIndex(row.start_time),
+      week_index: computeBiweeklyWeekIndex(startTime),
     } as PayrollLine;
   });
 }

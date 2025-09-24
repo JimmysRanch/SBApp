@@ -24,6 +24,13 @@ export function isPermissionError(error: PostgrestError | null) {
   return error.message?.toLowerCase().includes("permission denied");
 }
 
+export function isInvalidInputError(error: PostgrestError | null) {
+  if (!error) return false;
+  if (error.code === "22P02") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("invalid input syntax") || message.includes("invalid input value");
+}
+
 export function shouldFallbackToAppointments(error: PostgrestError | null) {
   return isMissingFunctionError(error) || isMissingRelationError(error) || isPermissionError(error);
 }

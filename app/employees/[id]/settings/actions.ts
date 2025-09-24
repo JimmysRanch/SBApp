@@ -5,6 +5,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { CompensationPlan } from "@/lib/compensationPlan";
 import { toStoredPlan } from "@/lib/compensationPlan";
+import {
+  cleanNullableText,
+  normalizeStatusLabel,
+  normalizeTagList,
+  toOptionalNumber,
+} from "@/lib/employees/profile";
 
 export async function saveProfileAction(
   staffId: number,
@@ -24,21 +30,22 @@ export async function saveProfileAction(
   }
 ) {
   const supabase = createClient();
-  const status = input.status || "Active";
+  const { status, isActive } = normalizeStatusLabel(input.status);
+  const email = cleanNullableText(input.email)?.toLowerCase() ?? null;
   const payload = {
-    name: input.name || null,
-    role: input.role || null,
-    email: input.email || null,
-    phone: input.phone || null,
-    avatar_url: input.avatar_url || null,
-    address_street: input.address_street || null,
-    address_city: input.address_city || null,
-    address_state: input.address_state || null,
-    address_zip: input.address_zip || null,
-    emergency_contact_name: input.emergency_contact_name || null,
-    emergency_contact_phone: input.emergency_contact_phone || null,
+    name: cleanNullableText(input.name),
+    role: cleanNullableText(input.role),
+    email,
+    phone: cleanNullableText(input.phone),
+    avatar_url: cleanNullableText(input.avatar_url),
+    address_street: cleanNullableText(input.address_street),
+    address_city: cleanNullableText(input.address_city),
+    address_state: cleanNullableText(input.address_state),
+    address_zip: cleanNullableText(input.address_zip),
+    emergency_contact_name: cleanNullableText(input.emergency_contact_name),
+    emergency_contact_phone: cleanNullableText(input.emergency_contact_phone),
     status,
-    active: status.toLowerCase().includes("active"),
+    active: isActive,
   };
   const { error } = await supabase.from("employees").update(payload).eq("id", staffId);
   if (error) {
@@ -66,7 +73,9 @@ export async function saveCompensationAction(
     hourly_rate: Number.isFinite(input.hourly_rate) ? input.hourly_rate : 0,
     salary_rate: Number.isFinite(input.salary_rate) ? input.salary_rate : 0,
     compensation_plan: toStoredPlan(input.compensation_plan),
-    app_permissions: input.app_permissions,
+    app_permissions: Object.fromEntries(
+      Object.entries(input.app_permissions ?? {}).map(([key, value]) => [key, Boolean(value)]),
+    ),
   };
   const { error } = await supabase.from("employees").update(payload).eq("id", staffId);
   if (error) {
@@ -87,12 +96,18 @@ export async function savePreferencesAction(
   }
 ) {
   const supabase = createClient();
+  const preferredBreeds = normalizeTagList(input.preferred_breeds);
+  const notAcceptedBreeds = normalizeTagList(input.not_accepted_breeds);
+  const specialties = normalizeTagList(input.specialties);
+  const weeklyTarget = toOptionalNumber(input.weeklyTarget);
+  const dogsPerDay = toOptionalNumber(input.dogsPerDay);
+
   const { error: employeeError } = await supabase
     .from("employees")
     .update({
-      preferred_breeds: input.preferred_breeds,
-      not_accepted_breeds: input.not_accepted_breeds,
-      specialties: input.specialties,
+      preferred_breeds: preferredBreeds,
+      not_accepted_breeds: notAcceptedBreeds,
+      specialties,
     })
     .eq("id", staffId);
 
@@ -101,8 +116,8 @@ export async function savePreferencesAction(
     .upsert(
       {
         staff_id: staffId,
-        weekly_revenue_target: input.weeklyTarget,
-        desired_dogs_per_day: input.dogsPerDay,
+        weekly_revenue_target: weeklyTarget,
+        desired_dogs_per_day: dogsPerDay,
       },
       { onConflict: "staff_id" }
     );

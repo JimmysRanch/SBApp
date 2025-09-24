@@ -5,8 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase/client';
 
-export const dynamic = 'force-dynamic';
-
 type Row = {
   id: number;
   start_time: string;
@@ -61,6 +59,21 @@ export default function CalendarPage() {
     return Array.from({ length: 7 }, (_, index) => new Date(startTime + index * DAY_IN_MS));
   }, [today]);
   const weekDayKeys = useMemo(() => weekDays.map((day) => toDateKey(day)), [weekDays]);
+  const weekBounds = useMemo(() => {
+    if (weekDays.length === 0) {
+      const fallback = new Date();
+      const iso = fallback.toISOString();
+      return { startIso: iso, endIso: iso };
+    }
+
+    const start = new Date(weekDays[0]);
+    start.setHours(0, 0, 0, 0);
+    const lastDay = new Date(weekDays[weekDays.length - 1]);
+    lastDay.setHours(0, 0, 0, 0);
+    lastDay.setDate(lastDay.getDate() + 1);
+
+    return { startIso: start.toISOString(), endIso: lastDay.toISOString() };
+  }, [weekDays]);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const load = useCallback(async () => {
@@ -70,10 +83,6 @@ export default function CalendarPage() {
     setErr(null);
 
     try {
-      const now = new Date();
-      const fromISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const toISO = new Date(now.getFullYear(), now.getMonth() + 1, 7).toISOString();
-
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -81,8 +90,8 @@ export default function CalendarPage() {
           pets ( name ),
           services ( name )
         `)
-        .gte('start_time', fromISO)
-        .lt('start_time', toISO)
+        .gte('start_time', weekBounds.startIso)
+        .lt('start_time', weekBounds.endIso)
         .in('status', ['booked', 'checked_in', 'in_progress', 'completed'])
         .order('start_time', { ascending: true });
 
@@ -104,7 +113,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [permissions.canManageCalendar, session]);
+  }, [permissions.canManageCalendar, session, weekBounds.endIso, weekBounds.startIso]);
 
   const appointmentsByDay = useMemo(() => {
     const grouped = new Map<string, { date: Date; appointments: AppointmentWithParsed[] }>();

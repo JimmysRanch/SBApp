@@ -1,10 +1,8 @@
-'use client';
-
 import Card from '@/components/Card';
 import PageContainer from '@/components/PageContainer';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
+import { unstable_noStore as noStore } from 'next/cache';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 type Client = {
   id: number;
@@ -12,40 +10,40 @@ type Client = {
   email: string | null;
   phone: string | null;
   pet_names: string | null;
-  created_at: string;
 };
 
+type PageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
 
-export default function ClientsPage() {
-  const [rows, setRows] = useState<Client[]>([]);
-  const [q, setQ] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  async function load() {
-    setLoading(true);
-    setErr(null);
+function normaliseQuery(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
 
-    let query = supabase
-      .from('clients_with_pets')
-      .select('id, full_name, email, phone, pet_names, created_at')
-      .order('created_at', { ascending: false })
-      .limit(200);
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
-    if (q.trim()) {
-      const pat = `%${q.trim()}%`;
-      query = query.or(
-        `full_name.ilike.${pat},email.ilike.${pat},phone.ilike.${pat},pet_names.ilike.${pat}`
-      );
-    }
+export default async function ClientsPage({ searchParams }: PageProps) {
+  noStore();
+  const supabase = createClient();
+  const q = normaliseQuery(searchParams?.q).trim();
 
-    const { data, error } = await query;
-    if (error) setErr(error.message); else setRows(data ?? []);
-    setLoading(false);
+  let query = supabase
+    .from('clients_with_pets')
+    .select('id, full_name, email, phone, pet_names, created_at')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (q) {
+    const pat = `%${q}%`;
+    query = query.or(
+      `full_name.ilike.${pat},email.ilike.${pat},phone.ilike.${pat},pet_names.ilike.${pat}`
+    );
   }
 
-  // We only need the initial fetch when the page mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, []);
+  const { data, error } = await query;
+  const rows: Client[] = (data ?? []) as Client[];
 
   return (
     <PageContainer className="space-y-8">
@@ -66,18 +64,12 @@ export default function ClientsPage() {
             </svg>
             New Client
           </Link>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              load();
-            }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end"
-          >
+          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <div className="relative w-full sm:w-72">
               <input
                 placeholder="Search name, email, phone, or pet"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
+                name="q"
+                defaultValue={q}
                 className="h-12 w-full rounded-xl border border-white/50 bg-white/90 px-4 pr-12 text-base text-brand-navy shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30"
               />
               <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-navy/40">
@@ -100,24 +92,14 @@ export default function ClientsPage() {
           </form>
         </div>
 
-        {err && (
+        {error && (
           <div className="rounded-2xl border border-red-300/40 bg-red-100/40 px-4 py-3 text-sm text-red-700">
-            Failed to load clients: {err}
+            Failed to load clients: {error.message}
           </div>
         )}
 
         <div className="space-y-4">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/70 p-5"
-              >
-                <div className="h-5 w-1/3 animate-pulse rounded-full bg-brand-bubble/20" />
-                <div className="mt-3 h-4 w-1/2 animate-pulse rounded-full bg-brand-bubble/10" />
-              </div>
-            ))
-          ) : rows.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-brand-bubble/40 bg-white/70 px-6 py-12 text-center text-sm text-brand-navy/70">
               No clients found.
             </div>

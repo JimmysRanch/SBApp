@@ -1,37 +1,33 @@
-"use client";
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { unstable_noStore as noStore } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
 
-interface Alert {
-  id: string
-  message: string
-  created_at: string
-}
+type Alert = {
+  id: string;
+  message: string | null;
+};
 
-export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState(true)
+export default async function Alerts() {
+  noStore();
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("alerts")
+    .select("id, message")
+    .order("created_at", { ascending: false })
+    .limit(5);
 
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (!error && data) setAlerts(data as Alert[])
-      setLoading(false)
-    }
-    fetchAlerts()
-  }, [])
+  if (error) {
+    console.error("Failed to load alerts", error);
+    return <div className="text-sm text-red-600">Failed to load alerts.</div>;
+  }
 
-  if (loading) return <div>Loading...</div>
-  if (!alerts.length) return <div>No alerts.</div>
+  const alerts: Alert[] = data ?? [];
+  if (!alerts.length) return <div className="text-sm text-white/80">No alerts.</div>;
+
   return (
-    <ul className="space-y-1 list-disc list-inside text-sm">
+    <ul className="list-inside list-disc space-y-1 text-sm">
       {alerts.map((alert) => (
-        <li key={alert.id}>{alert.message}</li>
+        <li key={alert.id}>{alert.message ?? ""}</li>
       ))}
     </ul>
-  )
+  );
 }

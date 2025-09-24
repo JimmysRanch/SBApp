@@ -201,29 +201,52 @@ export default function AuthProvider({
   useEffect(() => {
     let active = true;
 
+    const shouldLoadSession = !initialSession;
+    const shouldLoadProfile = !initialProfile;
+
     const initialise = async () => {
       try {
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession();
+        let nextSession = initialSession ?? null;
+
+        if (shouldLoadSession) {
+          const {
+            data: { session: currentSession },
+          } = await supabase.auth.getSession();
+
+          if (!active) return;
+
+          nextSession = currentSession ?? null;
+        }
 
         if (!active) return;
 
-        setSession(currentSession ?? null);
-        const currentUser = currentSession?.user ?? null;
-        setUser(currentUser);
-        setSessionExpiresAt(normaliseExpiry(currentSession));
-        const nextProfile = await loadUserProfile(currentUser);
+        setSession(nextSession);
+        const nextUser = nextSession?.user ?? null;
+        setUser(nextUser);
+        setSessionExpiresAt(normaliseExpiry(nextSession));
+
+        if (!shouldLoadProfile) return;
+
+        if (!nextUser) {
+          setProfile(null);
+          return;
+        }
+
+        const nextProfile = await loadUserProfile(nextUser);
         if (!active) return;
         setProfile(nextProfile);
       } catch (error) {
         console.error("Unable to initialise auth session", error);
       } finally {
-        if (active) setLoading(false);
+        if (active && (shouldLoadSession || shouldLoadProfile)) {
+          setLoading(false);
+        }
       }
     };
 
-    void initialise();
+    if (shouldLoadSession || shouldLoadProfile) {
+      void initialise();
+    }
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, nextSession) => {
@@ -262,7 +285,7 @@ export default function AuthProvider({
       active = false;
       subscription.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [initialProfile, initialSession, router]);
 
   const refreshProfile = useCallback(async () => {
     const nextProfile = await loadUserProfile(user);

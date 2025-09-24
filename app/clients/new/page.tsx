@@ -37,8 +37,8 @@ const textAreaClass =
   'min-h-[96px] w-full rounded-xl border border-white/50 bg-white/95 px-4 py-3 text-base text-brand-navy placeholder:text-brand-navy/50 shadow-inner transition focus:border-brand-bubble focus:outline-none focus:ring-2 focus:ring-brand-bubble/30';
 const labelClass = 'text-sm font-semibold text-brand-navy';
 
-const hearAboutUsOptions = [
-  { value: '', label: 'Select one' },
+const hearAboutUsOptions: { value: string; label: string; disabled?: boolean }[] = [
+  { value: '', label: 'Select one', disabled: true },
   { value: 'Facebook', label: 'Facebook' },
   { value: 'Nextdoor', label: 'Nextdoor' },
   { value: 'Google', label: 'Google' },
@@ -105,7 +105,9 @@ export default function NewClientPage() {
     try {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
+      const trimmedEmail = email.trim();
       const digits = phone.replace(/\D/g, '');
+      const selectedHearAboutUs = hearAboutUs.trim();
 
       if (!trimmedFirst || !trimmedLast) {
         throw new Error('First name and last name are required.');
@@ -113,6 +115,14 @@ export default function NewClientPage() {
 
       if (digits.length !== 10) {
         throw new Error('Please enter a valid 10 digit phone number.');
+      }
+
+      if (!trimmedEmail) {
+        throw new Error('Email is required.');
+      }
+
+      if (!selectedHearAboutUs) {
+        throw new Error('Please let us know how you heard about us.');
       }
 
       const dogsToSave = dogs.filter((dog) => hasDogData(dog));
@@ -130,8 +140,8 @@ export default function NewClientPage() {
           first_name: trimmedFirst,
           last_name: trimmedLast,
           phone: digits,
-          email: email.trim() || null,
-          hear_about_us: hearAboutUs || null,
+          email: trimmedEmail,
+          hear_about_us: selectedHearAboutUs,
         })
         .select('id')
         .single();
@@ -188,11 +198,10 @@ export default function NewClientPage() {
           <div className="rounded-2xl border border-red-300/60 bg-red-100/70 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="grid gap-6 lg:grid-cols-2">
           <Card className="space-y-5 p-5 lg:space-y-4">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-brand-navy">Owner information</h2>
-              <p className="text-sm text-brand-navy/60">Tell us about the person who owns the pets.</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -252,12 +261,13 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-1.5">
                 <label className={labelClass} htmlFor="email">
-                  Email <span className="font-normal text-brand-navy/60">(optional)</span>
+                  Email
                 </label>
                 <input
                   id="email"
                   name="email"
                   type="email"
+                  required
                   className={textInputClass}
                   value={email}
                   onChange={(event) => {
@@ -270,11 +280,12 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <label className={labelClass} htmlFor="hearAboutUs">
-                  How did they hear about you? <span className="font-normal text-brand-navy/60">(optional)</span>
+                  How did you hear about us?
                 </label>
                 <select
                   id="hearAboutUs"
                   name="hearAboutUs"
+                  required
                   className={textInputClass}
                   value={hearAboutUs}
                   onChange={(event) => {
@@ -283,7 +294,7 @@ export default function NewClientPage() {
                   }}
                 >
                   {hearAboutUsOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option key={option.value} value={option.value} disabled={option.disabled}>
                       {option.label}
                     </option>
                   ))}
@@ -292,148 +303,151 @@ export default function NewClientPage() {
             </div>
           </Card>
 
-          <Card className="flex flex-col gap-5 p-5">
+          <Card className="space-y-5 p-5 lg:space-y-4">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-brand-navy">Dog information</h2>
-              <p className="text-sm text-brand-navy/60">
-                Add each dog the client will bring in. Leave blank to skip. Age, weight, and coat type are required for each dog
-                you add.
-              </p>
             </div>
 
-            <div className="space-y-4">
-              {dogs.map((dog, index) => (
-                <div
-                  key={index}
-                  className="space-y-4 border-t border-white/50 pt-5 first:border-t-0 first:pt-0"
-                >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className={labelClass} htmlFor={`dog-name-${index}`}>
-                        Name
-                      </label>
-                      <input
-                        id={`dog-name-${index}`}
-                        type="text"
-                        className={textInputClass}
-                        value={dog.name}
-                        onChange={(event) => updateDog(index, { name: event.target.value })}
-                        placeholder="Charlie"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className={labelClass} htmlFor={`dog-breed-${index}`}>
-                        Breed
-                      </label>
-                      <input
-                        id={`dog-breed-${index}`}
-                        type="text"
-                        className={textInputClass}
-                        value={dog.breed}
-                        onChange={(event) => updateDog(index, { breed: event.target.value })}
-                        placeholder="Golden Retriever"
-                      />
-                    </div>
-                  </div>
+            <div className="space-y-5">
+              {dogs.map((dog, index) => {
+                const neuteredId = `dog-neutered-${index}`;
 
-                  <div className="flex flex-wrap items-center gap-4 rounded-xl border border-white/50 bg-white/70 px-3 py-2">
-                    <span className="text-sm font-semibold text-brand-navy">Gender:</span>
-                    <label className="flex items-center gap-2 text-sm text-brand-navy">
-                      <input
-                        type="radio"
-                        name={`dog-gender-${index}`}
-                        value="male"
-                        checked={dog.gender === 'male'}
-                        onChange={() => updateDog(index, { gender: 'male' })}
-                        className="h-4 w-4 border-brand-bubble text-primary focus:ring-brand-bubble"
-                      />
-                      Male
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-brand-navy">
-                      <input
-                        type="radio"
-                        name={`dog-gender-${index}`}
-                        value="female"
-                        checked={dog.gender === 'female'}
-                        onChange={() => updateDog(index, { gender: 'female' })}
-                        className="h-4 w-4 border-brand-bubble text-primary focus:ring-brand-bubble"
-                      />
-                      Female
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-brand-navy">
-                      <input
-                        type="checkbox"
-                        checked={dog.neutered}
-                        onChange={(event) => updateDog(index, { neutered: event.target.checked })}
-                        className="h-4 w-4 rounded border-brand-bubble text-primary focus:ring-brand-bubble"
-                      />
-                      Spayed / neutered
-                    </label>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <label className={labelClass} htmlFor={`dog-age-${index}`}>
-                        Age
-                      </label>
-                      <input
-                        id={`dog-age-${index}`}
-                        type="text"
-                        className={textInputClass}
-                        value={dog.age}
-                        onChange={(event) => updateDog(index, { age: event.target.value })}
-                        placeholder="2 years"
-                        required={hasDogData(dog)}
-                      />
+                return (
+                  <div
+                    key={index}
+                    className="space-y-5 border-t border-white/50 pt-5 first:border-t-0 first:pt-0"
+                  >
+                    <div className="grid gap-3 md:grid-cols-2 md:items-start">
+                      <div className="space-y-1.5 md:order-1">
+                        <label className={labelClass} htmlFor={`dog-name-${index}`}>
+                          Name
+                        </label>
+                        <input
+                          id={`dog-name-${index}`}
+                          type="text"
+                          className={textInputClass}
+                          value={dog.name}
+                          onChange={(event) => updateDog(index, { name: event.target.value })}
+                          placeholder="Charlie"
+                        />
+                      </div>
+                      <div className="space-y-1.5 md:order-2">
+                        <label className={labelClass} htmlFor={`dog-breed-${index}`}>
+                          Breed
+                        </label>
+                        <input
+                          id={`dog-breed-${index}`}
+                          type="text"
+                          className={textInputClass}
+                          value={dog.breed}
+                          onChange={(event) => updateDog(index, { breed: event.target.value })}
+                          placeholder="Golden Retriever"
+                        />
+                      </div>
+                      <div className="space-y-1.5 md:order-3">
+                        <label className={labelClass} htmlFor={`dog-age-${index}`}>
+                          Age
+                        </label>
+                        <input
+                          id={`dog-age-${index}`}
+                          type="text"
+                          className={textInputClass}
+                          value={dog.age}
+                          onChange={(event) => updateDog(index, { age: event.target.value })}
+                          placeholder="2 years"
+                          required={hasDogData(dog)}
+                        />
+                      </div>
+                      <div className="space-y-1.5 md:order-4">
+                        <span className={labelClass}>Spayed / neutered</span>
+                        <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-white/50 bg-white/70 px-3">
+                          <label className="flex items-center gap-2 text-sm text-brand-navy" htmlFor={neuteredId}>
+                            <input
+                              id={neuteredId}
+                              type="checkbox"
+                              checked={dog.neutered}
+                              onChange={(event) => updateDog(index, { neutered: event.target.checked })}
+                              className="h-4 w-4 rounded border-brand-bubble text-primary focus:ring-brand-bubble"
+                            />
+                            Yes
+                          </label>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 md:order-5">
+                        <span className={labelClass}>Gender</span>
+                        <div className="flex h-11 w-full flex-wrap items-center gap-4 rounded-xl border border-white/50 bg-white/70 px-3">
+                          <label className="flex items-center gap-2 text-sm text-brand-navy">
+                            <input
+                              type="radio"
+                              name={`dog-gender-${index}`}
+                              value="male"
+                              checked={dog.gender === 'male'}
+                              onChange={() => updateDog(index, { gender: 'male' })}
+                              className="h-4 w-4 border-brand-bubble text-primary focus:ring-brand-bubble"
+                            />
+                            Male
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-brand-navy">
+                            <input
+                              type="radio"
+                              name={`dog-gender-${index}`}
+                              value="female"
+                              checked={dog.gender === 'female'}
+                              onChange={() => updateDog(index, { gender: 'female' })}
+                              className="h-4 w-4 border-brand-bubble text-primary focus:ring-brand-bubble"
+                            />
+                            Female
+                          </label>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 md:order-6">
+                        <label className={labelClass} htmlFor={`dog-weight-${index}`}>
+                          Weight
+                        </label>
+                        <input
+                          id={`dog-weight-${index}`}
+                          type="text"
+                          className={textInputClass}
+                          value={dog.weight}
+                          onChange={(event) => updateDog(index, { weight: event.target.value })}
+                          placeholder="45 lbs"
+                          required={hasDogData(dog)}
+                        />
+                      </div>
+                      <div className="space-y-1.5 md:order-7 md:col-span-2">
+                        <label className={labelClass} htmlFor={`dog-hair-${index}`}>
+                          Coat / hair type
+                        </label>
+                        <select
+                          id={`dog-hair-${index}`}
+                          className={textInputClass}
+                          value={dog.hairType}
+                          onChange={(event) => updateDog(index, { hairType: event.target.value })}
+                          required={hasDogData(dog)}
+                        >
+                          {hairTypeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5 md:order-8 md:col-span-2">
+                        <label className={labelClass} htmlFor={`dog-medical-${index}`}>
+                          Medical notes / allergies <span className="font-normal text-brand-navy/60">(optional)</span>
+                        </label>
+                        <textarea
+                          id={`dog-medical-${index}`}
+                          className={textAreaClass}
+                          value={dog.medical}
+                          onChange={(event) => updateDog(index, { medical: event.target.value })}
+                          placeholder="Allergies, meds, behavioral notes"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className={labelClass} htmlFor={`dog-weight-${index}`}>
-                        Weight
-                      </label>
-                      <input
-                        id={`dog-weight-${index}`}
-                        type="text"
-                        className={textInputClass}
-                        value={dog.weight}
-                        onChange={(event) => updateDog(index, { weight: event.target.value })}
-                        placeholder="45 lbs"
-                        required={hasDogData(dog)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className={labelClass} htmlFor={`dog-hair-${index}`}>
-                        Coat / hair type
-                      </label>
-                      <select
-                        id={`dog-hair-${index}`}
-                        className={textInputClass}
-                        value={dog.hairType}
-                        onChange={(event) => updateDog(index, { hairType: event.target.value })}
-                        required={hasDogData(dog)}
-                      >
-                        {hairTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className={labelClass} htmlFor={`dog-medical-${index}`}>
-                      Medical notes / allergies <span className="font-normal text-brand-navy/60">(optional)</span>
-                    </label>
-                    <textarea
-                      id={`dog-medical-${index}`}
-                      className={textAreaClass}
-                      value={dog.medical}
-                      onChange={(event) => updateDog(index, { medical: event.target.value })}
-                      placeholder="Allergies, meds, behavioral notes"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <button

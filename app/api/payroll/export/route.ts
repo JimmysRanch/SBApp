@@ -1,24 +1,41 @@
 import { NextResponse } from "next/server";
 
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+
 import { createClient } from "@/lib/supabase/server";
+import {
+  isMissingPrimaryKeyError,
+  isMissingRelationError,
+  toNumber,
+} from "@/app/employees/[id]/data-helpers";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const staffId = url.searchParams.get("staff_id");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const mode = url.searchParams.get("mode");
 
   if (!staffId) {
     return NextResponse.json({ error: "staff_id is required" }, { status: 400 });
   }
 
   const supabase = createClient();
+  const staffIdNumber = Number(staffId);
+  if (!Number.isFinite(staffIdNumber)) {
+    return NextResponse.json({ error: "staff_id must be a number" }, { status: 400 });
+  }
+
+  if (mode === "paystub") {
+    return exportPaystubCsv(supabase, staffIdNumber, from, to);
+  }
+
   let query = supabase
     .from("payroll_lines_view")
     .select(
       "start_time,service,base_price,base_price_cents,commission_rate,commission_amount,commission_amount_cents,adjustment_amount,adjustment_amount_cents,adjustment_reason,final_earnings,final_earnings_cents,week_index"
     )
-    .eq("staff_id", Number(staffId))
+    .eq("staff_id", staffIdNumber)
     .order("start_time", { ascending: true });
 
   if (from) {
@@ -32,6 +49,10 @@ export async function GET(request: Request) {
 
   const { data, error } = await query;
   if (error) {
+    const typedError = error as PostgrestError;
+    if (isMissingRelationError(typedError) || isMissingPrimaryKeyError(typedError)) {
+      return exportPaystubCsv(supabase, staffIdNumber, from, to);
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -104,6 +125,86 @@ export async function GET(request: Request) {
       "Content-Disposition": `attachment; filename=staff-${staffId}-payroll.csv`,
     },
   });
+}
+
+async function exportPaystubCsv(
+  supabase: SupabaseClient,
+  staffId: number,
+  from: string | null,
+  to: string | null
+) {
+  let query = supabase
+    .from("payroll_lines_ui")
+    .select(
+      "paid_at,base_dollars,commission_dollars,override_dollars,tip_dollars,guarantee_topup_dollars,final_dollars"
+    )
+    .eq("employee_id", staffId)
+    .order("paid_at", { ascending: true });
+
+  if (from) {
+    query = query.gte("paid_at", new Date(from).toISOString());
+  }
+  if (to) {
+    const end = new Date(to);
+    end.setDate(end.getDate() + 1);
+    query = query.lt("paid_at", end.toISOString());
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const rows = ((data ?? []) as any[]).map((line) => ({
+    paid_at: line.paid_at ?? null,
+    base: toNumber(line.base_dollars) ?? 0,
+    commission: toNumber(line.commission_dollars) ?? 0,
+    override: toNumber(line.override_dollars) ?? 0,
+    tips: toNumber(line.tip_dollars) ?? 0,
+    guarantee: toNumber(line.guarantee_topup_dollars) ?? 0,
+    final: toNumber(line.final_dollars) ?? 0,
+  }));
+
+  const header = [
+    "Paid Date",
+    "Base",
+    "Commission",
+    "Override",
+    "Tips",
+    "Guarantee Top-up",
+    "Final",
+  ];
+
+  const csv = [
+    header.join(","),
+    ...rows.map((row) =>
+      [
+        formatPaystubDate(row.paid_at),
+        row.base.toFixed(2),
+        row.commission.toFixed(2),
+        row.override.toFixed(2),
+        row.tips.toFixed(2),
+        row.guarantee.toFixed(2),
+        row.final.toFixed(2),
+      ].join(",")
+    ),
+  ].join("\n");
+
+  return new NextResponse(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename=staff-${staffId}-payroll.csv`,
+    },
+  });
+}
+
+function formatPaystubDate(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+  return date.toLocaleDateString().replace(/,/g, "");
 }
 
 function escapeCsv(value: string) {

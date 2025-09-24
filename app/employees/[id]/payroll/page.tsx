@@ -8,17 +8,20 @@ import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   computeBiweeklyWeekIndex,
+  isInvalidInputError,
   isMissingColumnError,
+  isMissingPrimaryKeyError,
   isMissingRelationError,
   isPermissionError,
+  parseDate,
   readMoney,
   shouldFallbackToAppointments,
   toNumber,
 } from "../data-helpers";
 
-type PayrollLine = {
+type ServicePayrollLine = {
   appointment_id: number;
-  start_time: string;
+  start_time: string | null;
   service: string | null;
   base_price: number | null;
   commission_rate: number | null;
@@ -28,6 +31,19 @@ type PayrollLine = {
   final_earnings: number | null;
   week_index: number | null;
 };
+
+type PaystubPayrollLine = {
+  id: number;
+  paid_at: string | null;
+  base_dollars: number;
+  commission_dollars: number;
+  override_dollars: number;
+  tip_dollars: number;
+  guarantee_topup_dollars: number;
+  final_dollars: number;
+};
+
+type PayrollMode = "service" | "paystub";
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -53,13 +69,17 @@ export default function EmployeePayrollPage() {
   const { start, end } = useMemo(() => defaultPeriod(), []);
   const [startDate, setStartDate] = useState(start);
   const [endDate, setEndDate] = useState(end);
-  const [lines, setLines] = useState<PayrollLine[]>([]);
+  const [lineMode, setLineMode] = useState<PayrollMode>("service");
+  const [serviceLines, setServiceLines] = useState<ServicePayrollLine[]>([]);
+  const [paystubLines, setPaystubLines] = useState<PaystubPayrollLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadLines = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setServiceLines([]);
+    setPaystubLines([]);
 
     const executeQuery = (columns: string) => {
       let builder = supabase
@@ -80,6 +100,18 @@ export default function EmployeePayrollPage() {
       return builder;
     };
 
+    const fallbackToPaystubs = async () => {
+      try {
+        const paystubs = await buildPayrollLinesFromPaystubs(employee.id, startDate, endDate);
+        setLineMode("paystub");
+        setPaystubLines(paystubs);
+        return true;
+      } catch (fallbackError) {
+        console.warn("Failed to load payroll pay stubs", fallbackError);
+        return false;
+      }
+    };
+
     try {
       let response = await executeQuery(
         "appointment_id,start_time,service,base_price,base_price_cents,commission_rate,commission_amount,commission_amount_cents,adjustment_amount,adjustment_amount_cents,adjustment_reason,final_earnings,final_earnings_cents,week_index"
@@ -87,15 +119,29 @@ export default function EmployeePayrollPage() {
 
       if (
         response.error &&
-        (isMissingColumnError(response.error as PostgrestError) || shouldFallbackToAppointments(response.error as PostgrestError))
+        (isMissingRelationError(response.error as PostgrestError) ||
+          isMissingPrimaryKeyError(response.error as PostgrestError))
+      ) {
+        const loaded = await fallbackToPaystubs();
+        if (loaded) {
+          return;
+        }
+      }
+
+      if (
+        response.error &&
+        (isMissingColumnError(response.error as PostgrestError) ||
+          shouldFallbackToAppointments(response.error as PostgrestError))
       ) {
         const fallback = await buildPayrollLinesFromAppointments(
           employee.id,
+          employee.user_id,
           startDate,
           endDate,
           employee.commission_rate
         );
-        setLines(fallback);
+        setLineMode("service");
+        setServiceLines(fallback);
         return;
       }
 
@@ -116,43 +162,62 @@ export default function EmployeePayrollPage() {
         week_index: toNumber(line.week_index),
       }));
 
-      setLines(sanitized as PayrollLine[]);
+      setLineMode("service");
+      setServiceLines(sanitized as ServicePayrollLine[]);
     } catch (cause) {
       console.error("Failed to load payroll lines", cause);
       setError("Unable to load payroll lines");
-      setLines([]);
+      setLineMode("service");
+      setServiceLines([]);
+      setPaystubLines([]);
     } finally {
       setLoading(false);
     }
-  }, [employee.commission_rate, employee.id, endDate, startDate]);
+  }, [employee.commission_rate, employee.id, employee.user_id, endDate, startDate]);
 
   useEffect(() => {
     loadLines();
   }, [loadLines, refreshKey]);
 
+  const isPaystubMode = lineMode === "paystub";
+  const displayedLines = isPaystubMode ? paystubLines : serviceLines;
+  const summaryLabel = isPaystubMode ? "pay stubs" : "paid services";
+
   const weekTotals = useMemo(() => {
     const totals = [0, 0];
-    lines.forEach((line) => {
-      const index = Math.max(0, Math.min((line.week_index ?? 1) - 1, 1));
-      totals[index] += line.final_earnings ?? 0;
-    });
+    if (isPaystubMode) {
+      paystubLines.forEach((line) => {
+        const indexValue = computeBiweeklyWeekIndex(line.paid_at) ?? 1;
+        const index = Math.max(0, Math.min(indexValue - 1, 1));
+        totals[index] += line.final_dollars ?? 0;
+      });
+    } else {
+      serviceLines.forEach((line) => {
+        const index = Math.max(0, Math.min((line.week_index ?? 1) - 1, 1));
+        totals[index] += line.final_earnings ?? 0;
+      });
+    }
     return {
       week1: totals[0],
       week2: totals[1],
       total: totals[0] + totals[1],
     };
-  }, [lines]);
+  }, [isPaystubMode, paystubLines, serviceLines]);
 
   const handleExport = () => {
     const params = new URLSearchParams({ staff_id: String(employee.id) });
     if (startDate) params.append("from", startDate);
     if (endDate) params.append("to", endDate);
+    if (isPaystubMode) params.append("mode", "paystub");
     window.open(`/api/payroll/export?${params.toString()}`, "_blank");
   };
 
   const handlePrint = () => {
     window.print();
   };
+
+  const showDiscountColumn = !isPaystubMode && viewerCanManageDiscounts;
+  const tableColumnCount = isPaystubMode ? 7 : showDiscountColumn ? 8 : 7;
 
   return (
     <div className="space-y-6">
@@ -208,49 +273,66 @@ export default function EmployeePayrollPage() {
           <div>
             <h2 className="text-lg font-semibold text-brand-navy">Pay period details</h2>
             <p className="text-sm text-slate-500">
-              {lines.length > 0
-                ? `${lines.length} paid services`
-                : "No paid services in selected period."}
+              {displayedLines.length > 0
+                ? `${displayedLines.length} ${summaryLabel}`
+                : `No ${summaryLabel} in selected period.`}
+              {isPaystubMode && (
+                <span className="mt-1 block text-xs text-slate-400">
+                  Showing payroll pay stubs because detailed appointment lines are unavailable.
+                </span>
+              )}
             </p>
           </div>
         </header>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-2">Date & Time</th>
-                <th className="px-3 py-2">Service</th>
-                <th className="px-3 py-2">Base</th>
-                <th className="px-3 py-2">Commission</th>
-                <th className="px-3 py-2">Adjustment</th>
-                <th className="px-3 py-2">Final</th>
-                <th className="px-3 py-2">Reason</th>
-                {viewerCanManageDiscounts && <th className="px-3 py-2 text-right">Discount</th>}
-              </tr>
+              {isPaystubMode ? (
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2">Paid Date</th>
+                  <th className="px-3 py-2">Base</th>
+                  <th className="px-3 py-2">Commission</th>
+                  <th className="px-3 py-2">Override</th>
+                  <th className="px-3 py-2">Tips</th>
+                  <th className="px-3 py-2">Guarantee Top-up</th>
+                  <th className="px-3 py-2">Final</th>
+                </tr>
+              ) : (
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2">Date &amp; Time</th>
+                  <th className="px-3 py-2">Service</th>
+                  <th className="px-3 py-2">Base</th>
+                  <th className="px-3 py-2">Commission</th>
+                  <th className="px-3 py-2">Adjustment</th>
+                  <th className="px-3 py-2">Final</th>
+                  <th className="px-3 py-2">Reason</th>
+                  {showDiscountColumn && <th className="px-3 py-2 text-right">Discount</th>}
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={viewerCanManageDiscounts ? 8 : 7} className="px-3 py-8 text-center text-slate-400">
+                  <td colSpan={tableColumnCount} className="px-3 py-8 text-center text-slate-400">
                     Loading payroll…
                   </td>
                 </tr>
               )}
-              {!loading && lines.length === 0 && (
+              {!loading && displayedLines.length === 0 && (
                 <tr>
-                  <td colSpan={viewerCanManageDiscounts ? 8 : 7} className="px-3 py-8 text-center text-slate-400">
-                    No paid services in selected period.
+                  <td colSpan={tableColumnCount} className="px-3 py-8 text-center text-slate-400">
+                    No {summaryLabel} in selected period.
                   </td>
                 </tr>
               )}
-              {!loading &&
-                lines.map((line) => {
+              {!loading && !isPaystubMode &&
+                serviceLines.map((line) => {
                   const commissionRate = line.commission_rate ? line.commission_rate * 100 : 0;
                   const adjustment = line.adjustment_amount ?? 0;
                   return (
                     <tr key={`${line.appointment_id}-${line.start_time}`} className="transition hover:bg-slate-50">
                       <td className="px-3 py-2 text-slate-600">
-                        {new Date(line.start_time).toLocaleString()}
+                        {line.start_time ? new Date(line.start_time).toLocaleString() : "—"}
                       </td>
                       <td className="px-3 py-2 text-slate-600">{line.service ?? "—"}</td>
                       <td className="px-3 py-2 text-slate-600">{formatMoney(line.base_price ?? 0)}</td>
@@ -262,7 +344,7 @@ export default function EmployeePayrollPage() {
                       </td>
                       <td className="px-3 py-2 font-semibold text-brand-navy">{formatMoney(line.final_earnings ?? 0)}</td>
                       <td className="px-3 py-2 text-slate-500">{line.adjustment_reason ?? "—"}</td>
-                      {viewerCanManageDiscounts && (
+                      {showDiscountColumn && (
                         <td className="px-3 py-2 text-right">
                           <button
                             type="button"
@@ -282,6 +364,22 @@ export default function EmployeePayrollPage() {
                     </tr>
                   );
                 })}
+              {!loading && isPaystubMode &&
+                paystubLines.map((line) => (
+                  <tr key={`${line.id}-${line.paid_at}`} className="transition hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-600">
+                      {line.paid_at ? new Date(line.paid_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{formatMoney(line.base_dollars ?? 0)}</td>
+                    <td className="px-3 py-2 text-slate-600">{formatMoney(line.commission_dollars ?? 0)}</td>
+                    <td className="px-3 py-2 text-slate-600">{line.override_dollars ? formatMoney(line.override_dollars) : "—"}</td>
+                    <td className="px-3 py-2 text-slate-600">{line.tip_dollars ? formatMoney(line.tip_dollars) : "—"}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {line.guarantee_topup_dollars ? formatMoney(line.guarantee_topup_dollars) : "—"}
+                    </td>
+                    <td className="px-3 py-2 font-semibold text-brand-navy">{formatMoney(line.final_dollars ?? 0)}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
           {error && (
@@ -299,48 +397,389 @@ export default function EmployeePayrollPage() {
   );
 }
 
+async function buildPayrollLinesFromPaystubs(
+  employeeId: number,
+  startDate: string | null,
+  endDate: string | null
+): Promise<PaystubPayrollLine[]> {
+  let builder = supabase
+    .from("payroll_lines_ui")
+    .select(
+      "id,paid_at,base_dollars,commission_dollars,override_dollars,tip_dollars,guarantee_topup_dollars,final_dollars"
+    )
+    .eq("employee_id", employeeId)
+    .order("paid_at", { ascending: true });
+
+  if (startDate) {
+    builder = builder.gte("paid_at", new Date(startDate).toISOString());
+  }
+  if (endDate) {
+    const endBoundary = new Date(endDate);
+    endBoundary.setDate(endBoundary.getDate() + 1);
+    builder = builder.lt("paid_at", endBoundary.toISOString());
+  }
+
+  const response = await builder;
+
+  if (response.error) {
+    throw response.error;
+  }
+
+  const rows = ((response.data as any[]) ?? []).map((row: any, index: number) => {
+    const paidAtValue = row.paid_at;
+    const paidAt =
+      typeof paidAtValue === "string"
+        ? paidAtValue
+        : paidAtValue instanceof Date
+        ? paidAtValue.toISOString()
+        : typeof paidAtValue === "number"
+        ? new Date(paidAtValue).toISOString()
+        : paidAtValue
+        ? String(paidAtValue)
+        : null;
+
+    const id = toNumber(row.id) ?? index + 1;
+
+    return {
+      id,
+      paid_at: paidAt,
+      base_dollars: toNumber(row.base_dollars) ?? 0,
+      commission_dollars: toNumber(row.commission_dollars) ?? 0,
+      override_dollars: toNumber(row.override_dollars) ?? 0,
+      tip_dollars: toNumber(row.tip_dollars) ?? 0,
+      guarantee_topup_dollars: toNumber(row.guarantee_topup_dollars) ?? 0,
+      final_dollars: toNumber(row.final_dollars) ?? 0,
+    } as PaystubPayrollLine;
+  });
+
+  return rows;
+}
+
 async function buildPayrollLinesFromAppointments(
   employeeId: number,
+  employeeUserId: string | null | undefined,
   startDate: string | null,
   endDate: string | null,
   commissionRate: number | string | null | undefined
-): Promise<PayrollLine[]> {
-  const runAppointmentsQuery = (columns: string) => {
-    let builder = supabase
-      .from("appointments")
-      .select(columns)
-      .eq("employee_id", employeeId)
-      .order("start_time", { ascending: true });
+): Promise<ServicePayrollLine[]> {
+  const staffIdColumns = [
+    "employee_id",
+    "staff_id",
+    "groomer_id",
+    "user_id",
+    "assigned_employee_id",
+    "assigned_staff_id",
+    "team_member_id",
+  ];
+  const startTimeColumns = [
+    "start_time",
+    "starts_at",
+    "start",
+    "starts_on",
+    "scheduled_at",
+    "scheduled_for",
+    "start_date",
+    "service_date",
+    "appointment_date",
+    "date",
+  ];
+  const selectColumns = [
+    "id,start_time,service,price,price_cents,price_amount,price_amount_cents,starts_at,start,starts_on,scheduled_at,scheduled_for,start_date,service_date,appointment_date,date,service_name,service_type,base_price,base_price_cents",
+    "*",
+  ];
 
-    if (startDate) {
-      builder = builder.gte("start_time", new Date(startDate).toISOString());
-    }
-    if (endDate) {
-      const endBoundary = new Date(endDate);
-      endBoundary.setDate(endBoundary.getDate() + 1);
-      builder = builder.lt("start_time", endBoundary.toISOString());
-    }
+  type StaffCandidate = { value: number | string };
 
+  const staffCandidates: StaffCandidate[] = [];
+  const candidateKeys = new Set<string>();
+  const pushCandidate = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const key = `string:${trimmed}`;
+      if (candidateKeys.has(key)) return;
+      candidateKeys.add(key);
+      staffCandidates.push({ value: trimmed });
+      return;
+    }
+    if (!Number.isFinite(value)) return;
+    const key = `number:${value}`;
+    if (candidateKeys.has(key)) return;
+    candidateKeys.add(key);
+    staffCandidates.push({ value });
+  };
+
+  pushCandidate(employeeId);
+  if (Number.isFinite(employeeId)) {
+    pushCandidate(String(employeeId));
+  }
+  const normalisedUserId =
+    typeof employeeUserId === "string" && employeeUserId.trim() ? employeeUserId.trim() : null;
+  pushCandidate(normalisedUserId);
+
+  const stringCandidateValues = new Set(
+    staffCandidates
+      .map((candidate) => (typeof candidate.value === "string" ? candidate.value : String(candidate.value)))
+      .filter((value) => value.length > 0)
+  );
+  const numericCandidateValues = new Set(
+    staffCandidates
+      .map((candidate) =>
+        typeof candidate.value === "number"
+          ? candidate.value
+          : Number.isFinite(Number(candidate.value))
+          ? Number(candidate.value)
+          : null
+      )
+      .filter((value): value is number => value !== null)
+  );
+
+  let matchedStaffColumn: string | null = null;
+
+  const matchesStaff = (row: Record<string, unknown>) => {
+    if (staffCandidates.length === 0) return true;
+    const dynamicColumns = new Set<string>([...staffIdColumns, "employee", "staff", "groomer"]);
+    if (matchedStaffColumn) {
+      dynamicColumns.add(matchedStaffColumn);
+      if (!Object.prototype.hasOwnProperty.call(row, matchedStaffColumn)) {
+        return true;
+      }
+    }
+    const candidateColumns = Array.from(dynamicColumns);
+    return candidateColumns.some((column) => {
+      if (!Object.prototype.hasOwnProperty.call(row, column)) return false;
+      const raw = row[column as keyof typeof row];
+      if (raw === null || raw === undefined) return false;
+      if (typeof raw === "number") {
+        return numericCandidateValues.has(raw);
+      }
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return false;
+        if (stringCandidateValues.has(trimmed)) return true;
+        const asNumber = Number(trimmed);
+        if (Number.isFinite(asNumber)) {
+          return numericCandidateValues.has(asNumber);
+        }
+        return false;
+      }
+      return false;
+    });
+  };
+
+  const runAppointmentsQuery = (
+    columns: string,
+    staffColumn: string,
+    staffValue: number | string,
+    timeColumn: string | null,
+    useBounds: boolean
+  ) => {
+    let builder = supabase.from("appointments").select(columns).eq(staffColumn, staffValue);
+    if (timeColumn) {
+      builder = builder.order(timeColumn, { ascending: true });
+      if (useBounds) {
+        let scoped = builder;
+        if (startDate) {
+          const value =
+            timeColumn.includes("date") && !timeColumn.includes("time")
+              ? startDate
+              : new Date(startDate).toISOString();
+          scoped = scoped.gte(timeColumn, value);
+        }
+        if (endDate) {
+          const endBoundary = new Date(endDate);
+          if (!timeColumn.includes("date") || timeColumn.includes("time")) {
+            endBoundary.setDate(endBoundary.getDate() + 1);
+          }
+          const value =
+            timeColumn.includes("date") && !timeColumn.includes("time")
+              ? endDate
+              : endBoundary.toISOString();
+          scoped = scoped.lt(timeColumn, value);
+        }
+        builder = scoped;
+      }
+    }
     return builder;
   };
 
-  let appointmentResponse = await runAppointmentsQuery(
-    "id,start_time,service,price,price_cents,price_amount,price_amount_cents"
-  );
+  let rows: any[] | null = null;
+  let lastError: PostgrestError | null = null;
 
-  if (
-    appointmentResponse.error &&
-    isMissingColumnError(appointmentResponse.error as PostgrestError)
-  ) {
-    appointmentResponse = await runAppointmentsQuery("*");
+  outer: for (const staffColumn of staffIdColumns) {
+    candidateLoop: for (const candidate of staffCandidates) {
+      for (const timeColumn of startTimeColumns) {
+        for (const columnSet of selectColumns) {
+          const response = await runAppointmentsQuery(
+            columnSet,
+            staffColumn,
+            candidate.value,
+            timeColumn,
+            true
+          );
+          if (!response.error) {
+            const data = (response.data as any[]) ?? [];
+            if (data.length > 0) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+              break outer;
+            }
+            if (!rows) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+            }
+            continue;
+          }
+
+          const typedError = response.error as PostgrestError;
+          lastError = typedError;
+
+          if (isMissingColumnError(typedError)) {
+            continue;
+          }
+          if (isInvalidInputError(typedError)) {
+            continue candidateLoop;
+          }
+          if (isMissingRelationError(typedError) || isPermissionError(typedError)) {
+            throw typedError;
+          }
+          throw typedError;
+        }
+      }
+    }
   }
 
-  if (appointmentResponse.error) {
-    throw appointmentResponse.error;
+  if (!rows || rows.length === 0) {
+    outerNoBounds: for (const staffColumn of staffIdColumns) {
+      candidateLoopNoBounds: for (const candidate of staffCandidates) {
+        for (const columnSet of selectColumns) {
+          const response = await runAppointmentsQuery(
+            columnSet,
+            staffColumn,
+            candidate.value,
+            null,
+            false
+          );
+          if (!response.error) {
+            const data = (response.data as any[]) ?? [];
+            if (data.length > 0) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+              break outerNoBounds;
+            }
+            if (!rows) {
+              rows = data;
+              lastError = null;
+              matchedStaffColumn = staffColumn;
+            }
+            continue;
+          }
+
+          const typedError = response.error as PostgrestError;
+          lastError = typedError;
+
+          if (isMissingColumnError(typedError)) {
+            continue;
+          }
+          if (isInvalidInputError(typedError)) {
+            continue candidateLoopNoBounds;
+          }
+          if (isMissingRelationError(typedError) || isPermissionError(typedError)) {
+            throw typedError;
+          }
+          throw typedError;
+        }
+      }
+      if (rows && rows.length > 0) {
+        break;
+      }
+    }
   }
 
-  const rows = (appointmentResponse.data as any[]) ?? [];
-  const appointmentIds = rows.map((row) => row.id).filter((id) => typeof id === "number");
+  if ((!rows || rows.length === 0) && staffCandidates.length > 0) {
+    matchedStaffColumn = null;
+    for (const columnSet of selectColumns) {
+      const probe = await supabase
+        .from("appointments")
+        .select(columnSet)
+        .limit(1000);
+      if (!probe.error) {
+        const data = ((probe.data as any[]) ?? []).filter((row) => matchesStaff(row));
+        if (data.length > 0) {
+          rows = data;
+          lastError = null;
+          matchedStaffColumn = null;
+          break;
+        }
+        if (!rows) {
+          rows = data;
+          matchedStaffColumn = null;
+        }
+        continue;
+      }
+
+      const typedError = probe.error as PostgrestError;
+      lastError = typedError;
+      if (!isMissingColumnError(typedError)) {
+        break;
+      }
+    }
+  }
+
+  if (!rows) {
+    if (lastError) {
+      throw lastError;
+    }
+    return [];
+  }
+
+  const startBoundary = startDate ? new Date(startDate) : null;
+  const endBoundary = endDate ? new Date(endDate) : null;
+  if (endBoundary) {
+    endBoundary.setDate(endBoundary.getDate() + 1);
+  }
+
+  const filteredRows = rows.filter((row) => {
+    if (!matchesStaff(row)) {
+      return false;
+    }
+
+    const value =
+      row.start_time ??
+      row.starts_at ??
+      row.start ??
+      row.starts_on ??
+      row.scheduled_at ??
+      row.scheduled_for ??
+      row.start_date ??
+      row.service_date ??
+      row.appointment_date ??
+      row.date ??
+      null;
+
+    let date: Date | null = null;
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === "number") {
+      const parsed = new Date(value);
+      date = Number.isNaN(parsed.getTime()) ? null : parsed;
+    } else if (typeof value === "string") {
+      date = parseDate(value);
+    }
+
+    if (!date) return true;
+    if (startBoundary && date < startBoundary) return false;
+    if (endBoundary && date >= endBoundary) return false;
+    return true;
+  });
+
+  const appointmentIds = filteredRows
+    .map((row) => row.id)
+    .filter((id) => typeof id === "number");
 
   const discountMap = new Map<
     number,
@@ -388,27 +827,63 @@ async function buildPayrollLinesFromAppointments(
 
   const rate = toNumber(commissionRate) ?? 0;
 
-  return rows.map((row) => {
+  return filteredRows.map((row) => {
     const id = row.id as number;
-    const base = readMoney(row, ["price", "price_cents", "price_amount", "price_amount_cents"]) ?? 0;
+    const base =
+      readMoney(row, [
+        "price",
+        "price_cents",
+        "price_amount",
+        "price_amount_cents",
+        "base_price",
+        "base_price_cents",
+        "amount",
+        "amount_cents",
+      ]) ?? 0;
     const discountInfo = discountMap.get(id);
     const adjustmentAmount = discountInfo ? -discountInfo.total : 0;
     const adjustmentReason = discountInfo && discountInfo.reasons.length > 0 ? discountInfo.reasons.join("; ") : null;
     const commissionAmount = base * rate;
     const final = base + commissionAmount + adjustmentAmount;
 
+    const startValue =
+      row.start_time ??
+      row.starts_at ??
+      row.start ??
+      row.starts_on ??
+      row.scheduled_at ??
+      row.scheduled_for ??
+      row.start_date ??
+      row.service_date ??
+      row.appointment_date ??
+      row.date ??
+      null;
+    const startTime =
+      typeof startValue === "string"
+        ? startValue
+        : startValue instanceof Date
+        ? startValue.toISOString()
+        : typeof startValue === "number"
+        ? new Date(startValue).toISOString()
+        : startValue
+        ? String(startValue)
+        : null;
+
+    const serviceName =
+      row.service ?? row.service_name ?? row.service_type ?? row.title ?? row.service_label ?? null;
+
     return {
       appointment_id: id,
-      start_time: row.start_time,
-      service: row.service ?? null,
+      start_time: startTime,
+      service: serviceName,
       base_price: base,
       commission_rate: rate,
       commission_amount: commissionAmount,
       adjustment_amount: adjustmentAmount,
       adjustment_reason: adjustmentReason,
       final_earnings: final,
-      week_index: computeBiweeklyWeekIndex(row.start_time),
-    } as PayrollLine;
+      week_index: computeBiweeklyWeekIndex(startTime),
+    } as ServicePayrollLine;
   });
 }
 

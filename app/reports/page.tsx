@@ -93,6 +93,25 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   );
 }
 
+type AppointmentMetricsRow = {
+  total_appointments: number | null;
+  completed: number | null;
+  canceled: number | null;
+  no_show: number | null;
+  revenue: number | string | null;
+  expected_revenue: number | string | null;
+};
+
+type TopServiceRow = {
+  service: string | null;
+  appointment_count: number | null;
+};
+
+type PaymentTotalsRow = {
+  total: number | string | null;
+  used_range_fallback: boolean | null;
+};
+
 type AppointmentRow = {
   service: string | null;
   status: string | null;
@@ -116,12 +135,25 @@ async function loadCounts(range: RangeOption): Promise<Counts> {
 
   let newClientsQuery = supabase.from('clients').select('id', { count: 'exact', head: true });
   let newPetsQuery = supabase.from('pets').select('id', { count: 'exact', head: true });
-  let apptDetailQuery = supabase.from('appointments').select('service, status, price');
+  const metricsQuery = supabase.rpc('reports_appointment_metrics', {
+    start_date: startISO ?? null,
+    end_date: endISO ?? null,
+  });
+
+  const topServicesQuery = supabase.rpc('reports_top_services', {
+    start_date: startISO ?? null,
+    end_date: endISO ?? null,
+    limit_count: 3,
+  });
+
+  const paymentTotalsQuery = supabase.rpc('reports_payments_total', {
+    start_date: startISO ?? null,
+    end_date: endISO ?? null,
+  });
 
   if (startISO && endISO) {
     newClientsQuery = newClientsQuery.gte('created_at', startISO).lt('created_at', endISO);
     newPetsQuery = newPetsQuery.gte('created_at', startISO).lt('created_at', endISO);
-    apptDetailQuery = apptDetailQuery.gte('start_time', startISO).lt('start_time', endISO);
   }
 
   const [
@@ -131,7 +163,9 @@ async function loadCounts(range: RangeOption): Promise<Counts> {
     apptCountRes,
     newClientsRes,
     newPetsRes,
-    apptDetailRes,
+    metricsRes,
+    topServicesRes,
+    paymentTotalsRes,
   ] = await Promise.all([
     clientsQuery,
     petsQuery,
@@ -139,54 +173,79 @@ async function loadCounts(range: RangeOption): Promise<Counts> {
     apptCountQuery,
     newClientsQuery,
     newPetsQuery,
-    apptDetailQuery,
+    metricsQuery,
+    topServicesQuery,
+    paymentTotalsQuery,
   ]);
 
-  const { rows: paymentRows, error: paymentsError, usedRangeFallback } = await fetchPayments(
-    supabase,
-    startISO,
-    endISO
-  );
-
-  const errors = [
+  const baseErrors = [
     clientsRes.error,
     petsRes.error,
     employeesRes.error,
     apptCountRes.error,
     newClientsRes.error,
     newPetsRes.error,
-    apptDetailRes.error,
-    paymentsError,
   ].filter(Boolean);
 
-  if (errors.length > 0) {
-    throw new Error(errors[0]!.message);
+  if (baseErrors.length > 0) {
+    throw new Error(baseErrors[0]!.message);
   }
 
-  const appts = (apptDetailRes.data ?? []) as AppointmentRow[];
-  const payments = paymentRows;
+  const missingReportFunctions =
+    isMissingReportsFunctionError(metricsRes.error) ||
+    isMissingReportsFunctionError(topServicesRes.error) ||
+    isMissingReportsFunctionError(paymentTotalsRes.error);
 
-  const completed = appts.filter((a) => a.status === 'Completed').length;
-  const canceled = appts.filter((a) => a.status === 'Cancelled').length;
-  const noShow = appts.filter((a) => a.status === 'No show' || a.status === 'No-show').length;
-  const revenue = appts.reduce(
-    (sum, a) => sum + (a.status === 'Completed' ? Number(a.price || 0) : 0),
-    0
-  );
-  const expectedRevenue = appts.reduce((sum, a) => sum + Number(a.price || 0), 0);
-  const sales = usedRangeFallback
-    ? revenue
-    : payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  if (missingReportFunctions) {
+    return loadCountsFallback({
+      supabase,
+      startISO,
+      endISO,
+      counts: {
+        clients: clientsRes.count ?? 0,
+        newClients: newClientsRes.count ?? 0,
+        pets: petsRes.count ?? 0,
+        newPets: newPetsRes.count ?? 0,
+        employees: employeesRes.count ?? 0,
+        appointments: apptCountRes.count ?? 0,
+      },
+    });
+  }
 
-  const serviceCounts: Record<string, number> = {};
-  appts.forEach((a) => {
-    const service = a.service || 'Other';
-    serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+  const rpcErrors = [metricsRes.error, topServicesRes.error, paymentTotalsRes.error].filter(Boolean);
+
+  if (rpcErrors.length > 0) {
+    throw new Error(rpcErrors[0]!.message);
+  }
+
+  const metrics = ((metricsRes.data ?? [])[0] ?? {
+    total_appointments: 0,
+    completed: 0,
+    canceled: 0,
+    no_show: 0,
+    revenue: 0,
+    expected_revenue: 0,
+  }) as AppointmentMetricsRow;
+
+  const completed = Number(metrics.completed ?? 0);
+  const canceled = Number(metrics.canceled ?? 0);
+  const noShow = Number(metrics.no_show ?? 0);
+  const revenue = Number(metrics.revenue ?? 0);
+  const expectedRevenue = Number(metrics.expected_revenue ?? 0);
+
+  const topServicesData = (topServicesRes.data ?? []) as TopServiceRow[];
+  const topServices = topServicesData.map((row) => {
+    const service = row.service && row.service.trim().length > 0 ? row.service : 'Other';
+    return [service, Number(row.appointment_count ?? 0)] as [string, number];
   });
 
-  const topServices = Object.entries(serviceCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3) as [string, number][];
+  const paymentRow = ((paymentTotalsRes.data ?? [])[0] ?? {
+    total: 0,
+    used_range_fallback: false,
+  }) as PaymentTotalsRow;
+
+  const usedRangeFallback = Boolean(paymentRow.used_range_fallback);
+  const sales = usedRangeFallback ? revenue : Number(paymentRow.total ?? 0);
 
   return {
     clients: clientsRes.count ?? 0,
@@ -195,6 +254,105 @@ async function loadCounts(range: RangeOption): Promise<Counts> {
     newPets: newPetsRes.count ?? 0,
     employees: employeesRes.count ?? 0,
     appointments: apptCountRes.count ?? 0,
+    completed,
+    canceled,
+    noShow,
+    revenue,
+    expectedRevenue,
+    sales,
+    topServices,
+  };
+}
+
+async function loadCountsFallback({
+  supabase,
+  startISO,
+  endISO,
+  counts,
+}: {
+  supabase: ReturnType<typeof createClient>;
+  startISO?: string;
+  endISO?: string;
+  counts: {
+    clients: number;
+    newClients: number;
+    pets: number;
+    newPets: number;
+    employees: number;
+    appointments: number;
+  };
+}): Promise<Counts> {
+  let apptDetailQuery = supabase.from('appointments').select('service, status, price');
+  if (startISO && endISO) {
+    apptDetailQuery = apptDetailQuery.gte('start_time', startISO).lt('start_time', endISO);
+  }
+
+  const [apptDetailRes, paymentsResult] = await Promise.all([
+    apptDetailQuery,
+    fetchPayments(supabase, startISO, endISO),
+  ]);
+
+  const errors = [apptDetailRes.error, paymentsResult.error].filter(Boolean);
+  if (errors.length > 0) {
+    throw new Error(errors[0]!.message);
+  }
+
+  const appts = (apptDetailRes.data ?? []) as AppointmentRow[];
+  const payments = paymentsResult.rows;
+
+  let completed = 0;
+  let canceled = 0;
+  let noShow = 0;
+  let revenue = 0;
+  let expectedRevenue = 0;
+
+  const serviceCounts: Record<string, number> = {};
+
+  for (const appt of appts) {
+    const status = (appt.status ?? '').trim().toLowerCase();
+    const price = Number(appt.price ?? 0);
+    const serviceKey = (() => {
+      const name = (appt.service ?? '').trim();
+      return name.length > 0 ? name : 'Other';
+    })();
+
+    serviceCounts[serviceKey] = (serviceCounts[serviceKey] ?? 0) + 1;
+
+    if (status.startsWith('complete')) {
+      completed += 1;
+      revenue += price;
+    }
+    if (status.startsWith('cancel')) {
+      canceled += 1;
+    }
+    if (status.includes('no') && status.includes('show')) {
+      noShow += 1;
+    }
+
+    expectedRevenue += price;
+  }
+
+  const topServices = Object.entries(serviceCounts)
+    .sort((a, b) => {
+      if (b[1] !== a[1]) {
+        return b[1] - a[1];
+      }
+      return a[0].localeCompare(b[0]);
+    })
+    .slice(0, 3) as [string, number][];
+
+  const usedRangeFallback = paymentsResult.usedRangeFallback;
+  const sales = usedRangeFallback
+    ? revenue
+    : payments.reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+
+  return {
+    clients: counts.clients,
+    newClients: counts.newClients,
+    pets: counts.pets,
+    newPets: counts.newPets,
+    employees: counts.employees,
+    appointments: counts.appointments,
     completed,
     canceled,
     noShow,
@@ -250,6 +408,18 @@ async function fetchPayments(
     error: response.error,
     usedRangeFallback: false,
   };
+}
+
+function isMissingReportsFunctionError(error: PostgrestError | null) {
+  if (!error) return false;
+  if (error.code === 'PGRST302') return true;
+  const message = `${error.message} ${error.details ?? ''}`.toLowerCase();
+  return (
+    message.includes('could not find the function') &&
+    (message.includes('reports_appointment_metrics') ||
+      message.includes('reports_top_services') ||
+      message.includes('reports_payments_total'))
+  );
 }
 
 function isMissingCreatedAtError(error: PostgrestError | null) {

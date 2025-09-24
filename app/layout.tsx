@@ -5,6 +5,7 @@ import AuthProvider from "@/components/AuthProvider";
 import LogoutButton from "@/components/LogoutButton";
 import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
+import GlitterOverlay from "@/components/GlitterOverlay";
 import "./globals.css";
 
 export const metadata = {
@@ -110,6 +111,7 @@ export default async function RootLayout({
               <div className="absolute -right-24 top-24 h-[28rem] w-[28rem] rounded-full bg-brand-lavender/25 blur-[140px]" />
               <div className="absolute bottom-[-18rem] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-brand-mint/20 blur-[160px]" />
             </div>
+            <GlitterOverlay />
             <header className="sticky top-0 z-40 flex justify-center px-4 pt-6">
               <div className="glass-panel flex w-full max-w-6xl items-center gap-6 px-6 py-4">
                 <Link href="/" className="group flex items-center gap-4 text-white">

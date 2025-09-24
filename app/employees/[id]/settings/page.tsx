@@ -24,6 +24,13 @@ import {
   toStoredPlan,
 } from "@/lib/compensationPlan";
 import { supabase } from "@/lib/supabase/client";
+import {
+  STAFF_STATUS_LABELS,
+  cleanNullableText,
+  normalizeStatusLabel,
+  normalizeTagList,
+  toOptionalNumber,
+} from "@/lib/employees/profile";
 
 type PermissionKey =
   | "can_view_reports"
@@ -40,7 +47,7 @@ const PERMISSION_OPTIONS: PermissionOption[] = [
   { key: "can_manage_staff", label: "Manage staff" },
 ];
 
-const STATUS_OPTIONS = ["Active", "Inactive", "On leave"];
+const STATUS_OPTIONS = STAFF_STATUS_LABELS;
 
 export default function EmployeeSettingsPage() {
   const { employee, goals, viewerCanEditStaff, pushToast } = useEmployeeDetail();
@@ -60,19 +67,24 @@ export default function EmployeeSettingsPage() {
     return base;
   }, [employee.app_permissions]);
 
-  const [profile, setProfile] = useState({
-    name: employee.name ?? "",
-    role: employee.role ?? "",
-    email: employee.email ?? "",
-    phone: employee.phone ?? "",
-    avatar_url: employee.avatar_url ?? "",
-    status: employee.status ?? (employee.active ? "Active" : "Inactive"),
-    address_street: employee.address_street ?? "",
-    address_city: employee.address_city ?? "",
-    address_state: employee.address_state ?? "",
-    address_zip: employee.address_zip ?? "",
-    emergency_contact_name: employee.emergency_contact_name ?? "",
-    emergency_contact_phone: employee.emergency_contact_phone ?? "",
+  const [profile, setProfile] = useState(() => {
+    const { status } = normalizeStatusLabel(
+      employee.status ?? (employee.active ? "Active" : "Inactive"),
+    );
+    return {
+      name: cleanNullableText(employee.name) ?? "",
+      role: cleanNullableText(employee.role) ?? "",
+      email: cleanNullableText(employee.email) ?? "",
+      phone: cleanNullableText(employee.phone) ?? "",
+      avatar_url: cleanNullableText(employee.avatar_url) ?? "",
+      status,
+      address_street: cleanNullableText(employee.address_street) ?? "",
+      address_city: cleanNullableText(employee.address_city) ?? "",
+      address_state: cleanNullableText(employee.address_state) ?? "",
+      address_zip: cleanNullableText(employee.address_zip) ?? "",
+      emergency_contact_name: cleanNullableText(employee.emergency_contact_name) ?? "",
+      emergency_contact_phone: cleanNullableText(employee.emergency_contact_phone) ?? "",
+    };
   });
 
   const {
@@ -108,15 +120,15 @@ export default function EmployeeSettingsPage() {
   const [appPermissions, setAppPermissions] = useState(permissionState);
   const [staffOptions, setStaffOptions] = useState<{ id: number; name: string | null }[]>([]);
 
-  const [preferences, setPreferences] = useState({
-    preferred_breeds: [...(employee.preferred_breeds ?? [])],
-    not_accepted_breeds: [...(employee.not_accepted_breeds ?? [])],
-    specialties: [...(employee.specialties ?? [])],
-    weekly_revenue_target: goals?.weekly_revenue_target ?? 0,
-    desired_dogs_per_day: goals?.desired_dogs_per_day ?? 0,
-  });
+  const [preferences, setPreferences] = useState(() => ({
+    preferred_breeds: normalizeTagList(employee.preferred_breeds),
+    not_accepted_breeds: normalizeTagList(employee.not_accepted_breeds),
+    specialties: normalizeTagList(employee.specialties),
+    weekly_revenue_target: toOptionalNumber(goals?.weekly_revenue_target),
+    desired_dogs_per_day: toOptionalNumber(goals?.desired_dogs_per_day),
+  }));
 
-  const [notes, setNotes] = useState(employee.manager_notes ?? "");
+  const [notes, setNotes] = useState(cleanNullableText(employee.manager_notes) ?? "");
 
   const [editing, setEditing] = useState({
     profile: false,
@@ -149,6 +161,70 @@ export default function EmployeeSettingsPage() {
       hasConfiguration: planHasConfiguration(plan),
     };
   }, [compensationDraft, staffNameMap]);
+
+  useEffect(() => {
+    if (editing.profile) return;
+    const { status } = normalizeStatusLabel(
+      employee.status ?? (employee.active ? "Active" : "Inactive"),
+    );
+    setProfile({
+      name: cleanNullableText(employee.name) ?? "",
+      role: cleanNullableText(employee.role) ?? "",
+      email: cleanNullableText(employee.email) ?? "",
+      phone: cleanNullableText(employee.phone) ?? "",
+      avatar_url: cleanNullableText(employee.avatar_url) ?? "",
+      status,
+      address_street: cleanNullableText(employee.address_street) ?? "",
+      address_city: cleanNullableText(employee.address_city) ?? "",
+      address_state: cleanNullableText(employee.address_state) ?? "",
+      address_zip: cleanNullableText(employee.address_zip) ?? "",
+      emergency_contact_name: cleanNullableText(employee.emergency_contact_name) ?? "",
+      emergency_contact_phone: cleanNullableText(employee.emergency_contact_phone) ?? "",
+    });
+  }, [
+    editing.profile,
+    employee.active,
+    employee.address_city,
+    employee.address_state,
+    employee.address_street,
+    employee.address_zip,
+    employee.avatar_url,
+    employee.email,
+    employee.emergency_contact_name,
+    employee.emergency_contact_phone,
+    employee.name,
+    employee.phone,
+    employee.role,
+    employee.status,
+  ]);
+
+  useEffect(() => {
+    if (editing.prefs) return;
+    setPreferences({
+      preferred_breeds: normalizeTagList(employee.preferred_breeds),
+      not_accepted_breeds: normalizeTagList(employee.not_accepted_breeds),
+      specialties: normalizeTagList(employee.specialties),
+      weekly_revenue_target: toOptionalNumber(goals?.weekly_revenue_target),
+      desired_dogs_per_day: toOptionalNumber(goals?.desired_dogs_per_day),
+    });
+  }, [
+    editing.prefs,
+    employee.not_accepted_breeds,
+    employee.preferred_breeds,
+    employee.specialties,
+    goals?.desired_dogs_per_day,
+    goals?.weekly_revenue_target,
+  ]);
+
+  useEffect(() => {
+    if (editing.notes) return;
+    setNotes(cleanNullableText(employee.manager_notes) ?? "");
+  }, [editing.notes, employee.manager_notes]);
+
+  useEffect(() => {
+    setEditing({ profile: false, comp: false, perms: false, prefs: false, notes: false });
+    setSaving({ profile: false, comp: false, perms: false, prefs: false, notes: false });
+  }, [employee.id]);
 
   useEffect(() => {
     setAppPermissions(permissionState);
@@ -256,11 +332,11 @@ export default function EmployeeSettingsPage() {
   const handlePreferencesSave = async () => {
     setSaving((s) => ({ ...s, prefs: true }));
     const result = await savePreferencesAction(employee.id, {
-      preferred_breeds: preferences.preferred_breeds,
-      not_accepted_breeds: preferences.not_accepted_breeds,
-      specialties: preferences.specialties,
-      weeklyTarget: Number(preferences.weekly_revenue_target) || null,
-      dogsPerDay: Number(preferences.desired_dogs_per_day) || null,
+      preferred_breeds: normalizeTagList(preferences.preferred_breeds),
+      not_accepted_breeds: normalizeTagList(preferences.not_accepted_breeds),
+      specialties: normalizeTagList(preferences.specialties),
+      weeklyTarget: toOptionalNumber(preferences.weekly_revenue_target),
+      dogsPerDay: toOptionalNumber(preferences.desired_dogs_per_day),
     });
     setSaving((s) => ({ ...s, prefs: false }));
     if (!result.success) {
@@ -745,13 +821,13 @@ export default function EmployeeSettingsPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <NumberField
             label="Weekly revenue target"
-            value={Number(preferences.weekly_revenue_target ?? 0)}
+            value={preferences.weekly_revenue_target}
             onChange={(v) => setPreferences((p) => ({ ...p, weekly_revenue_target: v }))}
             disabled={!editing.prefs || saving.prefs}
           />
           <NumberField
             label="Desired dogs per day"
-            value={Number(preferences.desired_dogs_per_day ?? 0)}
+            value={preferences.desired_dogs_per_day}
             onChange={(v) => setPreferences((p) => ({ ...p, desired_dogs_per_day: v }))}
             disabled={!editing.prefs || saving.prefs}
           />
@@ -870,7 +946,13 @@ function TextField({ label, value, onChange, disabled }: TextFieldProps) {
   );
 }
 
-type SelectFieldProps = { label: string; value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean };
+type SelectFieldProps = {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (v: string) => void;
+  disabled?: boolean;
+};
 function SelectField({ label, value, options, onChange, disabled }: SelectFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
@@ -889,15 +971,30 @@ function SelectField({ label, value, options, onChange, disabled }: SelectFieldP
   );
 }
 
-type NumberFieldProps = { label: string; value: number; onChange: (v: number) => void; disabled?: boolean };
+type NumberFieldProps = {
+  label: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  disabled?: boolean;
+};
 function NumberField({ label, value, onChange, disabled }: NumberFieldProps) {
+  const displayValue =
+    typeof value === "number" && Number.isFinite(value) ? value : "";
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       <input
         type="number"
-        value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={displayValue}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (next === "") {
+            onChange(null);
+            return;
+          }
+          const numeric = Number(next);
+          onChange(Number.isFinite(numeric) ? numeric : null);
+        }}
         disabled={disabled}
         className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
       />
@@ -919,7 +1016,8 @@ function TagInput({ label, values, onChange, placeholder, disabled }: TagInputPr
   const addValue = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    if (values.includes(trimmed)) {
+    const normalized = trimmed.toLowerCase();
+    if (values.some((value) => value.toLowerCase() === normalized)) {
       setInput("");
       return;
     }

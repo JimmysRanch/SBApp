@@ -192,7 +192,6 @@ export default function NewClientPage() {
           <Card className="space-y-5 p-5 lg:space-y-4">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-brand-navy">Owner information</h2>
-              <p className="text-sm text-brand-navy/60">Tell us about the person who owns the pets.</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -295,10 +294,6 @@ export default function NewClientPage() {
           <Card className="flex flex-col gap-5 p-5">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-brand-navy">Dog information</h2>
-              <p className="text-sm text-brand-navy/60">
-                Add each dog the client will bring in. Leave blank to skip. Age, weight, and coat type are required for each dog
-                you add.
-              </p>
             </div>
 
             <div className="space-y-4">
@@ -360,6 +355,10 @@ export default function NewClientPage() {
                       />
                       Female
                     </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 rounded-xl border border-white/50 bg-white/70 px-3 py-2">
+                    <span className="text-sm font-semibold text-brand-navy">Spayed / neutered:</span>
                     <label className="flex items-center gap-2 text-sm text-brand-navy">
                       <input
                         type="checkbox"
@@ -367,7 +366,7 @@ export default function NewClientPage() {
                         onChange={(event) => updateDog(index, { neutered: event.target.checked })}
                         className="h-4 w-4 rounded border-brand-bubble text-primary focus:ring-brand-bubble"
                       />
-                      Spayed / neutered
+                      Yes
                     </label>
                   </div>
 

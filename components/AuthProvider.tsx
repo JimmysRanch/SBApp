@@ -38,6 +38,7 @@ type AuthContextValue = {
   profile: UserProfile | null;
   isOwner: boolean;
   permissions: Permissions;
+  sessionExpiresAt: number | null;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -60,6 +61,7 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   isOwner: false,
   permissions: defaultPermissions,
+  sessionExpiresAt: null,
   refreshProfile: async () => undefined,
   signOut: async () => undefined,
 });
@@ -140,12 +142,16 @@ export default function AuthProvider({
   const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
   const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [loading, setLoading] = useState(() => !initialSession);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(() =>
+    normaliseExpiry(initialSession)
+  );
 
   useEffect(() => {
     setSession(initialSession ?? null);
     setUser(initialSession?.user ?? null);
     setProfile(initialProfile ?? null);
     setLoading((prev) => (initialSession ? false : prev));
+    setSessionExpiresAt(normaliseExpiry(initialSession));
   }, [initialProfile, initialSession]);
 
   useEffect(() => {
@@ -206,6 +212,7 @@ export default function AuthProvider({
         setSession(currentSession ?? null);
         const currentUser = currentSession?.user ?? null;
         setUser(currentUser);
+        setSessionExpiresAt(normaliseExpiry(currentSession));
         const nextProfile = await loadUserProfile(currentUser);
         if (!active) return;
         setProfile(nextProfile);
@@ -225,10 +232,12 @@ export default function AuthProvider({
         setSession(nextSession ?? null);
         const nextUser = nextSession?.user ?? null;
         setUser(nextUser);
+        setSessionExpiresAt(normaliseExpiry(nextSession));
 
         if (!nextUser) {
           setProfile(null);
           setLoading(false);
+          setSessionExpiresAt(null);
           if (event === "SIGNED_OUT") {
             router.push("/login");
           }
@@ -265,8 +274,100 @@ export default function AuthProvider({
     setSession(null);
     setUser(null);
     setProfile(null);
+    setSessionExpiresAt(null);
     router.push("/login");
   }, [router]);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const {
+        data: { session: latest },
+      } = await supabase.auth.getSession();
+
+      if (!latest) {
+        console.info("Auth session has expired during inactivity – signing out.");
+        await signOut();
+        return;
+      }
+
+      setSession(latest);
+      setUser(latest.user ?? null);
+      setSessionExpiresAt(normaliseExpiry(latest));
+    } catch (error) {
+      console.error("Failed to verify auth session", error);
+    }
+  }, [signOut]);
+
+  useEffect(() => {
+    if (!Number.isFinite(sessionExpiresAt)) return;
+
+    const expiryTimestamp = sessionExpiresAt * 1000;
+    if (!Number.isFinite(expiryTimestamp)) {
+      console.warn("Received invalid session expiry timestamp", sessionExpiresAt);
+      return;
+    }
+
+    const millisecondsUntilExpiry = expiryTimestamp - Date.now();
+
+    if (millisecondsUntilExpiry <= 0) {
+      void signOut();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      console.info("Auth session reached expiry – logging out user.");
+      void signOut();
+    }, millisecondsUntilExpiry);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [sessionExpiresAt, signOut]);
+
+  useEffect(() => {
+    if (!Number.isFinite(sessionExpiresAt)) return;
+
+    const expiryTimestamp = sessionExpiresAt * 1000;
+    if (!Number.isFinite(expiryTimestamp)) {
+      console.warn("Received invalid session expiry timestamp", sessionExpiresAt);
+      return;
+    }
+
+    const millisecondsUntilExpiry = expiryTimestamp - Date.now();
+
+    if (millisecondsUntilExpiry <= 0) {
+      console.info("Auth session already expired – awaiting sign-out.");
+      return;
+    }
+
+    const minutes = Math.floor(millisecondsUntilExpiry / 60000);
+    const seconds = Math.floor((millisecondsUntilExpiry % 60000) / 1000);
+    const formattedExpiry = new Date(expiryTimestamp).toLocaleString();
+
+    console.info(
+      `[auth] Session timeout: ${minutes}m ${seconds}s remaining (expires at ${formattedExpiry}).`
+    );
+  }, [sessionExpiresAt]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void checkSession();
+      }
+    };
+
+    const handleFocus = () => {
+      void checkSession();
+    };
+
+    window.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [checkSession]);
 
   const email = user?.email ?? null;
   const role = profile?.role ?? "client";
@@ -293,9 +394,27 @@ export default function AuthProvider({
     profile,
     isOwner,
     permissions,
+    sessionExpiresAt,
     refreshProfile,
     signOut,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function normaliseExpiry(session: Session | null | undefined): number | null {
+  if (!session) return null;
+
+  const { expires_at: expiresAt, expires_in: expiresIn } = session;
+
+  if (typeof expiresAt === "number" && Number.isFinite(expiresAt)) {
+    return expiresAt;
+  }
+
+  if (typeof expiresIn === "number" && Number.isFinite(expiresIn)) {
+    const secondsFromNow = Math.max(0, Math.floor(expiresIn));
+    return Math.floor(Date.now() / 1000) + secondsFromNow;
+  }
+
+  return null;
 }

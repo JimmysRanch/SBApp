@@ -46,21 +46,29 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     <PageContainer className="space-y-8">
       <Card className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            href="/clients/new"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/90 px-5 py-3 text-sm font-semibold text-primary shadow-soft transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="h-4 w-4"
-              aria-hidden="true"
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/clients/new"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/90 px-5 py-3 text-sm font-semibold text-primary shadow-soft transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
             >
-              <path d="M10 3a.75.75 0 0 1 .75.75V9.25h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5H3.25a.75.75 0 0 1 0-1.5h5.5V3.75A.75.75 0 0 1 10 3Z" />
-            </svg>
-            New Client
-          </Link>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path d="M10 3a.75.75 0 0 1 .75.75V9.25h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5H3.25a.75.75 0 0 1 0-1.5h5.5V3.75A.75.75 0 0 1 10 3Z" />
+              </svg>
+              New Client
+            </Link>
+            <Link
+              href="/booking"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:border-white/30 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-brand-bubble/40"
+            >
+              Book Appointment
+            </Link>
+          </div>
           <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <div className="relative w-full sm:w-72">
               <input
@@ -105,10 +113,9 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
               rows.map((r) => {
                 const petLabel = r.pet_names?.trim() ? r.pet_names : 'No pets on file';
                 return (
-                  <Link
+                  <article
                     key={r.id}
-                    href={`/clients/${r.id}`}
-                    className="group relative block overflow-hidden rounded-2xl border border-brand-bubble/40 bg-gradient-to-r from-white/95 via-white/90 to-brand-bubble/10 px-5 py-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                    className="group relative overflow-hidden rounded-2xl border border-brand-bubble/40 bg-gradient-to-r from-white/95 via-white/90 to-brand-bubble/10 px-5 py-4 shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
                   >
                     <span className="pointer-events-none absolute inset-y-3 left-3 w-1 rounded-full bg-gradient-to-b from-brand-bubble via-brand-bubble/80 to-brand-lavender opacity-80 transition-all duration-200 group-hover:inset-y-2 group-hover:w-1.5" />
                     <div className="relative flex flex-col gap-3 pl-6 sm:flex-row sm:items-center sm:justify-between">
@@ -135,16 +142,22 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
                           {petLabel}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                        <span className="hidden text-xs uppercase tracking-wide text-brand-navy/60 transition-colors group-hover:text-primary sm:inline">
+                      <div className="flex flex-col gap-2 text-sm font-semibold text-primary sm:flex-row sm:items-center sm:gap-3">
+                        <Link
+                          href={`/clients/${r.id}`}
+                          className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs uppercase tracking-wide text-primary transition hover:border-primary/40 hover:bg-primary/20"
+                        >
                           View profile
-                        </span>
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-bubble text-white shadow-inner transition-transform duration-200 group-hover:scale-105">
-                          →
-                        </span>
+                        </Link>
+                        <Link
+                          href={`/booking?clientId=${r.id}`}
+                          className="inline-flex items-center gap-2 rounded-full border border-brand-bubble/40 bg-brand-bubble px-4 py-2 text-xs uppercase tracking-wide text-white transition hover:brightness-110"
+                        >
+                          Add appointment
+                        </Link>
                       </div>
                     </div>
-                  </Link>
+                  </article>
                 );
               })
             )}

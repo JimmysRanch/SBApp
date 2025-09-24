@@ -304,7 +304,7 @@ export default function ClientDetailPage() {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href={`/book?clientId=${client.id}`}
+                  href={`/booking?clientId=${client.id}`}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-bubble/50 bg-brand-bubble/20 px-6 py-3 text-sm font-semibold text-primary shadow-soft transition hover:bg-brand-bubble/30"
                 >
                   <svg
@@ -420,7 +420,7 @@ export default function ClientDetailPage() {
                     ))
                   )}
                   <Link
-                    href={`/book?clientId=${client.id}`}
+                    href={`/booking?clientId=${client.id}`}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-bubble/40 bg-white/70 px-4 py-2 text-sm font-semibold text-primary shadow-soft transition hover:bg-white"
                   >
                     Add another appointment

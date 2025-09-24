@@ -4,450 +4,584 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { supabase } from "@/lib/supabase/client";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
-import {
-  addShiftAction,
-  deleteShiftAction,
-  requestTimeOffAction,
-  updateTimeOffStatusAction,
-} from "./actions";
 
-type Shift = {
-  id: number;
-  starts_at: string;
-  ends_at: string;
-  note: string | null;
+type AvailabilityRule = {
+  id: string;
+  rrule_text: string;
+  tz: string;
+  buffer_pre_min: number;
+  buffer_post_min: number;
+  created_at: string;
 };
 
-type TimeOff = {
-  id: number;
+type BlackoutDate = {
+  id: string;
   starts_at: string;
   ends_at: string;
-  reason: string | null;
-  status: string | null;
+  created_at: string;
 };
 
-function startOfWeek(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  const day = next.getDay();
-  next.setDate(next.getDate() - day);
-  return next;
+type AvailabilityFormState = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+  tz: string;
+  bufferPre: number;
+  bufferPost: number;
+};
+
+type BlackoutFormState = {
+  start: string;
+  end: string;
+};
+
+const dayOptions = [
+  { value: "MO", label: "Mon" },
+  { value: "TU", label: "Tue" },
+  { value: "WE", label: "Wed" },
+  { value: "TH", label: "Thu" },
+  { value: "FR", label: "Fri" },
+  { value: "SA", label: "Sat" },
+  { value: "SU", label: "Sun" },
+];
+
+function parseRRule(rrule: string) {
+  const segments = rrule.split(";");
+  const map = new Map<string, string>();
+  segments.forEach((segment) => {
+    const [key, value] = segment.split("=");
+    if (key && value) {
+      map.set(key.toUpperCase(), value);
+    }
+  });
+  const days = map.get("BYDAY")?.split(",").filter(Boolean) ?? [];
+  const hour = Number(map.get("BYHOUR") ?? 9);
+  const minute = Number(map.get("BYMINUTE") ?? 0);
+  const duration = parseDurationToMinutes(map.get("DURATION") ?? "PT480M");
+  const startMinutes = hour * 60 + minute;
+  const endMinutes = startMinutes + duration;
+  return {
+    days,
+    startTime: formatMinutes(startMinutes),
+    endTime: formatMinutes(endMinutes),
+  };
 }
 
-function formatRange(start: Date) {
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })}`;
+function parseDurationToMinutes(value: string) {
+  const match = /PT(?:(\d+)H)?(?:(\d+)M)?/i.exec(value);
+  if (!match) return 8 * 60;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  return hours * 60 + minutes;
 }
 
-function isoWeek(date: Date) {
-  const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = tmp.getUTCDay() || 7;
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  return Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+function formatMinutes(total: number) {
+  const clamped = Math.max(0, total);
+  const hours = Math.floor(clamped / 60);
+  const minutes = clamped % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function toDisplayTime(value: string) {
+  const [hours, minutes] = value.split(":").map((part) => Number(part));
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function describeRule(rule: AvailabilityRule) {
+  const parsed = parseRRule(rule.rrule_text);
+  const dayLabels = parsed.days
+    .map((code) => dayOptions.find((day) => day.value === code)?.label ?? code)
+    .join(", ");
+  const start = toDisplayTime(parsed.startTime);
+  const end = toDisplayTime(parsed.endTime);
+  return {
+    summary: `Weekly on ${dayLabels || "—"}`,
+    window: `${start} – ${end} (${rule.tz})`,
+  };
+}
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function buildRRule(days: string[], start: string, end: string) {
+  const startMinutes = timeToMinutes(start);
+  const endMinutes = timeToMinutes(end);
+  const duration = Math.max(30, endMinutes - startMinutes);
+  const startHour = Math.floor(startMinutes / 60);
+  const startMinute = startMinutes % 60;
+  const byday = days.join(",");
+  return `FREQ=WEEKLY;BYDAY=${byday};BYHOUR=${startHour};BYMINUTE=${startMinute};BYSECOND=0;DURATION=PT${duration}M`;
 }
 
 export default function EmployeeSchedulePage() {
   const { employee, viewerCanEditStaff, pushToast } = useEmployeeDetail();
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "America/New_York",
+    []
+  );
+  const [availability, setAvailability] = useState<AvailabilityRule[]>([]);
+  const [blackouts, setBlackouts] = useState<BlackoutDate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [availabilityForm, setAvailabilityForm] = useState<AvailabilityFormState>(
+    () => ({
+      days: ["TU", "WE", "TH"],
+      startTime: "09:00",
+      endTime: "17:00",
+      tz: timezone,
+      bufferPre: 10,
+      bufferPost: 10,
+    })
+  );
+  const [blackoutForm, setBlackoutForm] = useState<BlackoutFormState>({ start: "", end: "" });
 
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [view, setView] = useState<"list" | "grid">("list");
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [shiftForm, setShiftForm] = useState({ start: "", end: "", note: "" });
-  const [timeOffForm, setTimeOffForm] = useState({ start: "", end: "", reason: "" });
-
-  const weekEnd = useMemo(() => {
-    const end = new Date(weekStart);
-    end.setDate(end.getDate() + 7);
-    return end;
-  }, [weekStart]);
+  const staffProfileId = useMemo(() => employee.user_id ?? String(employee.id), [employee.id, employee.user_id]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [shiftRes, timeOffRes] = await Promise.all([
+    const [availabilityRes, blackoutRes] = await Promise.all([
       supabase
-        .from("staff_shifts")
-        .select("id,starts_at,ends_at,note")
-        .eq("employee_id", employee.id)
-        .gte("starts_at", weekStart.toISOString())
-        .lt("starts_at", weekEnd.toISOString())
-        .order("starts_at", { ascending: true }),
+        .from("availability_rules")
+        .select("id,rrule_text,tz,buffer_pre_min,buffer_post_min,created_at")
+        .eq("staff_id", staffProfileId)
+        .order("created_at", { ascending: true }),
       supabase
-        .from("staff_time_off")
-        .select("id,starts_at,ends_at,reason,status")
-        .eq("employee_id", employee.id)
+        .from("blackout_dates")
+        .select("id,starts_at,ends_at,created_at")
+        .eq("staff_id", staffProfileId)
         .order("starts_at", { ascending: true }),
     ]);
 
-    if (!shiftRes.error && Array.isArray(shiftRes.data)) {
-      setShifts(shiftRes.data as Shift[]);
+    if (!availabilityRes.error && Array.isArray(availabilityRes.data)) {
+      setAvailability(
+        availabilityRes.data.map((row) => ({
+          id: String(row.id),
+          rrule_text: row.rrule_text,
+          tz: row.tz,
+          buffer_pre_min: row.buffer_pre_min ?? 10,
+          buffer_post_min: row.buffer_post_min ?? 10,
+          created_at: row.created_at,
+        }))
+      );
     }
-    if (!timeOffRes.error && Array.isArray(timeOffRes.data)) {
-      setTimeOff(timeOffRes.data as TimeOff[]);
+
+    if (!blackoutRes.error && Array.isArray(blackoutRes.data)) {
+      setBlackouts(
+        blackoutRes.data.map((row) => ({
+          id: String(row.id),
+          starts_at: row.starts_at,
+          ends_at: row.ends_at,
+          created_at: row.created_at,
+        }))
+      );
     }
     setLoading(false);
-  }, [employee.id, weekEnd, weekStart]);
+  }, [staffProfileId]);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
-  const handleAddShift = async () => {
-    if (!viewerCanEditStaff) {
-      pushToast("You do not have permission to edit shifts", "error");
-      return;
-    }
-    if (!shiftForm.start || !shiftForm.end) {
-      pushToast("Start and end time required", "error");
-      return;
-    }
-    const result = await addShiftAction(employee.id, {
-      start: shiftForm.start,
-      end: shiftForm.end,
-      note: shiftForm.note,
+  function resetForm() {
+    setEditingRuleId(null);
+    setAvailabilityForm({
+      days: ["TU", "WE", "TH"],
+      startTime: "09:00",
+      endTime: "17:00",
+      tz: timezone,
+      bufferPre: 10,
+      bufferPost: 10,
     });
-    if (!result.success) {
-      pushToast(result.error ?? "Unable to add shift", "error");
-      return;
-    }
-    pushToast("Shift added", "success");
-    setShiftForm({ start: "", end: "", note: "" });
-    loadData();
-  };
+  }
 
-  const handleDeleteShift = async (id: number) => {
+  async function saveAvailability() {
     if (!viewerCanEditStaff) {
-      pushToast("You do not have permission to delete shifts", "error");
+      pushToast("You do not have permission to edit availability.", "error");
       return;
     }
-    const result = await deleteShiftAction(employee.id, id);
-    if (!result.success) {
-      pushToast(result.error ?? "Unable to delete shift", "error");
-      return;
-    }
-    pushToast("Shift deleted", "success");
-    loadData();
-  };
 
-  const handleTimeOff = async () => {
-    if (!timeOffForm.start || !timeOffForm.end || !timeOffForm.reason.trim()) {
-      pushToast("Complete the time off form", "error");
+    if (availabilityForm.days.length === 0) {
+      pushToast("Select at least one day.", "error");
       return;
     }
-    const result = await requestTimeOffAction(employee.id, {
-      start: timeOffForm.start,
-      end: timeOffForm.end,
-      reason: timeOffForm.reason,
+
+    const startMinutes = timeToMinutes(availabilityForm.startTime);
+    const endMinutes = timeToMinutes(availabilityForm.endTime);
+    if (endMinutes <= startMinutes) {
+      pushToast("End time must be after start time.", "error");
+      return;
+    }
+
+    const rrule = buildRRule(
+      availabilityForm.days,
+      availabilityForm.startTime,
+      availabilityForm.endTime
+    );
+
+    setSaving(true);
+    const payload = {
+      staff_id: staffProfileId,
+      rrule_text: rrule,
+      tz: availabilityForm.tz,
+      buffer_pre_min: availabilityForm.bufferPre,
+      buffer_post_min: availabilityForm.bufferPost,
+    };
+
+    const query = editingRuleId
+      ? supabase.from("availability_rules").update(payload).eq("id", editingRuleId)
+      : supabase.from("availability_rules").insert(payload);
+
+    const { error } = await query;
+    setSaving(false);
+
+    if (error) {
+      pushToast(error.message ?? "Unable to save availability", "error");
+      return;
+    }
+
+    pushToast(editingRuleId ? "Availability updated" : "Availability added", "success");
+    resetForm();
+    void loadData();
+  }
+
+  function handleEdit(rule: AvailabilityRule) {
+    const parsed = parseRRule(rule.rrule_text);
+    setAvailabilityForm({
+      days: parsed.days.length ? parsed.days : ["TU", "WE", "TH"],
+      startTime: parsed.startTime,
+      endTime: parsed.endTime,
+      tz: rule.tz,
+      bufferPre: rule.buffer_pre_min,
+      bufferPost: rule.buffer_post_min,
     });
-    if (!result.success) {
-      pushToast(result.error ?? "Unable to submit time off request", "error");
-      return;
-    }
-    pushToast("Time off requested", "success");
-    setTimeOffForm({ start: "", end: "", reason: "" });
-    loadData();
-  };
+    setEditingRuleId(rule.id);
+  }
 
-  const updateTimeOffStatus = async (id: number, status: "approved" | "denied") => {
+  async function handleDelete(rule: AvailabilityRule) {
     if (!viewerCanEditStaff) {
-      pushToast("Only managers can update requests", "error");
+      pushToast("You do not have permission to edit availability.", "error");
       return;
     }
-    const result = await updateTimeOffStatusAction(employee.id, id, status);
-    if (!result.success) {
-      pushToast(result.error ?? "Unable to update request", "error");
+    const { error } = await supabase.from("availability_rules").delete().eq("id", rule.id);
+    if (error) {
+      pushToast(error.message ?? "Unable to delete availability", "error");
       return;
     }
-    pushToast(`Request ${status}`, "success");
-    loadData();
-  };
+    pushToast("Availability removed", "success");
+    resetForm();
+    void loadData();
+  }
 
-  const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + index);
-      const daily = shifts.filter((shift) => {
-        const start = new Date(shift.starts_at);
-        return start.getDate() === date.getDate() && start.getMonth() === date.getMonth();
-      });
-      return {
-        date,
-        shifts: daily,
-      };
+  async function saveBlackout() {
+    if (!viewerCanEditStaff) {
+      pushToast("You do not have permission to edit availability.", "error");
+      return;
+    }
+    if (!blackoutForm.start || !blackoutForm.end) {
+      pushToast("Select start and end times.", "error");
+      return;
+    }
+    const start = new Date(blackoutForm.start);
+    const end = new Date(blackoutForm.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      pushToast("Blackout end must be after start.", "error");
+      return;
+    }
+    const { error } = await supabase.from("blackout_dates").insert({
+      staff_id: staffProfileId,
+      starts_at: start.toISOString(),
+      ends_at: end.toISOString(),
     });
-  }, [shifts, weekStart]);
+    if (error) {
+      pushToast(error.message ?? "Unable to add blackout", "error");
+      return;
+    }
+    pushToast("Blackout added", "success");
+    setBlackoutForm({ start: "", end: "" });
+    void loadData();
+  }
 
-  const weekLabel = formatRange(weekStart);
-  const calendarLink = `/calendar?staffId=${employee.id}&week=${isoWeek(weekStart)}`;
+  async function removeBlackout(entry: BlackoutDate) {
+    if (!viewerCanEditStaff) {
+      pushToast("You do not have permission to edit availability.", "error");
+      return;
+    }
+    const { error } = await supabase.from("blackout_dates").delete().eq("id", entry.id);
+    if (error) {
+      pushToast(error.message ?? "Unable to delete blackout", "error");
+      return;
+    }
+    pushToast("Blackout removed", "success");
+    void loadData();
+  }
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setWeekStart((prev) => {
-              const next = new Date(prev);
-              next.setDate(prev.getDate() - 7);
-              return next;
-            })}
-            className="rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold text-brand-blue hover:bg-slate-100"
-          >
-            ‹
-          </button>
-          <div className="text-lg font-semibold text-brand-navy">{weekLabel}</div>
-          <button
-            type="button"
-            onClick={() => setWeekStart((prev) => {
-              const next = new Date(prev);
-              next.setDate(prev.getDate() + 7);
-              return next;
-            })}
-            className="rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold text-brand-blue hover:bg-slate-100"
-          >
-            ›
-          </button>
-          <div className="flex-1" />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`rounded-lg px-3 py-1 text-sm font-semibold ${
-                view === "list"
-                  ? "bg-brand-blue text-white"
-                  : "border border-slate-300 text-brand-blue hover:bg-slate-100"
-              }`}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("grid")}
-              className={`rounded-lg px-3 py-1 text-sm font-semibold ${
-                view === "grid"
-                  ? "bg-brand-blue text-white"
-                  : "border border-slate-300 text-brand-blue hover:bg-slate-100"
-              }`}
-            >
-              Grid
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => window.open(calendarLink, "_blank")}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-brand-blue hover:bg-slate-100"
-          >
-            Open in Calendar
-          </button>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-white/60">Availability</p>
+          <h1 className="text-2xl font-semibold text-white">Scheduling rules</h1>
+          <p className="mt-1 text-sm text-white/70">
+            Manage recurring availability and blackout periods for {employee.name ?? "staff"}.
+          </p>
         </div>
-      </section>
+        <a
+          href={`/calendar?staffId=${encodeURIComponent(staffProfileId)}`}
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/40 hover:text-white"
+        >
+          Open in calendar
+        </a>
+      </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-brand-navy">Shifts</h2>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Start</label>
-            <input
-              type="datetime-local"
-              value={shiftForm.start}
-              onChange={(event) => setShiftForm((prev) => ({ ...prev, start: event.target.value }))}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">End</label>
-            <input
-              type="datetime-local"
-              value={shiftForm.end}
-              onChange={(event) => setShiftForm((prev) => ({ ...prev, end: event.target.value }))}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Note</label>
-            <input
-              type="text"
-              value={shiftForm.note}
-              onChange={(event) => setShiftForm((prev) => ({ ...prev, note: event.target.value }))}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleAddShift}
-            className="rounded-lg bg-brand-hotpink px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-hotpink/90"
-          >
-            Add Shift
-          </button>
-        </div>
-
-        <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading shifts…</p>
-          ) : shifts.length === 0 ? (
-            <p className="text-sm text-slate-500">No shifts scheduled.</p>
-          ) : view === "list" ? (
-            <ul className="space-y-3">
-              {shifts.map((shift) => (
-                <li
-                  key={shift.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div>
-                    <div className="font-semibold text-brand-navy">
-                      {new Date(shift.starts_at).toLocaleString()} → {new Date(shift.ends_at).toLocaleTimeString([], {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </div>
-                    {shift.note && <div className="text-sm text-slate-500">{shift.note}</div>}
-                  </div>
-                  {viewerCanEditStaff && (
+      <section className="rounded-3xl border border-white/15 bg-white/5 p-6 text-white">
+        <h2 className="text-lg font-semibold">Recurring availability</h2>
+        <p className="mt-1 text-sm text-white/60">
+          Choose the days and working window when this groomer is available. Buffers apply before and after each
+          appointment.
+        </p>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[2fr,3fr]">
+          <form className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Days</p>
+              <div className="mt-2 grid grid-cols-4 gap-2 text-sm">
+                {dayOptions.map((day) => {
+                  const active = availabilityForm.days.includes(day.value);
+                  return (
                     <button
+                      key={day.value}
                       type="button"
-                      onClick={() => handleDeleteShift(shift.id)}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {days.map((day) => (
-                <div key={day.date.toISOString()} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-brand-navy">
-                    {day.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-                  </div>
-                  <div className="mt-2 space-y-2 text-sm">
-                    {day.shifts.length === 0 && <p className="text-slate-400">No shifts</p>}
-                    {day.shifts.map((shift) => (
-                      <div key={shift.id} className="rounded-lg bg-white p-3 shadow">
-                        <div className="font-semibold text-brand-navy">
-                          {new Date(shift.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} –
-                          {new Date(shift.ends_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                        </div>
-                        {shift.note && <div className="text-xs text-slate-500">{shift.note}</div>}
-                        {viewerCanEditStaff && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteShift(shift.id)}
-                            className="mt-2 text-xs font-semibold text-rose-600 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-brand-navy">Time Off</h2>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Start</label>
-            <input
-              type="date"
-              value={timeOffForm.start}
-              onChange={(event) => setTimeOffForm((prev) => ({ ...prev, start: event.target.value }))}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">End</label>
-            <input
-              type="date"
-              value={timeOffForm.end}
-              onChange={(event) => setTimeOffForm((prev) => ({ ...prev, end: event.target.value }))}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reason</label>
-            <input
-              type="text"
-              value={timeOffForm.reason}
-              onChange={(event) => setTimeOffForm((prev) => ({ ...prev, reason: event.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleTimeOff}
-            className="rounded-lg bg-brand-hotpink px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-hotpink/90"
-          >
-            Request
-          </button>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading requests…</p>
-          ) : timeOff.length === 0 ? (
-            <p className="text-sm text-slate-500">No time off requests.</p>
-          ) : (
-            timeOff.map((request) => {
-              const status = request.status ?? "pending";
-              return (
-                <div
-                  key={request.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div>
-                    <div className="font-semibold text-brand-navy">
-                      {new Date(request.starts_at).toLocaleDateString()} – {new Date(request.ends_at).toLocaleDateString()}
-                    </div>
-                    {request.reason && <div className="text-sm text-slate-500">{request.reason}</div>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        status === "approved"
-                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : status === "denied"
-                          ? "border border-rose-200 bg-rose-50 text-rose-600"
-                          : "border border-amber-200 bg-amber-50 text-amber-600"
+                      onClick={() =>
+                        setAvailabilityForm((prev) => ({
+                          ...prev,
+                          days: active
+                            ? prev.days.filter((value) => value !== day.value)
+                            : [...prev.days, day.value],
+                        }))
+                      }
+                      className={`rounded-xl border px-3 py-2 transition ${
+                        active
+                          ? "border-brand-bubble/70 bg-brand-bubble/20 text-white"
+                          : "border-white/10 bg-white/5 text-white/70 hover:border-white/25 hover:bg-white/10"
                       }`}
                     >
-                      {status}
-                    </span>
-                    {viewerCanEditStaff && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => updateTimeOffStatus(request.id, "approved")}
-                          className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-emerald-600 hover:bg-emerald-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateTimeOffStatus(request.id, "denied")}
-                          className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                        >
-                          Deny
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <label className="flex flex-col gap-1">
+                <span className="text-white/70">Start time</span>
+                <input
+                  type="time"
+                  value={availabilityForm.startTime}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({ ...prev, startTime: event.target.value }))
+                  }
+                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-white/70">End time</span>
+                <input
+                  type="time"
+                  value={availabilityForm.endTime}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({ ...prev, endTime: event.target.value }))
+                  }
+                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                />
+              </label>
+            </div>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-white/70">Timezone</span>
+              <input
+                value={availabilityForm.tz}
+                onChange={(event) =>
+                  setAvailabilityForm((prev) => ({ ...prev, tz: event.target.value.trim() }))
+                }
+                className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <label className="flex flex-col gap-1">
+                <span className="text-white/70">Buffer before (min)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={availabilityForm.bufferPre}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({ ...prev, bufferPre: Number(event.target.value) || 0 }))
+                  }
+                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-white/70">Buffer after (min)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={availabilityForm.bufferPost}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({ ...prev, bufferPost: Number(event.target.value) || 0 }))
+                  }
+                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={saveAvailability}
+                disabled={saving}
+                className="rounded-full border border-white/60 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-900 transition hover:brightness-105 disabled:opacity-60"
+              >
+                {editingRuleId ? "Update availability" : "Add availability"}
+              </button>
+              {editingRuleId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70 transition hover:border-white/30 hover:text-white"
+                >
+                  Cancel edit
+                </button>
+              )}
+            </div>
+          </form>
+
+          <div className="space-y-3">
+            {loading ? (
+              <p className="text-sm text-white/60">Loading availability…</p>
+            ) : availability.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-5 py-8 text-sm text-white/60">
+                No availability rules yet.
+              </p>
+            ) : (
+              availability.map((rule) => {
+                const { summary, window } = describeRule(rule);
+                return (
+                  <article
+                    key={rule.id}
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-white/15 bg-white/10 p-4"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">{summary}</p>
+                      <p className="text-xs text-white/60">{window}</p>
+                      <p className="mt-1 text-xs text-white/40">
+                        Buffer {rule.buffer_pre_min}m before · {rule.buffer_post_min}m after
+                      </p>
+                    </div>
+                    <div className="flex gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(rule)}
+                        className="rounded-full border border-white/20 bg-white/5 px-3 py-1 font-semibold uppercase tracking-[0.3em] text-white/70 transition hover:border-white/40 hover:text-white"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(rule)}
+                        className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 font-semibold uppercase tracking-[0.3em] text-red-200 transition hover:border-red-400/60"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/15 bg-white/5 p-6 text-white">
+        <h2 className="text-lg font-semibold">Blackout dates</h2>
+        <p className="mt-1 text-sm text-white/60">
+          Schedule time away for vacations, education days or maintenance windows. These blocks override recurring
+          availability.
+        </p>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[2fr,3fr]">
+          <form className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-white/70">Starts</span>
+              <input
+                type="datetime-local"
+                value={blackoutForm.start}
+                onChange={(event) => setBlackoutForm((prev) => ({ ...prev, start: event.target.value }))}
+                className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-white/70">Ends</span>
+              <input
+                type="datetime-local"
+                value={blackoutForm.end}
+                onChange={(event) => setBlackoutForm((prev) => ({ ...prev, end: event.target.value }))}
+                className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={saveBlackout}
+              className="rounded-full border border-white/60 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-900 transition hover:brightness-105"
+            >
+              Add blackout
+            </button>
+          </form>
+
+          <div className="space-y-3">
+            {loading ? (
+              <p className="text-sm text-white/60">Loading blackout dates…</p>
+            ) : blackouts.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-5 py-8 text-sm text-white/60">
+                No blackouts added.
+              </p>
+            ) : (
+              blackouts.map((entry) => {
+                const start = new Date(entry.starts_at);
+                const end = new Date(entry.ends_at);
+                return (
+                  <article
+                    key={entry.id}
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-white/15 bg-white/10 p-4"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {start.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                        {" – "}
+                        {end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </p>
+                      <p className="text-xs text-white/60">
+                        {start.toLocaleString()} → {end.toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeBlackout(entry)}
+                      className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-red-200 transition hover:border-red-400/60"
+                    >
+                      Remove
+                    </button>
+                  </article>
+                );
+              })
+            )}
+          </div>
         </div>
       </section>
     </div>

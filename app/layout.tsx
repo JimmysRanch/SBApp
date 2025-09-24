@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 
 import AuthProvider from "@/components/AuthProvider";
 import LogoutButton from "@/components/LogoutButton";
+import { navItemsForRole, roleDisplayName } from "@/lib/auth/access";
 import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -17,58 +18,6 @@ const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-sans",
 });
-
-const TABS: Record<Role, { label: string; href: string }[]> = {
-  master: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Clients", href: "/clients" },
-    { label: "Staff", href: "/staff" },
-    { label: "Reports", href: "/reports" },
-    { label: "Messages", href: "/messages" },
-    { label: "Settings", href: "/settings" },
-  ],
-  admin: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Clients", href: "/clients" },
-    { label: "Staff", href: "/staff" },
-    { label: "Reports", href: "/reports" },
-    { label: "Messages", href: "/messages" },
-    { label: "Settings", href: "/settings" },
-  ],
-  senior_groomer: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Clients", href: "/clients" },
-    { label: "Messages", href: "/messages" },
-  ],
-  groomer: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Clients", href: "/clients" },
-    { label: "Messages", href: "/messages" },
-  ],
-  receptionist: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Clients", href: "/clients" },
-    { label: "Messages", href: "/messages" },
-  ],
-  client: [
-    { label: "My Appointments", href: "/client/appointments" },
-    { label: "Profile", href: "/client/profile" },
-  ],
-};
-
-const ROLE_LABEL: Record<Role, string> = {
-  master: "Master Account",
-  admin: "Admin",
-  senior_groomer: "Senior Groomer",
-  groomer: "Groomer",
-  receptionist: "Receptionist",
-  client: "Client",
-};
 
 export default async function RootLayout({
   children,
@@ -95,8 +44,8 @@ export default async function RootLayout({
     }
   }
 
-  const tabs = TABS[role] ?? [];
-  const roleLabel = ROLE_LABEL[role] ?? role;
+  const tabs = navItemsForRole(role);
+  const roleLabel = roleDisplayName(role);
 
   return (
     <html lang="en" className="scroll-smooth">
@@ -124,15 +73,21 @@ export default async function RootLayout({
                   </div>
                 </Link>
                 <nav className="flex flex-1 flex-wrap items-center gap-2 text-sm">
-                  {tabs.map((tab) => (
-                    <Link
-                      key={tab.href}
-                      href={tab.href}
-                      className="nav-link text-white/80 transition hover:text-white"
-                    >
-                      {tab.label}
-                    </Link>
-                  ))}
+                  {tabs.length === 0 ? (
+                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+                      No dashboard access
+                    </span>
+                  ) : (
+                    tabs.map((tab) => (
+                      <Link
+                        key={tab.href}
+                        href={tab.href}
+                        className="nav-link text-white/80 transition hover:text-white"
+                      >
+                        {tab.label}
+                      </Link>
+                    ))
+                  )}
                 </nav>
                 <div className="flex items-center gap-4 text-right text-xs leading-tight text-white/80">
                   <div className="hidden sm:flex sm:flex-col sm:items-end">

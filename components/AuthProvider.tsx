@@ -83,9 +83,9 @@ function permissionsForRole(role: Role): Permissions {
       };
     case "senior_groomer":
       return {
-        canAccessSettings: false,
+        canAccessSettings: true,
         canManageCalendar: true,
-        canManageEmployees: false,
+        canManageEmployees: true,
         canViewReports: true,
         raw: { role },
       };

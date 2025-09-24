@@ -1,14 +1,19 @@
-"use client";
-import PageContainer from "@/components/PageContainer";
 import Card from "@/components/Card";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import PageContainer from "@/components/PageContainer";
+import { createClient } from "@/lib/supabase/server";
+import RangeSelect from "./RangeSelect";
 
-// Supported date ranges for the reports page
-type RangeOption = "today" | "week" | "month" | "year" | "all";
+const rangeOptions = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year", label: "This Year" },
+  { value: "all", label: "All Time" },
+] as const;
 
-// Data structure for counts and metrics
-interface Counts {
+type RangeOption = (typeof rangeOptions)[number]["value"];
+
+type Counts = {
   clients: number;
   newClients: number;
   pets: number;
@@ -22,20 +27,31 @@ interface Counts {
   expectedRevenue: number;
   sales: number;
   topServices: [string, number][];
+};
+
+type PageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
+
+function parseRangeParam(value: string | string[] | undefined): RangeOption {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (!candidate) return "today";
+  return rangeOptions.some((option) => option.value === candidate)
+    ? (candidate as RangeOption)
+    : "today";
 }
 
-// Helper to calculate start and end dates for a given range relative to now
 function getRangeDates(range: RangeOption): { start?: Date; end?: Date } {
   const now = new Date();
   const start = new Date(now);
   const end = new Date(now);
+
   switch (range) {
     case "today":
       start.setHours(0, 0, 0, 0);
       end.setHours(24, 0, 0, 0);
       return { start, end };
     case "week": {
-      // start of week (Sunday)
       const day = now.getDay();
       start.setDate(now.getDate() - day);
       start.setHours(0, 0, 0, 0);
@@ -43,182 +59,254 @@ function getRangeDates(range: RangeOption): { start?: Date; end?: Date } {
       end.setHours(0, 0, 0, 0);
       return { start, end };
     }
-    case "month": {
+    case "month":
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       end.setMonth(start.getMonth() + 1, 1);
       end.setHours(0, 0, 0, 0);
       return { start, end };
-    }
-    case "year": {
+    case "year":
       start.setMonth(0, 1);
       start.setHours(0, 0, 0, 0);
       end.setFullYear(start.getFullYear() + 1, 0, 1);
       end.setHours(0, 0, 0, 0);
       return { start, end };
-    }
     case "all":
     default:
       return {};
   }
 }
 
-export default function ReportsPage() {
-  const [range, setRange] = useState<RangeOption>("today");
-  const [counts, setCounts] = useState<Counts>({
-    clients: 0,
-    newClients: 0,
-    pets: 0,
-    newPets: 0,
-    employees: 0,
-    appointments: 0,
-    completed: 0,
-    canceled: 0,
-    noShow: 0,
-    revenue: 0,
-    expectedRevenue: 0,
-    sales: 0,
-    topServices: [],
-  });
-  const [loading, setLoading] = useState(true);
+function applyRangeFilter<T extends { gte: (column: string, value: string) => T; lt: (column: string, value: string) => T }>(
+  query: T,
+  column: string,
+  start?: string,
+  end?: string,
+) {
+  let next = query;
+  if (start) next = next.gte(column, start);
+  if (end) next = next.lt(column, end);
+  return next;
+}
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { start, end } = getRangeDates(range);
+function toNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
 
-      // Build queries for counts
-      const clientsQuery = supabase.from("clients").select("id", { count: "exact", head: true });
-      const petsQuery = supabase.from("pets").select("id", { count: "exact", head: true });
-      const employeesQuery = supabase.from("employees").select("id", { count: "exact", head: true });
-      const apptCountQuery = supabase.from("appointments").select("id", { count: "exact", head: true });
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-      // Filtered queries for new clients and pets
-      const newClientsQuery = start && end
-        ? supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", start.toISOString()).lt("created_at", end.toISOString())
-        : supabase.from("clients").select("id", { count: "exact", head: true });
-      const newPetsQuery = start && end
-        ? supabase.from("pets").select("id", { count: "exact", head: true }).gte("created_at", start.toISOString()).lt("created_at", end.toISOString())
-        : supabase.from("pets").select("id", { count: "exact", head: true });
+export const revalidate = 0;
 
-      // Payments query for sales
-      let paymentsQuery = supabase.from("payments").select("amount");
-      if (start && end) {
-        paymentsQuery = paymentsQuery.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
-      }
+export default async function ReportsPage({ searchParams }: PageProps) {
+  const supabase = createClient();
+  const range = parseRangeParam(searchParams?.range);
+  const { start, end } = getRangeDates(range);
+  const startIso = start?.toISOString();
+  const endIso = end?.toISOString();
 
-      // Appointments details for the selected range
-      let apptDetailQuery = supabase.from("appointments").select("service, status, price");
-      if (start && end) {
-        apptDetailQuery = apptDetailQuery.gte("start_time", start.toISOString()).lt("start_time", end.toISOString());
-      }
+  const clientsQuery = supabase.from("clients").select("id", { count: "exact", head: true });
+  const petsQuery = supabase.from("pets").select("id", { count: "exact", head: true });
+  const employeesQuery = supabase.from("employees").select("id", { count: "exact", head: true });
+  const appointmentsQuery = supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true });
 
-      const [clientsRes, petsRes, employeesRes, apptCountRes, newClientsRes, newPetsRes, apptDetailRes, paymentsRes] = await Promise.all([
-        clientsQuery,
-        petsQuery,
-        employeesQuery,
-        apptCountQuery,
-        newClientsQuery,
-        newPetsQuery,
-        apptDetailQuery,
-        paymentsQuery,
-      ]);
+  const newClientsQuery = applyRangeFilter(
+    supabase.from("clients").select("id", { count: "exact", head: true }),
+    "created_at",
+    startIso,
+    endIso,
+  );
+  const newPetsQuery = applyRangeFilter(
+    supabase.from("pets").select("id", { count: "exact", head: true }),
+    "created_at",
+    startIso,
+    endIso,
+  );
+  const completedQuery = applyRangeFilter(
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["Completed", "completed"]),
+    "start_time",
+    startIso,
+    endIso,
+  );
+  const canceledQuery = applyRangeFilter(
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["Cancelled", "Canceled", "cancelled", "canceled"]),
+    "start_time",
+    startIso,
+    endIso,
+  );
+  const noShowQuery = applyRangeFilter(
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["No show", "No-show", "no_show", "no-show"]),
+    "start_time",
+    startIso,
+    endIso,
+  );
+  const revenueQuery = applyRangeFilter(
+    supabase
+      .from("appointments")
+      .select("sum:price", { head: false })
+      .in("status", ["Completed", "completed"]),
+    "start_time",
+    startIso,
+    endIso,
+  );
+  const expectedRevenueQuery = applyRangeFilter(
+    supabase.from("appointments").select("sum:price", { head: false }),
+    "start_time",
+    startIso,
+    endIso,
+  );
+  const salesQuery = applyRangeFilter(
+    supabase.from("payments").select("sum:amount", { head: false }),
+    "created_at",
+    startIso,
+    endIso,
+  );
+  const topServicesQuery = applyRangeFilter(
+    supabase
+      .from("appointments")
+      .select("service, usage_count:count(id)", { head: false })
+      .not("service", "is", null),
+    "start_time",
+    startIso,
+    endIso,
+  )
+    .order("usage_count", { ascending: false })
+    .limit(3);
 
-      // Process appointment details
-      const appts = (apptDetailRes.data || []) as any[];
-      const completed = appts.filter((a) => a.status === "Completed").length;
-      const canceled = appts.filter((a) => a.status === "Cancelled").length;
-      // Count no-shows
-      const noShow = appts.filter((a) => a.status === "No show" || a.status === "No-show").length;
-      const revenue = appts.reduce((sum, a) => sum + (a.status === "Completed" ? Number(a.price || 0) : 0), 0);
-      // Expected revenue: sum of all appointment prices regardless of status
-      const expectedRevenue = appts.reduce((sum, a) => sum + (a.price ? Number(a.price) : 0), 0);
-      // Sales: sum of payments amounts in range
-      const payments = (paymentsRes.data || []) as any[];
-      const sales = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-      const serviceCounts: Record<string, number> = {};
-      appts.forEach((a) => {
-        const service = a.service || "Other";
-        serviceCounts[service] = (serviceCounts[service] || 0) + 1;
-      });
-      const topServices = Object.entries(serviceCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3) as [string, number][];
+  const [
+    clientsResult,
+    petsResult,
+    employeesResult,
+    appointmentsResult,
+    newClientsResult,
+    newPetsResult,
+    completedResult,
+    canceledResult,
+    noShowResult,
+    revenueResult,
+    expectedRevenueResult,
+    salesResult,
+    topServicesResult,
+  ] = await Promise.all([
+    clientsQuery,
+    petsQuery,
+    employeesQuery,
+    appointmentsQuery,
+    newClientsQuery,
+    newPetsQuery,
+    completedQuery,
+    canceledQuery,
+    noShowQuery,
+    revenueQuery.maybeSingle(),
+    expectedRevenueQuery.maybeSingle(),
+    salesQuery.maybeSingle(),
+    topServicesQuery,
+  ]);
 
-      setCounts({
-        clients: clientsRes.count || 0,
-        newClients: newClientsRes.count || 0,
-        pets: petsRes.count || 0,
-        newPets: newPetsRes.count || 0,
-        employees: employeesRes.count || 0,
-        appointments: apptCountRes.count || 0,
-        completed,
-        canceled,
-        noShow,
-        revenue,
-        expectedRevenue,
-        sales,
-        topServices,
-      });
-      setLoading(false);
-    };
-    fetchData();
-  }, [range]);
+  const firstError =
+    clientsResult.error ||
+    petsResult.error ||
+    employeesResult.error ||
+    appointmentsResult.error ||
+    newClientsResult.error ||
+    newPetsResult.error ||
+    completedResult.error ||
+    canceledResult.error ||
+    noShowResult.error ||
+    revenueResult.error ||
+    expectedRevenueResult.error ||
+    salesResult.error ||
+    topServicesResult.error ||
+    null;
+
+  const counts: Counts = {
+    clients: clientsResult.count ?? 0,
+    newClients: newClientsResult.count ?? 0,
+    pets: petsResult.count ?? 0,
+    newPets: newPetsResult.count ?? 0,
+    employees: employeesResult.count ?? 0,
+    appointments: appointmentsResult.count ?? 0,
+    completed: completedResult.count ?? 0,
+    canceled: canceledResult.count ?? 0,
+    noShow: noShowResult.count ?? 0,
+    revenue: toNumber((revenueResult.data as { sum: number | string | null } | null)?.sum ?? 0),
+    expectedRevenue: toNumber(
+      (expectedRevenueResult.data as { sum: number | string | null } | null)?.sum ?? 0,
+    ),
+    sales: toNumber((salesResult.data as { sum: number | string | null } | null)?.sum ?? 0),
+    topServices: (topServicesResult.data ?? [])
+      .map((row: any) => [row.service ?? "Other", toNumber(row.usage_count)] as [string, number])
+      .filter(([, usage]) => usage > 0),
+  };
 
   return (
     <PageContainer>
-      <Card>
-        <h1 className="mb-4 text-3xl font-bold text-primary-dark">Reports</h1>
-        <div className="mb-4">
-          <label htmlFor="range" className="mr-2 font-medium">Date range:</label>
-          <select
-            id="range"
-            value={range}
-            onChange={(e) => setRange(e.target.value as RangeOption)}
-            className="rounded-full border border-gray-300 px-3 py-2"
-          >
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="year">This Year</option>
-            <option value="all">All Time</option>
-          </select>
+      <Card className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold text-primary-dark">Reports</h1>
+          <RangeSelect value={range} options={rangeOptions} />
         </div>
-        {loading ? (
-          <p>Loading…</p>
-        ) : (
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <ReportCard title="Total Clients" value={counts.clients} />
-              <ReportCard title="New Clients" value={counts.newClients} />
-              <ReportCard title="Total Pets" value={counts.pets} />
-              <ReportCard title="New Pets" value={counts.newPets} />
-              <ReportCard title="Employees" value={counts.employees} />
-              <ReportCard title="Appointments" value={counts.appointments} />
-              <ReportCard title="Completed" value={counts.completed} />
-              <ReportCard title="Canceled" value={counts.canceled} />
-              <ReportCard title="No-shows" value={counts.noShow} />
-              <ReportCard title="Revenue" value={`$${counts.revenue.toFixed(2)}`} />
-              <ReportCard title="Expected Revenue" value={`$${counts.expectedRevenue.toFixed(2)}`} />
-              <ReportCard title="Sales" value={`$${counts.sales.toFixed(2)}`} />
-            </div>
-            <Card>
-              <h2 className="mb-2 text-xl font-semibold">Top Services</h2>
-              {counts.topServices.length === 0 ? (
-                <p className="text-sm text-gray-500">No services found</p>
-              ) : (
-                <ul className="text-sm">
-                  {counts.topServices.map(([service, count]) => (
-                    <li key={service} className="flex justify-between border-b py-1 last:border-none">
-                      <span>{service}</span>
-                      <span className="font-medium">{count}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+
+        {firstError && (
+          <div className="rounded-2xl border border-red-300/40 bg-red-100/40 px-4 py-3 text-sm text-red-700">
+            Failed to load reports: {firstError.message}
           </div>
         )}
+
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ReportCard title="Total Clients" value={counts.clients} />
+            <ReportCard title="New Clients" value={counts.newClients} />
+            <ReportCard title="Total Pets" value={counts.pets} />
+            <ReportCard title="New Pets" value={counts.newPets} />
+            <ReportCard title="Employees" value={counts.employees} />
+            <ReportCard title="Appointments" value={counts.appointments} />
+            <ReportCard title="Completed" value={counts.completed} />
+            <ReportCard title="Canceled" value={counts.canceled} />
+            <ReportCard title="No-shows" value={counts.noShow} />
+            <ReportCard title="Revenue" value={currencyFormatter.format(counts.revenue)} />
+            <ReportCard
+              title="Expected Revenue"
+              value={currencyFormatter.format(counts.expectedRevenue)}
+            />
+            <ReportCard title="Sales" value={currencyFormatter.format(counts.sales)} />
+          </div>
+          <Card>
+            <h2 className="mb-2 text-xl font-semibold">Top Services</h2>
+            {counts.topServices.length === 0 ? (
+              <p className="text-sm text-gray-500">No services found</p>
+            ) : (
+              <ul className="text-sm">
+                {counts.topServices.map(([service, usage]) => (
+                  <li key={service} className="flex justify-between border-b py-1 last:border-none">
+                    <span>{service}</span>
+                    <span className="font-medium">{usage}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
       </Card>
     </PageContainer>
   );

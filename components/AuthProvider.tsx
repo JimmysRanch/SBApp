@@ -159,32 +159,25 @@ export default function AuthProvider({
 
     const syncBrowserSession = async () => {
       try {
-        const { data: current } = await supabase.auth.getSession();
         if (!initialSession) {
+          const { data: current } = await supabase.auth.getSession();
           if (active && current.session) {
             await supabase.auth.signOut();
           }
           return;
         }
 
-        const currentSession = current.session;
-        const accessTokenMatches = currentSession?.access_token === initialSession.access_token;
-        const refreshTokenMatches = currentSession?.refresh_token === initialSession.refresh_token;
+        if (!initialSession.refresh_token) {
+          console.warn("Missing refresh token for Supabase session sync");
+          return;
+        }
 
-        if (!active) return;
-
-        if (!accessTokenMatches || !refreshTokenMatches) {
-          if (!initialSession.refresh_token) {
-            console.warn("Missing refresh token for Supabase session sync");
-            return;
-          }
-          const { error } = await supabase.auth.setSession({
-            access_token: initialSession.access_token,
-            refresh_token: initialSession.refresh_token,
-          });
-          if (error) {
-            console.error("Failed to synchronise Supabase session", error);
-          }
+        const { error } = await supabase.auth.setSession({
+          access_token: initialSession.access_token,
+          refresh_token: initialSession.refresh_token,
+        });
+        if (error) {
+          console.error("Failed to synchronise Supabase session", error);
         }
       } catch (error) {
         console.error("Failed to prime Supabase session", error);
@@ -223,7 +216,11 @@ export default function AuthProvider({
       }
     };
 
-    void initialise();
+    if (!initialSession) {
+      void initialise();
+    } else if (active) {
+      setLoading(false);
+    }
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, nextSession) => {
@@ -262,7 +259,7 @@ export default function AuthProvider({
       active = false;
       subscription.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [initialSession, router]);
 
   const refreshProfile = useCallback(async () => {
     const nextProfile = await loadUserProfile(user);

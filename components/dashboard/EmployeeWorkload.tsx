@@ -1,71 +1,71 @@
-"use client";
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from "@/lib/supabase/server";
 
-interface Workload {
-  employee_name: string
-  count: number
-}
+type Workload = {
+  employeeName: string;
+  count: number;
+};
 
-export default function EmployeeWorkload() {
-  const [workloads, setWorkloads] = useState<Workload[]>([])
-  const [loading, setLoading] = useState(true)
+const ACTIVE_STATUSES = ["Checked In", "In Progress"] as const;
 
-  useEffect(() => {
-    const fetchWorkloads = async () => {
-      const now = new Date()
-      const startOfDay = new Date(now)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(now)
-      endOfDay.setHours(23, 59, 59, 999)
+export default async function EmployeeWorkload() {
+  const supabase = createClient();
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(now);
+  endOfDay.setHours(23, 59, 59, 999);
 
-      // Only fetch the appointments that could still be "active" today so we avoid
-      // loading the entire historical appointments table (which had started to slow
-      // the dashboard down as more records were added).
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('groomer_name, status, start_time')
-        .in('status', ['Checked In', 'In Progress'])
-        .gte('start_time', startOfDay.toISOString())
-        .lte('start_time', endOfDay.toISOString())
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("groomer_name, status, start_time")
+    .in("status", [...ACTIVE_STATUSES])
+    .gte("start_time", startOfDay.toISOString())
+    .lte("start_time", endOfDay.toISOString());
 
-      if (!error && data) {
-        const counts: Record<string, number> = {}
-        data.forEach((row) => {
-          const name = row.groomer_name || 'Unassigned'
-          counts[name] = (counts[name] || 0) + 1
-        })
-        setWorkloads(Object.entries(counts).map(([employee_name, count]) => ({ employee_name, count })))
-      }
-      setLoading(false)
-    }
-    fetchWorkloads()
-  }, [])
+  if (error) {
+    console.error("Failed to load employee workload", error);
+    return (
+      <div className="rounded-3xl border border-red-200/40 bg-red-100/30 p-6 text-sm text-red-700 backdrop-blur-lg">
+        Failed to load employee workload.
+      </div>
+    );
+  }
 
-  if (loading) return <div className="text-white/80">Loading...</div>
-  if (workloads.length === 0)
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    const name = row.groomer_name ? String(row.groomer_name) : "Unassigned";
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+
+  const workloads: Workload[] = Array.from(counts.entries()).map(([employeeName, count]) => ({
+    employeeName,
+    count,
+  }));
+
+  if (workloads.length === 0) {
     return (
       <div className="rounded-3xl border border-white/25 bg-white/10 p-6 text-white/85 backdrop-blur-lg">
         No active jobs.
       </div>
-    )
+    );
+  }
 
-  const max = workloads.length ? Math.max(...workloads.map((w) => w.count), 1) : 1
+  const max = Math.max(...workloads.map((w) => w.count), 1);
 
   return (
     <ul className="space-y-3 text-white/90">
       {workloads.map((wl) => {
-        const width = Math.max((wl.count / max) * 100, 12)
+        const width = Math.max((wl.count / max) * 100, 12);
         return (
           <li
-            key={wl.employee_name}
+            key={wl.employeeName}
             className="rounded-3xl border border-white/15 bg-white/10 p-4 shadow-inner backdrop-blur"
           >
             <div className="flex items-center justify-between text-sm font-semibold tracking-tight">
-              <span>{wl.employee_name}</span>
+              <span>{wl.employeeName}</span>
               <span className="flex items-center gap-1 text-xs uppercase">
                 <span className="inline-flex h-2 w-2 rounded-full bg-white/80" />
-                {wl.count} {wl.count === 1 ? 'dog' : 'dogs'}
+                {wl.count} {wl.count === 1 ? "dog" : "dogs"}
               </span>
             </div>
             <div className="mt-3 h-2 rounded-full bg-white/15">
@@ -75,8 +75,8 @@ export default function EmployeeWorkload() {
               />
             </div>
           </li>
-        )
+        );
       })}
     </ul>
-  )
+  );
 }

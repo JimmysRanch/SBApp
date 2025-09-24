@@ -1,61 +1,83 @@
-"use client";
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-export default function Revenue() {
-  const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
-  const [weekRevenue, setWeekRevenue] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
+const COMPLETED_STATUSES = ["Completed", "completed"] as const;
 
-  useEffect(() => {
-    const fetchRevenue = async () => {
-      const now = new Date()
-      const startOfDay = new Date(now)
-      startOfDay.setHours(0, 0, 0, 0)
-      const startOfWeek = new Date(now)
-      const day = now.getDay()
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1) // Monday = 1
-      startOfWeek.setDate(diff)
-      startOfWeek.setHours(0, 0, 0, 0)
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-      const { data: todayData } = await supabase
-        .from('appointments')
-        .select('total_price')
-        .gte('completed_at', startOfDay.toISOString())
-        .lte('completed_at', now.toISOString())
-        .eq('status', 'Completed')
+function toNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
 
-      const { data: weekData } = await supabase
-        .from('appointments')
-        .select('total_price')
-        .gte('completed_at', startOfWeek.toISOString())
-        .lte('completed_at', now.toISOString())
-        .eq('status', 'Completed')
+async function sumCompletedRevenue(
+  supabase: SupabaseClient<any, any, any>,
+  startIso: string,
+  endIso: string,
+) {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("sum:total_price", { head: false })
+    .in("status", [...COMPLETED_STATUSES])
+    .gte("completed_at", startIso)
+    .lte("completed_at", endIso)
+    .maybeSingle();
 
-      const sum = (rows: any[] | null) => rows?.reduce((acc, row) => acc + (row.total_price || 0), 0) ?? 0
-      setTodayRevenue(sum(todayData))
-      setWeekRevenue(sum(weekData))
-      setLoading(false)
-    }
-    fetchRevenue()
-  }, [])
+  if (error) throw error;
+  return toNumber((data as { sum: unknown } | null)?.sum ?? 0);
+}
 
-  const format = (value: number | null) => (value ?? 0).toFixed(2)
+export default async function Revenue() {
+  const supabase = createClient();
+  const now = new Date();
+  const nowIso = now.toISOString();
 
-  if (loading) return <div className="text-white/80">Loading...</div>
-  return (
-    <div className="space-y-4 text-white">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
-        <div className="mt-2 flex items-end gap-2">
-          <span className="text-3xl font-bold drop-shadow-sm">${format(todayRevenue)}</span>
-          <span className="text-xs text-white/70">so far</span>
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(now);
+  const day = startOfWeek.getDay();
+  const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+  startOfWeek.setDate(diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  try {
+    const [todayRevenue, weekRevenue] = await Promise.all([
+      sumCompletedRevenue(supabase, startOfDay.toISOString(), nowIso),
+      sumCompletedRevenue(supabase, startOfWeek.toISOString(), nowIso),
+    ]);
+
+    return (
+      <div className="space-y-4 text-white">
+        <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
+          <p className="text-xs uppercase tracking-[0.35em] text-white/70">Today</p>
+          <div className="mt-2 flex items-end gap-2">
+            <span className="text-3xl font-bold drop-shadow-sm">{currencyFormatter.format(todayRevenue)}</span>
+            <span className="text-xs text-white/70">so far</span>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
+          <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
+          <div className="mt-2 text-xl font-semibold drop-shadow-sm">
+            {currencyFormatter.format(weekRevenue)}
+          </div>
         </div>
       </div>
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-5 shadow-inner backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">This Week</p>
-        <div className="mt-2 text-xl font-semibold drop-shadow-sm">${format(weekRevenue)}</div>
+    );
+  } catch (error) {
+    console.error("Failed to load revenue", error);
+    return (
+      <div className="rounded-3xl border border-red-200/40 bg-red-100/30 p-6 text-sm text-red-700 backdrop-blur">
+        Failed to load revenue metrics.
       </div>
-    </div>
-  )
+    );
+  }
 }

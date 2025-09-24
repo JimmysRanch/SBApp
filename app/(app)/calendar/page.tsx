@@ -85,7 +85,10 @@ export default function CalendarPage() {
   }, [weekDays]);
 
   const load = useCallback(async () => {
-    if (!session || !permissions.canManageCalendar || !activeRange) return;
+    if (!session || !permissions.canManageCalendar || !activeRange) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setErr(null);
@@ -171,13 +174,14 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!session || !permissions.canManageCalendar) {
+    if (!session || !permissions.canManageCalendar || !activeRange) {
       setRows([]);
+      setErr(null);
       setLoading(false);
       return;
     }
     void load();
-  }, [authLoading, load, permissions.canManageCalendar, session]);
+  }, [activeRange, authLoading, load, permissions.canManageCalendar, session]);
 
   if (authLoading) {
     return null;

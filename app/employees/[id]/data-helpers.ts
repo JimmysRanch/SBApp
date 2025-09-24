@@ -8,8 +8,12 @@ export function isMissingColumnError(error: PostgrestError | null) {
 
 export function isMissingRelationError(error: PostgrestError | null) {
   if (!error) return false;
-  if (error.code === "42P01") return true;
-  return error.message?.toLowerCase().includes("relation") && error.message?.toLowerCase().includes("does not exist");
+  if (error.code === "42P01" || error.code === "PGRST205") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    (message.includes("relation") || message.includes("table")) &&
+    (message.includes("does not exist") || message.includes("schema cache"))
+  );
 }
 
 export function isMissingFunctionError(error: PostgrestError | null) {
@@ -22,6 +26,19 @@ export function isPermissionError(error: PostgrestError | null) {
   if (!error) return false;
   if (error.code === "42501") return true;
   return error.message?.toLowerCase().includes("permission denied");
+}
+
+export function isMissingPrimaryKeyError(error: PostgrestError | null) {
+  if (!error) return false;
+  if (error.code === "PGRST301") return true;
+  return error.message?.toLowerCase().includes("no suitable key");
+}
+
+export function isInvalidInputError(error: PostgrestError | null) {
+  if (!error) return false;
+  if (error.code === "22P02") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("invalid input syntax") || message.includes("invalid input value");
 }
 
 export function shouldFallbackToAppointments(error: PostgrestError | null) {

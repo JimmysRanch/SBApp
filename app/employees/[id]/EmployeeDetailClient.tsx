@@ -24,6 +24,7 @@ export type StaffRecord = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  user_id?: string | null;
   role: string | null;
   avatar_url: string | null;
   active: boolean | null;

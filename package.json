@@ -26,6 +26,7 @@
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
+    "rrule": "^2.8.1",
     "swr": "^2.3.6",
     "zod": "^4.1.9",
     "zustand": "^5.0.8"

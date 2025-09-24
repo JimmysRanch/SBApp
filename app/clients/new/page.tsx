@@ -177,11 +177,7 @@ export default function NewClientPage() {
       <Card className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-navy/50">Create client</p>
-            <h1 className="text-3xl font-bold text-brand-navy">Add new client</h1>
-            <p className="text-sm text-brand-navy/70">
-              Record owner details and their dogs so you can start scheduling appointments right away.
-            </p>
+            <h1 className="text-3xl font-bold text-brand-navy">New Client</h1>
           </div>
           <Link
             href="/clients"

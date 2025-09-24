@@ -64,7 +64,7 @@ export default function ClientsPage() {
             >
               <path d="M10 3a.75.75 0 0 1 .75.75V9.25h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5H3.25a.75.75 0 0 1 0-1.5h5.5V3.75A.75.75 0 0 1 10 3Z" />
             </svg>
-            Add new client
+            New Client
           </Link>
           <form
             onSubmit={(event) => {

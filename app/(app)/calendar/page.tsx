@@ -12,6 +12,7 @@ import AppointmentDetailDrawer, {
   type DrawerStaffOption,
 } from "@/components/scheduling/AppointmentDetailDrawer";
 import { canAccessRoute, isGroomerRole } from "@/lib/auth/access";
+import { toLegacyRole } from "@/lib/auth/roles";
 
 const STEP_MINUTES = 15;
 const DAY_START_MINUTES = 7 * 60;
@@ -263,7 +264,8 @@ function seedAppointments(todayKey: string): Appointment[] {
 }
 
 export default function CalendarPage() {
-  const { loading, role, session } = useAuth();
+  const { loading, role, profile } = useAuth();
+  const legacyRole = useMemo(() => toLegacyRole(role), [role]);
   const today = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -599,15 +601,15 @@ export default function CalendarPage() {
   }, [appointmentForDrawer]);
 
   const staffForViewer = useMemo(() => {
-    if (!role) return staffDirectory;
-    if (!isGroomerRole(role)) return staffDirectory;
-    const viewerId = session?.user?.id;
+    if (!legacyRole) return staffDirectory;
+    if (!isGroomerRole(legacyRole)) return staffDirectory;
+    const viewerId = profile?.id;
     const match = viewerId
       ? staffDirectory.find((staff) => staff.profileId === viewerId)
       : null;
     if (match) return [match];
     return [staffDirectory[0]];
-  }, [role, session?.user?.id]);
+  }, [legacyRole, profile?.id]);
 
   const currentDateKey = useMemo(() => formatDateKey(currentDate), [currentDate]);
 
@@ -639,7 +641,7 @@ export default function CalendarPage() {
     return <div className="px-6 py-10 text-sm text-white/70">Loading calendar…</div>;
   }
 
-  if (!role || !canAccessRoute(role, "calendar")) {
+  if (!legacyRole || !canAccessRoute(legacyRole, "calendar")) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
         <h1 className="text-2xl font-semibold text-white">Calendar unavailable</h1>

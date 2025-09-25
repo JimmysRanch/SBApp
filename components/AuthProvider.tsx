@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 type Role =
   | "Master Account"
@@ -33,12 +34,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/me", { cache: "no-store" });
-      const data = await res.json();
-      setRole((data?.role ?? null) as Role);
-      setProfile(data?.profile ?? null);
-    } catch {
-      setRole(null);
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        setRole("Guest");
+        setProfile(null);
+        return;
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, email, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const resolvedRole = (profileData?.role ?? "Guest") as Role;
+
+      setRole(resolvedRole);
+      setProfile({
+        id: profileData?.id ?? user.id,
+        email: profileData?.email ?? user.email ?? null,
+        role: resolvedRole,
+      });
+    } catch (error) {
+      setRole("Guest");
       setProfile(null);
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { useAuth } from "@/components/AuthProvider";
 import { canAccessRoute } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import useStaffDirectory from "@/hooks/useStaffDirectory";
 
 const currency = new Intl.NumberFormat(undefined, {
   style: "currency",
@@ -38,30 +39,6 @@ type SlotOption = {
   start: string;
   end: string;
 };
-
-const staffOptions: StaffOption[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    role: "Master Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/ST.svg",
-    bio: "Specialises in hand scissoring and anxious pups.",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    role: "Senior Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/MC.svg",
-    bio: "Loves double coats, creative colour and doodles.",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    role: "Pet Stylist",
-    avatar: "https://avatars.dicebear.com/api/initials/IH.svg",
-    bio: "Speedy with bath & tidy packages and small breeds.",
-  },
-];
 
 const slotOptions: SlotOption[] = [
   { id: "slot-9", label: "Today · 9:00am", start: "2024-04-05T09:00:00", end: "2024-04-05T10:30:00" },
@@ -132,6 +109,11 @@ const steps = [
   { id: "confirm", label: "Confirm" },
 ] as const;
 
+function fallbackAvatar(name: string) {
+  const label = name.trim();
+  return `https://avatars.dicebear.com/api/initials/${encodeURIComponent(label || "Staff")}.svg`;
+}
+
 type BookingDraft = {
   staffId: string | null;
   slotId: string | null;
@@ -159,6 +141,7 @@ const defaultDraft: BookingDraft = {
 export default function BookingClient() {
   const { loading, role } = useAuth();
   const legacyRole = useMemo(() => toLegacyRole(role), [role]);
+  const { staff: staffDirectory, isLoading: staffLoading, error: staffError } = useStaffDirectory();
   const searchParams = useSearchParams();
   const clientId = searchParams.get("clientId") ?? null;
 
@@ -166,10 +149,30 @@ export default function BookingClient() {
   const [draft, setDraft] = useState<BookingDraft>(defaultDraft);
   const [showCelebration, setShowCelebration] = useState(false);
 
+  const staffOptions = useMemo<StaffOption[]>(() => {
+    return staffDirectory
+      .filter((member) => member.active)
+      .map((member) => ({
+        id: member.id,
+        name: member.name,
+        role: member.role ?? "Team member",
+        avatar: member.avatarUrl ?? fallbackAvatar(member.name),
+        bio: member.description ?? "View profile in the Staff tab for more details.",
+      }));
+  }, [staffDirectory]);
+
+  useEffect(() => {
+    if (!draft.staffId) return;
+    const exists = staffOptions.some((staff) => staff.id === draft.staffId);
+    if (!exists) {
+      setDraft((prev) => ({ ...prev, staffId: null, slotId: null }));
+    }
+  }, [draft.staffId, staffOptions]);
+
   const activeStep = steps[activeStepIndex];
   const selectedStaff = useMemo(
     () => staffOptions.find((staff) => staff.id === draft.staffId) ?? null,
-    [draft.staffId]
+    [draft.staffId, staffOptions]
   );
   const selectedSlot = useMemo(
     () => slotOptions.find((slot) => slot.id === draft.slotId) ?? null,
@@ -248,7 +251,7 @@ export default function BookingClient() {
     setTimeout(() => setShowCelebration(false), 3200);
   }
 
-  if (loading) {
+  if (loading || staffLoading) {
     return <div className="px-6 py-10 text-sm text-white/70">Loading booking flow…</div>;
   }
 
@@ -260,6 +263,24 @@ export default function BookingClient() {
           Your role does not allow access to the booking flow. Front desk, managers and administrators can book
           appointments on behalf of clients.
         </p>
+      </div>
+    );
+  }
+
+  if (staffError) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
+        <h1 className="text-2xl font-semibold text-white">Unable to load staff</h1>
+        <p className="mt-3 text-sm">{staffError.message || "An unexpected error occurred."}</p>
+      </div>
+    );
+  }
+
+  if (staffOptions.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
+        <h1 className="text-2xl font-semibold text-white">No staff available</h1>
+        <p className="mt-3 text-sm">Add team members from the Staff tab to book appointments.</p>
       </div>
     );
   }

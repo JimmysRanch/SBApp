@@ -13,6 +13,7 @@ import AppointmentDetailDrawer, {
 } from "@/components/scheduling/AppointmentDetailDrawer";
 import { canAccessRoute, isGroomerRole } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import useStaffDirectory, { type StaffDirectoryEntry } from "@/hooks/useStaffDirectory";
 
 const STEP_MINUTES = 15;
 const DAY_START_MINUTES = 7 * 60;
@@ -21,11 +22,7 @@ const HOUR_HEIGHT = 64;
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60;
 const COLUMN_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * MINUTE_HEIGHT;
 
-type StaffMember = DrawerStaffOption & {
-  initials: string;
-  profileId: string;
-  colorClass: string;
-};
+type StaffMember = StaffDirectoryEntry;
 
 type Appointment = {
   id: string;
@@ -125,30 +122,6 @@ function formatTime(minutes: number) {
   return `${displayHour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const staffDirectory: StaffMember[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    initials: "ST",
-    profileId: "staff-sasha",
-    colorClass: "bg-gradient-to-br from-amber-200/80 via-amber-300/70 to-amber-400/80 text-slate-900",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    initials: "MC",
-    profileId: "staff-myles",
-    colorClass: "bg-gradient-to-br from-brand-bubble/80 via-brand-bubble/70 to-brand-lavender/80 text-slate-900",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    initials: "IH",
-    profileId: "staff-imani",
-    colorClass: "bg-gradient-to-br from-emerald-300/80 via-emerald-400/70 to-emerald-500/80 text-slate-900",
-  },
-];
-
 const serviceCatalog: DrawerServiceOption[] = [
   {
     id: "full-groom",
@@ -195,13 +168,17 @@ const addOnCatalog: DrawerAddOnOption[] = [
   { id: "blueberry", name: "Blueberry facial", price: 15 },
 ];
 
-function seedAppointments(todayKey: string): Appointment[] {
+function seedAppointments(todayKey: string, staff: StaffMember[]): Appointment[] {
+  if (staff.length === 0) return [];
   const tomorrowKey = formatDateKey(addDays(new Date(), 1));
+  const first = staff[0]!;
+  const second = staff[1] ?? first;
+  const third = staff[2] ?? second;
   return [
     {
       id: "apt-1",
       date: todayKey,
-      staffId: "sasha",
+      staffId: first.id,
       serviceId: "full-groom",
       sizeId: "medium",
       startMinutes: 9 * 60,
@@ -217,7 +194,7 @@ function seedAppointments(todayKey: string): Appointment[] {
     {
       id: "apt-2",
       date: todayKey,
-      staffId: "myles",
+      staffId: second.id,
       serviceId: "bath-blowout",
       sizeId: "small",
       startMinutes: 10 * 60,
@@ -233,7 +210,7 @@ function seedAppointments(todayKey: string): Appointment[] {
     {
       id: "apt-3",
       date: todayKey,
-      staffId: "imani",
+      staffId: third.id,
       serviceId: "de-shed",
       sizeId: "large",
       startMinutes: 13 * 60 + 30,
@@ -248,7 +225,7 @@ function seedAppointments(todayKey: string): Appointment[] {
     {
       id: "apt-4",
       date: tomorrowKey,
-      staffId: "sasha",
+      staffId: first.id,
       serviceId: "bath-blowout",
       sizeId: "toy",
       startMinutes: 8 * 60 + 30,
@@ -266,13 +243,15 @@ function seedAppointments(todayKey: string): Appointment[] {
 export default function CalendarPage() {
   const { loading, role, profile } = useAuth();
   const legacyRole = useMemo(() => toLegacyRole(role), [role]);
+  const { activeStaff, isLoading: staffLoading, error: staffError } = useStaffDirectory();
   const today = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     return now;
   }, []);
   const todayKey = useMemo(() => formatDateKey(today), [today]);
-  const [appointments, setAppointments] = useState<Appointment[]>(() => seedAppointments(todayKey));
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [seedSignature, setSeedSignature] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<Date>(today);
   const [view, setView] = useState<"day" | "week">("day");
   const [interaction, setInteraction] = useState<Interaction | null>(null);
@@ -287,6 +266,21 @@ export default function CalendarPage() {
   useEffect(() => {
     interactionRef.current = interaction;
   }, [interaction]);
+
+  useEffect(() => {
+    if (activeStaff.length === 0) {
+      setSeedSignature(null);
+      if (appointments.length !== 0) {
+        setAppointments([]);
+      }
+      return;
+    }
+    const signature = activeStaff.map((staff) => staff.id).join("|");
+    if (appointments.length === 0 || seedSignature !== signature) {
+      setAppointments(seedAppointments(todayKey, activeStaff));
+      setSeedSignature(signature);
+    }
+  }, [activeStaff, appointments.length, seedSignature, todayKey]);
 
   useEffect(() => {
     function handleMove(event: PointerEvent) {
@@ -601,15 +595,16 @@ export default function CalendarPage() {
   }, [appointmentForDrawer]);
 
   const staffForViewer = useMemo(() => {
-    if (!legacyRole) return staffDirectory;
-    if (!isGroomerRole(legacyRole)) return staffDirectory;
-    const viewerId = profile?.id;
-    const match = viewerId
-      ? staffDirectory.find((staff) => staff.profileId === viewerId)
-      : null;
-    if (match) return [match];
-    return [staffDirectory[0]];
-  }, [legacyRole, profile?.id]);
+    if (activeStaff.length === 0) return [];
+    if (!legacyRole) return activeStaff;
+    if (!isGroomerRole(legacyRole)) return activeStaff;
+    const viewerId = profile?.id ?? null;
+    if (viewerId) {
+      const match = activeStaff.find((staff) => staff.profileId === viewerId);
+      if (match) return [match];
+    }
+    return [activeStaff[0]!];
+  }, [activeStaff, legacyRole, profile?.id]);
 
   const currentDateKey = useMemo(() => formatDateKey(currentDate), [currentDate]);
 
@@ -637,8 +632,30 @@ export default function CalendarPage() {
     return grouped;
   }, [appointments, weekDays]);
 
-  if (loading) {
+  if (loading || staffLoading) {
     return <div className="px-6 py-10 text-sm text-white/70">Loading calendar…</div>;
+  }
+
+  if (staffError) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
+        <h1 className="text-2xl font-semibold text-white">Unable to load staff</h1>
+        <p className="mt-3 text-sm">
+          {staffError.message || "An unexpected error occurred while loading the staff directory."}
+        </p>
+      </div>
+    );
+  }
+
+  if (activeStaff.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
+        <h1 className="text-2xl font-semibold text-white">No staff available</h1>
+        <p className="mt-3 text-sm">
+          Add team members from the Staff tab to start scheduling appointments.
+        </p>
+      </div>
+    );
   }
 
   if (!legacyRole || !canAccessRoute(legacyRole, "calendar")) {
@@ -860,7 +877,7 @@ export default function CalendarPage() {
                 ) : (
                   <ul className="space-y-3">
                     {dayEntries.map((appointment) => {
-                      const staff = staffDirectory.find((member) => member.id === appointment.staffId);
+                      const staff = activeStaff.find((member) => member.id === appointment.staffId);
                       const service = serviceCatalog.find((svc) => svc.id === appointment.serviceId);
                       return (
                         <li

@@ -186,7 +186,52 @@ const staffSchema = z.object({
   emergency_contact_phone: optionalPhone,
   manager_notes: optionalText,
   goals: goalsSchema,
-});
+  });
+
+export async function GET(req: Request) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const url = new URL(req.url);
+  const includeInactiveParam = url.searchParams.get("include_inactive");
+  const includeInactive = typeof includeInactiveParam === "string"
+    ? ["1", "true", "yes"].includes(includeInactiveParam.toLowerCase())
+    : false;
+
+  let query = supabase
+    .from("employees")
+    .select("id, name, role, avatar_url, active, status, user_id, specialties")
+    .order("name", { ascending: true });
+
+  if (!includeInactive) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const rows = (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    avatarUrl: row.avatar_url,
+    active: row.active ?? false,
+    status: row.status,
+    profileId: row.user_id,
+    specialties: Array.isArray(row.specialties) ? row.specialties : [],
+  }));
+
+  return NextResponse.json({ data: rows });
+}
 
 export async function POST(req: Request) {
   const supabase = createRouteHandlerClient({ cookies });

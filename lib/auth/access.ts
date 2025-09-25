@@ -1,4 +1,4 @@
-import type { Role } from "./profile";
+import { roleLabel, type Role } from "./profile";
 
 export type AppRoute =
   | "dashboard"
@@ -10,9 +10,9 @@ export type AppRoute =
   | "messages"
   | "settings";
 
-const managerRoles: Role[] = ["master", "admin", "senior_groomer"];
-const frontDeskRoles: Role[] = ["receptionist"];
-const groomerRoles: Role[] = ["groomer"];
+const managerRoles: Role[] = ["master", "admin", "manager"];
+const frontDeskRoles: Role[] = ["front_desk"];
+const groomerRoles: Role[] = ["groomer", "bather"];
 const clientRoles: Role[] = ["client"];
 
 const routeAccess: Record<AppRoute, Role[]> = {
@@ -80,19 +80,5 @@ export function navItemsForRole(role: Role): NavItem[] {
 }
 
 export function roleDisplayName(role: Role): string {
-  switch (role) {
-    case "master":
-      return "Master Account";
-    case "admin":
-      return "Admin";
-    case "senior_groomer":
-      return "Manager";
-    case "groomer":
-      return "Groomer";
-    case "receptionist":
-      return "Front Desk";
-    case "client":
-    default:
-      return "Client";
-  }
+  return roleLabel(role);
 }

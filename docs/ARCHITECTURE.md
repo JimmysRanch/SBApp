@@ -1,8 +1,9 @@
 # SB App Architecture (Bible)
 
 ## Roles
+- Stored roles are lowercase slugs (`master`, `admin`, `manager`, `front_desk`, `groomer`, `bather`, `client`). UI copy maps these to human labels like “Master Account” and “Front Desk”.
 - Master Account: one per business. Full control.
-- Manager, Front Desk, Groomer: invited by Master/Manager.
+- Manager, Front Desk, Groomer, Bather: invited by the Master Account or a Manager.
 - Client: default for new auth users unless invited as staff.
 
 ## Tenancy

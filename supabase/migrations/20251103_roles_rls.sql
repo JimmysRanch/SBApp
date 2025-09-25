@@ -1,7 +1,7 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
-  role text not null default 'client' check (role in ('master','admin','senior_groomer','groomer','receptionist','client')),
+  role text not null default 'client' check (role in ('master','admin','manager','front_desk','groomer','bather','client')),
   created_at timestamptz default now()
 );
 alter table public.profiles enable row level security;
@@ -19,12 +19,13 @@ language sql stable as $$ select role from public.profiles where id = auth.uid()
 
 create or replace function public.role_rank(r text) returns int
 language sql immutable as $$
-  select case r
-    when 'master' then 6
-    when 'admin' then 5
-    when 'senior_groomer' then 4
+  select case lower(r)
+    when 'master' then 7
+    when 'admin' then 6
+    when 'manager' then 5
+    when 'front_desk' then 4
     when 'groomer' then 3
-    when 'receptionist' then 2
+    when 'bather' then 2
     when 'client' then 1
     else 0 end
 $$;
@@ -44,23 +45,23 @@ create policy appt_admin_all on public.appointments
 for all using (public.current_role() in ('master','admin'))
 with check (public.current_role() in ('master','admin'));
 
-create policy appt_senior_read_all on public.appointments
-for select using (public.current_role() = 'senior_groomer');
+create policy appt_manager_read_all on public.appointments
+for select using (public.current_role() = 'manager');
 
-create policy appt_senior_insert on public.appointments
-for insert with check (public.current_role() = 'senior_groomer');
+create policy appt_manager_insert on public.appointments
+for insert with check (public.current_role() = 'manager');
 
-create policy appt_senior_update_own on public.appointments
-for update using (public.current_role() = 'senior_groomer' and auth.uid() = groomer_id);
+create policy appt_manager_update_own on public.appointments
+for update using (public.current_role() = 'manager' and auth.uid() = groomer_id);
 
 create policy appt_recept_insert on public.appointments
-for insert with check (public.current_role() = 'receptionist');
+for insert with check (public.current_role() = 'front_desk');
 
 create policy appt_recept_read_all on public.appointments
-for select using (public.current_role() = 'receptionist');
+for select using (public.current_role() = 'front_desk');
 
 create policy appt_groomer_read_own on public.appointments
-for select using (public.current_role() = 'groomer' and auth.uid() = groomer_id);
+for select using (public.current_role() in ('groomer','bather') and auth.uid() = groomer_id);
 
 create policy appt_client_read_own on public.appointments
 for select using (public.current_role() = 'client' and auth.uid() = client_id);
@@ -82,6 +83,30 @@ for each row execute procedure public.handle_new_user();
 create index if not exists idx_profiles_role on public.profiles(role);
 create index if not exists idx_appts_groomer on public.appointments(groomer_id);
 create index if not exists idx_appts_client on public.appointments(client_id);
+
+update public.profiles
+set role = case role
+  when 'Master Account' then 'master'
+  when 'Admin' then 'admin'
+  when 'Manager' then 'manager'
+  when 'Front Desk' then 'front_desk'
+  when 'Groomer' then 'groomer'
+  when 'Bather' then 'bather'
+  when 'Client' then 'client'
+  else role end
+where role in ('Master Account','Admin','Manager','Front Desk','Groomer','Bather','Client');
+
+update public.employees
+set role = case role
+  when 'Master Account' then 'master'
+  when 'Admin' then 'admin'
+  when 'Manager' then 'manager'
+  when 'Front Desk' then 'front_desk'
+  when 'Groomer' then 'groomer'
+  when 'Bather' then 'bather'
+  when 'Client' then 'client'
+  else role end
+where role in ('Master Account','Admin','Manager','Front Desk','Groomer','Bather','Client');
 
 -- BOOTSTRAP MASTER (makes you Master immediately)
 -- by known UUID

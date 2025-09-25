@@ -88,13 +88,10 @@ export default function AppointmentDetailDrawer({
   const [toast, setToast] = useState<DrawerToast | null>(null);
 
   const appointmentId = draft?.id ?? null;
-  const allowedForActions = useMemo(
-    () => {
-      const normalized = role?.toLowerCase() ?? "";
-      return ["master", "admin", "senior_groomer", "receptionist"].includes(normalized);
-    },
-    [role]
-  );
+  const allowedForActions = useMemo(() => {
+    if (!role || role === "guest") return false;
+    return ["master", "admin", "manager", "front_desk"].includes(role);
+  }, [role]);
 
   const {
     lastSent,

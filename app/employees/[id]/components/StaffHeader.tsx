@@ -2,6 +2,8 @@
 
 import clsx from "clsx";
 
+import { describeRole } from "@/lib/auth/profile";
+
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 
 type StaffHeaderProps = {
@@ -43,6 +45,7 @@ export default function StaffHeader({ onCall, onText, onEmail }: StaffHeaderProp
   );
 
   const contactDetails = [employee.email, employee.phone].filter(Boolean).join(" · ");
+  const displayRole = describeRole(employee.role) ?? "—";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -63,7 +66,7 @@ export default function StaffHeader({ onCall, onText, onEmail }: StaffHeaderProp
               <h1 className="text-xl font-semibold text-brand-navy">{employee.name ?? "Staff member"}</h1>
               <span className={statusTone}>{statusLabel}</span>
             </div>
-            <div className="text-sm font-medium text-slate-500">{employee.role ?? "—"}</div>
+            <div className="text-sm font-medium text-slate-500">{displayRole}</div>
             <div className="text-sm text-slate-400">{contactDetails || "No contact info"}</div>
           </div>
         </div>

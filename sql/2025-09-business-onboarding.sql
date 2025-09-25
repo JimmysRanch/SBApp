@@ -30,7 +30,7 @@ CREATE OR REPLACE FUNCTION public.set_default_client_profile()
 RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.profiles (id, role)
-  VALUES (NEW.id, 'Client'::role_t)
+  VALUES (NEW.id, 'client')
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
@@ -54,7 +54,7 @@ BEGIN
     INSERT INTO public.businesses (name) VALUES (COALESCE(p_business_name,'My Grooming Business')) RETURNING id INTO v_bid;
 
     UPDATE public.profiles
-      SET role='Master Account'::role_t, business_id=v_bid
+      SET role='master', business_id=v_bid
       WHERE id = p_user;
 
     INSERT INTO public.employees (user_id, name, active, role, business_id, app_permissions)
@@ -97,7 +97,7 @@ FOR ALL USING (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
       AND p.business_id = staff_invites.business_id
-      AND p.role::text IN ('Master Account','Manager')
+      AND p.role IN ('master','senior_groomer')
   )
 )
 WITH CHECK (
@@ -105,7 +105,7 @@ WITH CHECK (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
       AND p.business_id = staff_invites.business_id
-      AND p.role::text IN ('Master Account','Manager')
+      AND p.role IN ('master','senior_groomer')
   )
 );
 

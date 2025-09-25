@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+
+import { useAuth } from "@/components/AuthProvider";
+import { useAppointmentNotificationActions } from "@/hooks/useAppointmentNotificationActions";
 
 export type DrawerStaffOption = { id: string; name: string };
 export type DrawerServiceOption = {
@@ -51,6 +54,25 @@ const currency = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
 
+const timestampFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+type ToastTone = "success" | "error" | "info";
+
+type DrawerToast = {
+  id: number;
+  message: string;
+  tone: ToastTone;
+};
+
+const toastToneStyles: Record<ToastTone, string> = {
+  success: "bg-emerald-500/90 text-white",
+  error: "bg-rose-500/90 text-white",
+  info: "bg-white/90 text-slate-900",
+};
+
 export default function AppointmentDetailDrawer({
   open,
   staff,
@@ -62,6 +84,82 @@ export default function AppointmentDetailDrawer({
   onDelete,
 }: AppointmentDetailDrawerProps) {
   const [draft, setDraft] = useState<AppointmentDraft | null>(value);
+  const { role } = useAuth();
+  const [toast, setToast] = useState<DrawerToast | null>(null);
+
+  const appointmentId = draft?.id ?? null;
+  const allowedForActions = useMemo(
+    () => ["master", "admin", "senior_groomer", "receptionist"].includes(role),
+    [role]
+  );
+
+  const {
+    lastSent,
+    loadingAction,
+    fetching: loadingActivity,
+    fetchError: activityError,
+    sendReminder,
+    sendPickupReady,
+    createReschedule,
+  } = useAppointmentNotificationActions(allowedForActions ? appointmentId : null);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const pushToast = useCallback((message: string, tone: ToastTone = "info") => {
+    setToast({ id: Date.now(), message, tone });
+  }, []);
+
+  const formatLastSent = useCallback(
+    (timestamp: Date | null) => {
+      if (activityError) return "—";
+      if (loadingActivity) return "Loading…";
+      if (!timestamp) return "Never";
+      return timestampFormatter.format(timestamp);
+    },
+    [activityError, loadingActivity]
+  );
+
+  const handleSendReminder = useCallback(async () => {
+    const result = await sendReminder();
+    if (result.ok) {
+      pushToast("Reminder queued", "success");
+    } else if (result.message) {
+      pushToast(result.message, "error");
+    }
+  }, [pushToast, sendReminder]);
+
+  const handleSendPickup = useCallback(async () => {
+    const result = await sendPickupReady();
+    if (result.ok) {
+      pushToast("Pickup notification sent", "success");
+    } else if (result.message) {
+      pushToast(result.message, "error");
+    }
+  }, [pushToast, sendPickupReady]);
+
+  const handleCreateReschedule = useCallback(async () => {
+    const result = await createReschedule();
+    if (result.ok) {
+      if (result.copied) {
+        pushToast("Reschedule link copied", "success");
+      } else if (result.message) {
+        pushToast(result.message, "info");
+      } else {
+        pushToast("Reschedule link created", "success");
+      }
+    } else if (result.message) {
+      pushToast(result.message, "error");
+    }
+  }, [createReschedule, pushToast]);
+
+  const isReminderLoading = loadingAction === "reminder";
+  const isPickupLoading = loadingAction === "pickup";
+  const isRescheduleLoading = loadingAction === "reschedule";
+  const showNotificationActions = allowedForActions && Boolean(appointmentId);
 
   useEffect(() => {
     setDraft(value);
@@ -126,12 +224,22 @@ export default function AppointmentDetailDrawer({
   return (
     <div
       className={clsx(
-        "fixed inset-y-0 right-0 z-[60] w-full max-w-md transform border-l border-white/10 bg-slate-900/95 text-white shadow-2xl transition-transform",
+        "fixed inset-y-0 right-0 z-[60] w-full max-w-md transform border-l border-white/10 bg-slate-900/95 text-white shadow-2xl transition-transform relative",
         open ? "translate-x-0" : "translate-x-full"
       )}
       role="dialog"
       aria-modal="true"
     >
+      {toast && (
+        <div
+          className={clsx(
+            "absolute left-1/2 top-6 z-[70] w-[calc(100%-3rem)] max-w-sm -translate-x-1/2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg",
+            toastToneStyles[toast.tone]
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
@@ -337,6 +445,75 @@ export default function AppointmentDetailDrawer({
                 })}
               </div>
             </section>
+
+            {showNotificationActions && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-white/60">
+                  Client communications
+                </h3>
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Send reminder</p>
+                        <p className="text-xs text-white/60">
+                          Last sent {formatLastSent(lastSent.reminder)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendReminder}
+                        disabled={isReminderLoading}
+                        className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/80 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isReminderLoading ? "Sending…" : "Send reminder"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Mark ready for pickup</p>
+                        <p className="text-xs text-white/60">
+                          Last sent {formatLastSent(lastSent.pickup)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendPickup}
+                        disabled={isPickupLoading}
+                        className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/80 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isPickupLoading ? "Sending…" : "Mark ready"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Create reschedule link</p>
+                        <p className="text-xs text-white/60">
+                          Last created {formatLastSent(lastSent.reschedule)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCreateReschedule}
+                        disabled={isRescheduleLoading}
+                        className="inline-flex items-center justify-center rounded-full border border-brand-bubble/60 bg-brand-bubble px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-900 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isRescheduleLoading ? "Creating…" : "Create link"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {activityError && (
+                  <p className="text-xs text-rose-300/80">{activityError}</p>
+                )}
+              </section>
+            )}
 
             <section className="space-y-2">
               <label className="flex flex-col gap-1 text-sm text-white/70">

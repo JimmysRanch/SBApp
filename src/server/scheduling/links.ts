@@ -83,6 +83,13 @@ export async function createRescheduleLink(rawInput: RescheduleLinkInput) {
     }
     if (error) throw error;
     if (data) {
+      const { error: auditError } = await supabase.from('audit_log').insert({
+        actor_id: input.createdBy ?? null,
+        action: 'appointment_reschedule_link_created',
+        entity: 'appointments',
+        entity_id: input.appointmentId,
+      });
+      if (auditError) throw auditError;
       return {
         token,
         url: buildRescheduleUrl(token),

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
 import { useAuth } from "@/components/AuthProvider";
+import ClaimOwnerButton from "@/components/ClaimOwnerButton";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -67,6 +68,7 @@ export default function TopNav() {
             )}
             {role && <span className="uppercase tracking-[0.22em] text-[11px] text-white/60">{role}</span>}
           </div>
+          <ClaimOwnerButton />
           <button
             type="button"
             onClick={handleSignOut}

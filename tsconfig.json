@@ -49,6 +49,9 @@
       ],
       "@/supabase/*": [
         "supabase/*"
+      ],
+      "@/src/*": [
+        "src/*"
       ]
     },
     "incremental": true,

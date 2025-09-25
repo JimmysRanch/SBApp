@@ -1,4 +1,4 @@
-import { enqueueAudit, registerNotificationToken } from "@/lib/notifications";
+import { enqueueAudit, registerNotificationToken as registerToken } from "@/lib/notifications";
 import {
   appointmentIdSchema,
   registerPushTokenSchema,
@@ -6,9 +6,9 @@ import {
   type RegisterPushTokenInput,
 } from "./schemas";
 
-export async function registerPushToken(rawInput: RegisterPushTokenInput) {
+export async function registerNotificationToken(rawInput: RegisterPushTokenInput) {
   const input = registerPushTokenSchema.parse(rawInput);
-  await registerNotificationToken({
+  await registerToken({
     userId: input.userId,
     platform: input.platform,
     token: input.token,

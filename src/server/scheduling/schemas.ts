@@ -95,7 +95,7 @@ export const applyRescheduleSchema = z.object({
 
 export const registerPushTokenSchema = z.object({
   userId: z.string().uuid(),
-  platform: z.enum(['web', 'ios', 'android']),
+  platform: z.literal('web'),
   token: z.string().min(16),
 });
 

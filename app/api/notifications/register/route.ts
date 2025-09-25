@@ -4,6 +4,8 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 import { registerNotificationToken } from "@/src/server/scheduling";
 
+export const runtime = "nodejs";
+
 const bodySchema = z.object({
   token: z.string().min(1, "Token is required"),
   platform: z.literal("web"),
@@ -22,16 +24,14 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const parsed = bodySchema.parse(body);
-
     await registerNotificationToken({
       userId: session.user.id,
       token: parsed.token,
       platform: parsed.platform,
     });
-
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : "Invalid body";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

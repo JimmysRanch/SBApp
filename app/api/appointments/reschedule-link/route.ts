@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { createRescheduleLink } from "../../../../src/server/scheduling";
 
+export const runtime = "nodejs";
+
 const payloadSchema = z.object({
   appointmentId: z.string().uuid(),
 });

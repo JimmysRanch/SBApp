@@ -196,7 +196,7 @@ export default async function ClientReschedulePage({
       <div className="mx-auto max-w-3xl px-6 py-10">
         <h1 className="text-3xl font-semibold text-white">Reschedule appointment</h1>
         <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-6 py-5 text-sm text-red-100">
-          We couldn't find that reschedule request. Please return to the client portal and try again.
+          We couldn&apos;t find that reschedule request. Please return to the client portal and try again.
         </div>
         <Link
           href="/client"

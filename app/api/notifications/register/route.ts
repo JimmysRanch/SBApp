@@ -1,9 +1,37 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { z } from "zod";
+import { registerNotificationToken } from "@/src/server/scheduling";
 
-export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body.token !== "string" || body.platform !== "web") {
-    return NextResponse.json({ ok: false }, { status: 400 });
+const bodySchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  platform: z.literal("web"),
+});
+
+export async function POST(req: Request) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json({ ok: true });
+
+  try {
+    const body = await req.json();
+    const parsed = bodySchema.parse(body);
+
+    await registerNotificationToken({
+      userId: session.user.id,
+      token: parsed.token,
+      platform: parsed.platform,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

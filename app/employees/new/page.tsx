@@ -9,6 +9,7 @@ import clsx from "clsx";
 import Card from "@/components/Card";
 import PageContainer from "@/components/PageContainer";
 import { useAuth } from "@/components/AuthProvider";
+import { derivePermissionFlags } from "@/lib/auth/roles";
 import {
   CompensationPlanDraft,
   defaultCompensationPlan,
@@ -127,7 +128,8 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
 
 export default function NewEmployeePage() {
   const router = useRouter();
-  const { loading: authLoading, session, permissions } = useAuth();
+  const { loading: authLoading, role, profile } = useAuth();
+  const permissions = useMemo(() => derivePermissionFlags(role), [role]);
 
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -294,7 +296,7 @@ export default function NewEmployeePage() {
     );
   }
 
-  if (!session) {
+  if (!profile) {
     return (
       <PageContainer>
         <Card>

@@ -1,9 +1,10 @@
 'use client'
 
 import { useAuth } from '@/components/AuthProvider'
+import { supabase } from '@/lib/supabase/client'
 
 export default function LogoutButton() {
-  const { loading, signOut } = useAuth()
+  const { loading, refresh } = useAuth()
 
   if (loading) return null
 
@@ -11,8 +12,9 @@ export default function LogoutButton() {
     <button
       type="button"
       className="rounded-full bg-white/20 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/30"
-      onClick={() => {
-        void signOut()
+      onClick={async () => {
+        await supabase.auth.signOut()
+        await refresh()
       }}
     >
       Log out

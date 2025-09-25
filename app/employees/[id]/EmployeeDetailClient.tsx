@@ -15,6 +15,7 @@ import clsx from "clsx";
 import PageContainer from "@/components/PageContainer";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { canManageWorkspace, derivePermissionFlags } from "@/lib/auth/roles";
 
 import StaffHeader from "./components/StaffHeader";
 import StaffTabs from "./components/StaffTabs";
@@ -155,7 +156,10 @@ type Props = {
 
 export default function EmployeeDetailClient({ children, employee, goals }: Props) {
   const router = useRouter();
-  const { email, permissions, isOwner } = useAuth();
+  const { role, profile } = useAuth();
+  const email = profile?.email ?? null;
+  const permissions = useMemo(() => derivePermissionFlags(role), [role]);
+  const isOwner = useMemo(() => canManageWorkspace(role), [role]);
 
   const [viewer, setViewer] = useState<ViewerRecord | null>(null);
   const [viewerLoaded, setViewerLoaded] = useState(false);
@@ -197,9 +201,6 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
 
   const viewerCanManageDiscounts = useMemo(() => {
     if (permissions.canManageEmployees) return true;
-    const rawFlags = permissions.raw;
-    if (isTruthyFlag(rawFlags.can_manage_discounts)) return true;
-    if (isTruthyFlag(rawFlags.is_manager)) return true;
     if (!viewer) return false;
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {
@@ -213,12 +214,6 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
 
   const viewerCanEditStaff = useMemo(() => {
     if (permissions.canManageEmployees || isOwner) return true;
-    const rawFlags = permissions.raw;
-    if (isTruthyFlag(rawFlags.can_manage_staff)) return true;
-    if (isTruthyFlag(rawFlags.can_edit_schedule)) return true;
-    if (isTruthyFlag(rawFlags.can_manage_discounts)) return true;
-    if (isTruthyFlag(rawFlags.can_view_reports)) return true;
-    if (isTruthyFlag(rawFlags.is_manager)) return true;
     if (!viewer) return false;
     const perms = viewer.app_permissions ?? {};
     if (typeof perms === "object" && perms !== null) {

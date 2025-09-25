@@ -89,7 +89,10 @@ export default function AppointmentDetailDrawer({
 
   const appointmentId = draft?.id ?? null;
   const allowedForActions = useMemo(
-    () => ["master", "admin", "senior_groomer", "receptionist"].includes(role),
+    () => {
+      const normalized = role?.toLowerCase() ?? "";
+      return ["master", "admin", "senior_groomer", "receptionist"].includes(normalized);
+    },
     [role]
   );
 

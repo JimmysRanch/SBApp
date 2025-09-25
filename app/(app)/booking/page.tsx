@@ -8,6 +8,7 @@ import clsx from "clsx";
 
 import { useAuth } from "@/components/AuthProvider";
 import { canAccessRoute } from "@/lib/auth/access";
+import { toLegacyRole } from "@/lib/auth/roles";
 
 const currency = new Intl.NumberFormat(undefined, {
   style: "currency",
@@ -159,6 +160,7 @@ const defaultDraft: BookingDraft = {
 
 export default function BookingPage() {
   const { loading, role } = useAuth();
+  const legacyRole = useMemo(() => toLegacyRole(role), [role]);
   const searchParams = useSearchParams();
   const clientId = searchParams.get("clientId") ?? null;
 
@@ -252,7 +254,7 @@ export default function BookingPage() {
     return <div className="px-6 py-10 text-sm text-white/70">Loading booking flow…</div>;
   }
 
-  if (!role || !canAccessRoute(role, "booking")) {
+  if (!legacyRole || !canAccessRoute(legacyRole, "booking")) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
         <h1 className="text-2xl font-semibold text-white">Booking unavailable</h1>

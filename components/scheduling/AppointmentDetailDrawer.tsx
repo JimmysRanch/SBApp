@@ -91,7 +91,7 @@ export default function AppointmentDetailDrawer({
   const allowedForActions = useMemo(
     () => {
       const normalized = role?.toLowerCase() ?? "";
-      return ["master", "admin", "senior_groomer", "receptionist"].includes(normalized);
+      return ["master account", "admin", "manager", "front desk"].includes(normalized);
     },
     [role]
   );

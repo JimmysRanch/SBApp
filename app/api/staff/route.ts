@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { normaliseRole } from "@/lib/auth/profile";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
@@ -208,7 +209,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  if (!me || !["master", "admin"].includes(me.role)) {
+  const resolvedRole = normaliseRole(me?.role ?? null);
+  if (!me || !["Master Account", "Admin"].includes(resolvedRole)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

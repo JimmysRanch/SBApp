@@ -27,7 +27,7 @@ const configurationLinks = [
 
 function hasElevatedAccess(member: TeamMember): boolean {
   const role = member.role?.toLowerCase() ?? '';
-  if (role.includes('owner') || role.includes('admin') || role.includes('manager')) {
+  if (role.includes('owner') || role.includes('admin') || role.includes('manager') || role.includes('master')) {
     return true;
   }
 
@@ -46,7 +46,7 @@ function hasElevatedAccess(member: TeamMember): boolean {
 }
 
 export default function SettingsPage() {
-  const { loading: authLoading, role, profile, refresh } = useAuth();
+  const { loading: authLoading, role, roleLabel, profile, refresh } = useAuth();
 
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ export default function SettingsPage() {
     }
   }, [authLoading, loadTeam, role]);
 
-  const roleLabel = useMemo(() => role ?? 'Guest', [role]);
+  const displayRole = useMemo(() => roleLabel ?? 'Guest', [roleLabel]);
 
   const userEmail = profile?.email ?? null;
 
@@ -108,7 +108,8 @@ export default function SettingsPage() {
       <div className="space-y-3 p-6">
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-white/80">
-          You do not currently have access to this page. Please contact an administrator if you believe this is an error.
+          You do not currently have access to this page. Please contact the Master Account or an Admin if you believe this
+          is an error.
         </p>
       </div>
     );
@@ -126,7 +127,7 @@ export default function SettingsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
           <p className="text-2xl font-bold text-brand-navy">{userEmail ?? 'Team member'}</p>
           <p className="text-sm text-brand-navy/70">
-            Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
+            Role: <span className="font-semibold text-brand-navy">{displayRole}</span>
           </p>
           {userEmail && <p className="text-xs text-brand-navy/50">Email: {userEmail}</p>}
         </div>

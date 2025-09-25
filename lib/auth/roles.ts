@@ -1,20 +1,16 @@
 import { isFrontDeskRole, isGroomerRole, isManagerRole } from "@/lib/auth/access";
-import type { Role as LegacyRole } from "@/lib/auth/profile";
+import { normaliseRole, type Role as LegacyRole } from "@/lib/auth/profile";
 
-export function toLegacyRole(role: string | null): LegacyRole | null {
+export function toLegacyRole(role: string | LegacyRole | null): LegacyRole | null {
   if (!role) return null;
-  const normalized = role.toLowerCase();
-  if (normalized.includes("master")) return "master";
-  if (normalized.includes("admin")) return "admin";
-  if (normalized.includes("senior_groomer") || normalized.includes("senior groomer") || normalized.includes("manager")) {
-    return "senior_groomer";
+  if (typeof role === "string") {
+    const trimmed = role.trim();
+    if (!trimmed || trimmed.toLowerCase() === "guest") {
+      return null;
+    }
+    return normaliseRole(trimmed);
   }
-  if (normalized.includes("front desk") || normalized.includes("receptionist")) {
-    return "receptionist";
-  }
-  if (normalized.includes("groomer")) return "groomer";
-  if (normalized.includes("client")) return "client";
-  return null;
+  return role;
 }
 
 export function derivePermissionFlags(role: string | null) {

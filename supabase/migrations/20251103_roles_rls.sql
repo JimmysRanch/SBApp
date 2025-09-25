@@ -1,7 +1,7 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
-  role text not null default 'client' check (role in ('master','admin','senior_groomer','groomer','receptionist','client')),
+  role text not null default 'Client' check (role in ('Master Account','Admin','Manager','Front Desk','Groomer','Bather','Client')),
   created_at timestamptz default now()
 );
 alter table public.profiles enable row level security;
@@ -11,7 +11,7 @@ for select using (auth.uid() = id);
 
 create policy profiles_admin_read on public.profiles
 for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('master','admin'))
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('Master Account','Admin'))
 );
 
 create or replace function public.current_role() returns text
@@ -20,12 +20,13 @@ language sql stable as $$ select role from public.profiles where id = auth.uid()
 create or replace function public.role_rank(r text) returns int
 language sql immutable as $$
   select case r
-    when 'master' then 6
-    when 'admin' then 5
-    when 'senior_groomer' then 4
-    when 'groomer' then 3
-    when 'receptionist' then 2
-    when 'client' then 1
+    when 'Master Account' then 7
+    when 'Admin' then 6
+    when 'Manager' then 5
+    when 'Front Desk' then 4
+    when 'Groomer' then 3
+    when 'Bather' then 2
+    when 'Client' then 1
     else 0 end
 $$;
 
@@ -41,35 +42,35 @@ create table if not exists public.appointments (
 alter table public.appointments enable row level security;
 
 create policy appt_admin_all on public.appointments
-for all using (public.current_role() in ('master','admin'))
-with check (public.current_role() in ('master','admin'));
+for all using (public.current_role() in ('Master Account','Admin'))
+with check (public.current_role() in ('Master Account','Admin'));
 
-create policy appt_senior_read_all on public.appointments
-for select using (public.current_role() = 'senior_groomer');
+create policy appt_manager_read_all on public.appointments
+for select using (public.current_role() = 'Manager');
 
-create policy appt_senior_insert on public.appointments
-for insert with check (public.current_role() = 'senior_groomer');
+create policy appt_manager_insert on public.appointments
+for insert with check (public.current_role() = 'Manager');
 
-create policy appt_senior_update_own on public.appointments
-for update using (public.current_role() = 'senior_groomer' and auth.uid() = groomer_id);
+create policy appt_manager_update_own on public.appointments
+for update using (public.current_role() = 'Manager' and auth.uid() = groomer_id);
 
 create policy appt_recept_insert on public.appointments
-for insert with check (public.current_role() = 'receptionist');
+for insert with check (public.current_role() = 'Front Desk');
 
 create policy appt_recept_read_all on public.appointments
-for select using (public.current_role() = 'receptionist');
+for select using (public.current_role() = 'Front Desk');
 
 create policy appt_groomer_read_own on public.appointments
-for select using (public.current_role() = 'groomer' and auth.uid() = groomer_id);
+for select using (public.current_role() in ('Groomer','Bather') and auth.uid() = groomer_id);
 
 create policy appt_client_read_own on public.appointments
-for select using (public.current_role() = 'client' and auth.uid() = client_id);
+for select using (public.current_role() = 'Client' and auth.uid() = client_id);
 
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer as $$
 begin
   insert into public.profiles (id, full_name, role)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''), 'client')
+  values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''), 'Client')
   on conflict (id) do nothing;
   return new;
 end $$;
@@ -86,11 +87,11 @@ create index if not exists idx_appts_client on public.appointments(client_id);
 -- BOOTSTRAP MASTER (makes you Master immediately)
 -- by known UUID
 insert into public.profiles (id, role)
-values ('2dec66df-bb0c-4517-b0dd-bf0a8b1a3f9d','master')
-on conflict (id) do update set role='master';
+values ('2dec66df-bb0c-4517-b0dd-bf0a8b1a3f9d','Master Account')
+on conflict (id) do update set role='Master Account';
 
 -- safety: if UUID ever changes, also promote by email
 insert into public.profiles (id, role)
-select u.id, 'master' from auth.users u
+select u.id, 'Master Account' from auth.users u
 where lower(u.email) = lower('alexandersiskind@gmail.com')
-on conflict (id) do update set role='master';
+on conflict (id) do update set role='Master Account';

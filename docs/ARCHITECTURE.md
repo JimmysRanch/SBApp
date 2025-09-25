@@ -2,7 +2,7 @@
 
 ## Roles
 - Master Account: one per business. Full control.
-- Manager, Front Desk, Groomer: invited by Master/Manager.
+- Manager, Front Desk, Groomer, Bather: invited by the Master Account or a Manager.
 - Client: default for new auth users unless invited as staff.
 
 ## Tenancy

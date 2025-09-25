@@ -1,7 +1,7 @@
 -- Seed data for staff module
 insert into public.employees (id, name, email, phone, role, status, commission_rate, app_permissions)
 values
-  (1, 'Alex Groomer', 'alex@scruffybutts.test', '+1-555-0100', 'Senior Groomer', 'Active', 0.2, '{"is_manager": true, "can_manage_discounts": true}'::jsonb)
+  (1, 'Alex Groomer', 'alex@scruffybutts.test', '+1-555-0100', 'Manager', 'Active', 0.2, '{"is_manager": true, "can_manage_discounts": true}'::jsonb)
 on conflict (id) do update set
   name = excluded.name,
   email = excluded.email,

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { normaliseRole } from "@/lib/auth/profile";
 
 export async function POST(request: Request) {
   const supabase = createRouteHandlerClient({ cookies });
@@ -11,7 +12,9 @@ export async function POST(request: Request) {
 
   const me = await supabase.from("profiles").select("id, role, business_id").eq("id", session.user.id).maybeSingle();
   if (me.error || !me.data?.business_id) return NextResponse.json({ error: "No business" }, { status: 403 });
-  if (String(me.data.role) !== "Master Account") return NextResponse.json({ error: "Only Master can transfer" }, { status: 403 });
+  if (normaliseRole(me.data.role) !== "Master Account") {
+    return NextResponse.json({ error: "Only Master can transfer" }, { status: 403 });
+  }
 
   const { targetUserId } = await request.json().catch(() => ({}));
   if (!targetUserId) return NextResponse.json({ error: "Missing targetUserId" }, { status: 400 });
@@ -19,7 +22,7 @@ export async function POST(request: Request) {
   // Demote any master in same business except target
   const demote = await supabase.from("profiles").update({ role: "Manager" })
     .eq("business_id", me.data.business_id)
-    .eq("role", "Master Account")
+    .in("role", ["Master Account", "master"])
     .neq("id", targetUserId);
   if (demote.error) return NextResponse.json({ error: demote.error.message }, { status: 400 });
 
@@ -30,7 +33,10 @@ export async function POST(request: Request) {
 
   // Ensure employees row for target
   await supabase.from("employees").upsert({
-    user_id: targetUserId, name: "Owner", active: true, role: "Manager",
+    user_id: targetUserId,
+    name: "Owner",
+    active: true,
+    role: "Master Account",
     business_id: me.data.business_id, app_permissions: { dashboard: true }
   }, { onConflict: "user_id" });
 

@@ -22,9 +22,9 @@ export default async function Home() {
     .maybeSingle();
 
   const profile = mapProfileRow(data) ?? null;
-  const role = profile?.role ?? "client";
+  const role = profile?.role ?? "Client";
 
-  if (role === "client") {
+  if (role === "Client") {
     redirect("/client");
   }
 

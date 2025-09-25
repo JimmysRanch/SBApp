@@ -647,7 +647,7 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-semibold text-white">Calendar unavailable</h1>
         <p className="mt-3 text-sm">
           Your profile does not have access to the scheduling calendar. If you believe this is a mistake, please
-          contact a manager or administrator.
+          contact a Manager, Admin, or the Master Account.
         </p>
       </div>
     );

@@ -43,21 +43,21 @@ const staffOptions: StaffOption[] = [
   {
     id: "sasha",
     name: "Sasha Taylor",
-    role: "Master Groomer",
+    role: "Manager",
     avatar: "https://avatars.dicebear.com/api/initials/ST.svg",
     bio: "Specialises in hand scissoring and anxious pups.",
   },
   {
     id: "myles",
     name: "Myles Chen",
-    role: "Senior Groomer",
+    role: "Groomer",
     avatar: "https://avatars.dicebear.com/api/initials/MC.svg",
     bio: "Loves double coats, creative colour and doodles.",
   },
   {
     id: "imani",
     name: "Imani Hart",
-    role: "Pet Stylist",
+    role: "Bather",
     avatar: "https://avatars.dicebear.com/api/initials/IH.svg",
     bio: "Speedy with bath & tidy packages and small breeds.",
   },
@@ -257,7 +257,8 @@ export default function BookingClient() {
       <div className="mx-auto max-w-2xl px-6 py-16 text-white/80">
         <h1 className="text-2xl font-semibold text-white">Booking unavailable</h1>
         <p className="mt-3 text-sm">
-          Your role does not allow access to the booking flow. Front desk, managers and administrators can book
+          Your role does not allow access to the booking flow. Front Desk, Managers, Admins, or the Master Account can
+          book
           appointments on behalf of clients.
         </p>
       </div>

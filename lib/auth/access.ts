@@ -10,10 +10,10 @@ export type AppRoute =
   | "messages"
   | "settings";
 
-const managerRoles: Role[] = ["master", "admin", "senior_groomer"];
-const frontDeskRoles: Role[] = ["receptionist"];
-const groomerRoles: Role[] = ["groomer"];
-const clientRoles: Role[] = ["client"];
+const managerRoles: Role[] = ["Master Account", "Admin", "Manager"];
+const frontDeskRoles: Role[] = ["Front Desk"];
+const groomerRoles: Role[] = ["Groomer", "Bather"];
+const clientRoles: Role[] = ["Client"];
 
 const routeAccess: Record<AppRoute, Role[]> = {
   dashboard: managerRoles,
@@ -80,19 +80,5 @@ export function navItemsForRole(role: Role): NavItem[] {
 }
 
 export function roleDisplayName(role: Role): string {
-  switch (role) {
-    case "master":
-      return "Master Account";
-    case "admin":
-      return "Admin";
-    case "senior_groomer":
-      return "Manager";
-    case "groomer":
-      return "Groomer";
-    case "receptionist":
-      return "Front Desk";
-    case "client":
-    default:
-      return "Client";
-  }
+  return role;
 }

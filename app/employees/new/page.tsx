@@ -312,8 +312,8 @@ export default function NewEmployeePage() {
         <Card>
           <h1 className="text-2xl font-semibold text-brand-navy">Access restricted</h1>
           <p className="mt-2 text-sm text-brand-navy/70">
-            You do not have permission to add staff members. Ask an administrator to adjust your access if you
-            believe this is a mistake.
+            You do not have permission to add staff members. Ask the Master Account or an Admin to adjust your access if
+            you believe this is a mistake.
           </p>
         </Card>
       </PageContainer>

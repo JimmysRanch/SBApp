@@ -6,6 +6,9 @@ DROP POLICY IF EXISTS appt_admin_all ON public.appointments;
 DROP POLICY IF EXISTS appt_senior_read_all ON public.appointments;
 DROP POLICY IF EXISTS appt_senior_insert ON public.appointments;
 DROP POLICY IF EXISTS appt_senior_update_own ON public.appointments;
+DROP POLICY IF EXISTS appt_manager_read_all ON public.appointments;
+DROP POLICY IF EXISTS appt_manager_insert ON public.appointments;
+DROP POLICY IF EXISTS appt_manager_update_own ON public.appointments;
 DROP POLICY IF EXISTS appt_recept_insert ON public.appointments;
 DROP POLICY IF EXISTS appt_recept_read_all ON public.appointments;
 DROP POLICY IF EXISTS appt_groomer_read_own ON public.appointments;
@@ -162,49 +165,49 @@ $$;
 CREATE POLICY appointments_management_all ON public.appointments
 FOR ALL
 USING (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 );
 
 CREATE POLICY appointments_front_desk_select ON public.appointments
 FOR SELECT
 USING (
-  public.has_role_ci(ARRAY['Front Desk','receptionist'])
+  public.has_role_ci(ARRAY['Front Desk','receptionist','front desk'])
 );
 
 CREATE POLICY appointments_front_desk_insert ON public.appointments
 FOR INSERT
 WITH CHECK (
-  public.has_role_ci(ARRAY['Front Desk','receptionist'])
+  public.has_role_ci(ARRAY['Front Desk','receptionist','front desk'])
 );
 
 CREATE POLICY appointments_front_desk_update ON public.appointments
 FOR UPDATE
 USING (
-  public.has_role_ci(ARRAY['Front Desk','receptionist'])
+  public.has_role_ci(ARRAY['Front Desk','receptionist','front desk'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Front Desk','receptionist'])
+  public.has_role_ci(ARRAY['Front Desk','receptionist','front desk'])
 );
 
 CREATE POLICY appointments_groomer_select ON public.appointments
 FOR SELECT
 USING (
   auth.uid() = staff_id
-  AND public.has_role_ci(ARRAY['Groomer','Senior Groomer','groomer','senior_groomer'])
+  AND public.has_role_ci(ARRAY['Groomer','Bather','Senior Groomer','groomer','bather','senior_groomer'])
 );
 
 CREATE POLICY appointments_groomer_update ON public.appointments
 FOR UPDATE
 USING (
   auth.uid() = staff_id
-  AND public.has_role_ci(ARRAY['Groomer','Senior Groomer','groomer','senior_groomer'])
+  AND public.has_role_ci(ARRAY['Groomer','Bather','Senior Groomer','groomer','bather','senior_groomer'])
 )
 WITH CHECK (
   auth.uid() = staff_id
-  AND public.has_role_ci(ARRAY['Groomer','Senior Groomer','groomer','senior_groomer'])
+  AND public.has_role_ci(ARRAY['Groomer','Bather','Senior Groomer','groomer','bather','senior_groomer'])
 );
 
 CREATE POLICY appointments_client_select ON public.appointments
@@ -218,10 +221,10 @@ USING (
 CREATE POLICY pets_management_all ON public.pets
 FOR ALL
 USING (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 );
 
 CREATE POLICY pets_client_select ON public.pets
@@ -235,10 +238,10 @@ USING (
 CREATE POLICY pet_photos_management_all ON public.pet_photos
 FOR ALL
 USING (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 );
 
 CREATE POLICY pet_photos_client_select ON public.pet_photos
@@ -255,7 +258,7 @@ USING (
 CREATE POLICY pet_photos_groomer_insert ON public.pet_photos
 FOR INSERT
 WITH CHECK (
-  public.has_role_ci(ARRAY['Groomer','Senior Groomer','groomer','senior_groomer'])
+  public.has_role_ci(ARRAY['Groomer','Bather','Senior Groomer','groomer','bather','senior_groomer'])
   AND EXISTS (
     SELECT 1
     FROM public.appointments a
@@ -268,10 +271,10 @@ WITH CHECK (
 CREATE POLICY availability_rules_management_all ON public.availability_rules
 FOR ALL
 USING (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 );
 
 CREATE POLICY availability_rules_staff_select ON public.availability_rules
@@ -284,10 +287,10 @@ USING (
 CREATE POLICY blackout_dates_management_all ON public.blackout_dates
 FOR ALL
 USING (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 )
 WITH CHECK (
-  public.has_role_ci(ARRAY['Manager','Admin','Master Account','manager','admin','master'])
+  public.has_role_ci(ARRAY['Master Account','Admin','Manager','master account','admin','manager','master'])
 );
 
 CREATE POLICY blackout_dates_staff_select ON public.blackout_dates

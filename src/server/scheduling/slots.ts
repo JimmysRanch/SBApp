@@ -1,5 +1,6 @@
-import { rrulestr, type RRuleSet } from 'rrule';
-import { getSupabaseAdmin } from '@/lib/supabase/server';
+import RRuleModule from 'rrule';
+import type { RRuleSet } from 'rrule';
+import { getSupabaseAdmin } from '../../../lib/supabase/server';
 import type { SlotQueryInput } from './schemas';
 import { slotQuerySchema } from './schemas';
 import type { AppointmentRow, AvailabilityRuleRow, BlackoutRow, ServiceRow } from './types';
@@ -49,6 +50,8 @@ function parseISODurationMinutes(input: string): number | null {
     (seconds ? Math.ceil(Number.parseInt(seconds, 10) / 60) : 0);
   return Number.isFinite(total) && total > 0 ? total : null;
 }
+
+const { rrulestr } = RRuleModule as { rrulestr: typeof import('rrule').rrulestr };
 
 function extractDurationMinutes(rruleText: string): number | null {
   const custom = rruleText.match(/X-[A-Z-]*DURATION-MINUTES:(\d+)/i);

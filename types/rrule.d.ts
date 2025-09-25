@@ -1,4 +1,7 @@
-declare module 'rrule' {
-  export type RRuleSet = any;
-  export function rrulestr(input: string, options?: Record<string, unknown>): RRuleSet;
+declare module "rrule" {
+  export type RRuleSet = {
+    between: (after: Date, before: Date, inc?: boolean) => Date[];
+  };
+
+  export function rrulestr(rrule: string, options?: { forceset?: boolean }): RRuleSet;
 }

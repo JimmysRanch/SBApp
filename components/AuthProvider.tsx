@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, email, role")
+        .select("id, role, full_name")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoleLabel(roleDisplayName(resolvedRole));
       setProfile({
         id: profileData?.id ?? user.id,
-        email: profileData?.email ?? user.email ?? null,
+        email: user.email ?? null,
         role: resolvedRole,
       });
     } catch (error) {

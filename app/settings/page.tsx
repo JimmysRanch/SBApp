@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase/client';
+import { canManageWorkspace } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,23 +46,14 @@ function hasElevatedAccess(member: TeamMember): boolean {
 }
 
 export default function SettingsPage() {
-  const {
-    loading: authLoading,
-    session,
-    displayName,
-    email,
-    role,
-    isOwner,
-    permissions,
-    signOut,
-  } = useAuth();
+  const { loading: authLoading, role, profile, refresh } = useAuth();
 
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const loadTeam = useCallback(async () => {
-    if (!isOwner) {
+    if (!canManageWorkspace(role)) {
       setTeam([]);
       setErr(null);
       return;
@@ -86,40 +78,37 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isOwner]);
+  }, [role]);
 
   useEffect(() => {
-    if (!authLoading && session && isOwner) {
+    if (!authLoading && canManageWorkspace(role)) {
       void loadTeam();
     }
-  }, [authLoading, isOwner, loadTeam, session]);
+  }, [authLoading, loadTeam, role]);
 
-  const roleLabel = useMemo(() => {
-    if (role) return role;
-    return isOwner ? 'Owner' : 'Team Member';
-  }, [isOwner, role]);
+  const roleLabel = useMemo(() => role ?? 'Guest', [role]);
 
-  const userEmail = session?.user?.email ?? email ?? null;
+  const userEmail = profile?.email ?? null;
 
-  const handleLogout = useCallback(() => {
-    void signOut();
-  }, [signOut]);
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    await refresh();
+  }, [refresh]);
 
   if (authLoading) {
     return <div className="p-6">Loading settings…</div>;
   }
 
-  if (!session) {
+  if (!profile) {
     return <div className="p-6">Please log in to view settings.</div>;
   }
 
-  if (!permissions.canAccessSettings) {
+  if (!canManageWorkspace(role)) {
     return (
       <div className="space-y-3 p-6">
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-white/80">
-          You do not currently have access to this page. Please contact an administrator if you believe this is
-          an error.
+          You do not currently have access to this page. Please contact an administrator if you believe this is an error.
         </p>
       </div>
     );
@@ -135,9 +124,7 @@ export default function SettingsPage() {
 
         <div className="rounded-2xl bg-white/70 p-4 shadow-inner">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
-          <p className="text-2xl font-bold text-brand-navy">
-            {displayName ?? userEmail ?? 'Team member'}
-          </p>
+          <p className="text-2xl font-bold text-brand-navy">{userEmail ?? 'Team member'}</p>
           <p className="text-sm text-brand-navy/70">
             Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
           </p>
@@ -166,7 +153,7 @@ export default function SettingsPage() {
           </ul>
         </div>
 
-        {isOwner && (
+        {canManageWorkspace(role) && (
           <div className="glass-panel space-y-4 bg-white/90 p-6 text-brand-navy">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Team members with elevated access</h2>
@@ -180,9 +167,7 @@ export default function SettingsPage() {
             </div>
             {err && <p className="text-sm font-medium text-red-600">{err}</p>}
             {!err && team.length === 0 && (
-              <p className="text-sm text-brand-navy/70">
-                No other teammates currently have elevated access.
-              </p>
+              <p className="text-sm text-brand-navy/70">No other teammates currently have elevated access.</p>
             )}
             <ul className="space-y-3 text-sm">
               {team.map((member) => (

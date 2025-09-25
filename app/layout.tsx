@@ -5,9 +5,7 @@ import type { Metadata } from "next";
 import AuthProvider from "@/components/AuthProvider";
 import LogoutButton from "@/components/LogoutButton";
 import PushToggle from "@/components/PushToggle";
-import { navItemsForRole, roleDisplayName } from "@/lib/auth/access";
-import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
-import { createClient } from "@/lib/supabase/server";
+import TopNav from "@/components/TopNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,40 +20,17 @@ const nunito = Nunito({
   variable: "--font-sans",
 });
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  let profile: UserProfile | null = null;
-  let role: Role = "client";
-
-  if (session?.user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, role")
-      .eq("id", session.user.id)
-      .maybeSingle();
-    profile = mapProfileRow(data) ?? null;
-    if (profile) {
-      role = profile.role;
-    }
-  }
-
-  const tabs = navItemsForRole(role);
-  const roleLabel = roleDisplayName(role);
-
   return (
     <html lang="en" className="scroll-smooth">
       <body
         className={`${nunito.variable} font-sans text-white/90 antialiased bg-gradient-to-br from-brand-blue via-primary to-brand-sky min-h-screen overflow-x-hidden`}
       >
-        <AuthProvider initialSession={session} initialProfile={profile}>
+        <AuthProvider>
           <div className="relative flex min-h-screen flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
               <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-brand-bubble/30 blur-[120px]" />
@@ -75,29 +50,11 @@ export default async function RootLayout({
                     </span>
                   </div>
                 </Link>
-                <nav className="flex flex-1 flex-wrap items-center gap-2 text-sm">
-                  {tabs.length === 0 ? (
-                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
-                      No dashboard access
-                    </span>
-                  ) : (
-                    tabs.map((tab) => (
-                      <Link
-                        key={tab.href}
-                        href={tab.href}
-                        className="nav-link text-white/80 transition hover:text-white"
-                      >
-                        {tab.label}
-                      </Link>
-                    ))
-                  )}
-                </nav>
+                <div className="flex flex-1 justify-end">
+                  <TopNav />
+                </div>
                 <div className="flex items-center gap-4 text-right text-xs leading-tight text-white/80">
-                  {session?.user ? <PushToggle /> : null}
-                  <div className="hidden sm:flex sm:flex-col sm:items-end">
-                    <span className="font-semibold text-white">{profile?.full_name ?? session?.user?.email ?? ""}</span>
-                    <span className="uppercase tracking-[0.22em] text-[11px] text-white/60">{roleLabel}</span>
-                  </div>
+                  <PushToggle />
                   <LogoutButton />
                 </div>
               </div>

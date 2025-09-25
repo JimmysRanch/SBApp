@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import { getSupabaseAdmin } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../../../lib/supabase/server';
 import { applyRescheduleSchema, rescheduleLinkSchema, type ApplyRescheduleInput, type RescheduleLinkInput } from './schemas';
-import { listSlots } from './slots';
+import { listSlots, type AvailableSlot } from './slots';
 import type {
   AppointmentRow,
   AppointmentWithServiceRow,
@@ -33,8 +34,7 @@ function generateToken(): string {
   return randomBytes(24).toString('base64url');
 }
 
-async function loadRescheduleLink(token: string) {
-  const supabase = getSupabaseAdmin();
+async function loadRescheduleLink(supabase: SupabaseClient, token: string) {
   const { data, error } = await supabase
     .from('reschedule_links')
     .select('id, appointment_id, token, expires_at, used_at')
@@ -46,8 +46,7 @@ async function loadRescheduleLink(token: string) {
   return link;
 }
 
-async function loadAppointmentWithService(id: string) {
-  const supabase = getSupabaseAdmin();
+async function loadAppointmentWithService(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase
     .from('appointments')
     .select('*, services:service_id (id, base_price, duration_min, buffer_pre_min, buffer_post_min)')
@@ -94,17 +93,32 @@ export async function createRescheduleLink(rawInput: RescheduleLinkInput) {
   throw new Error('Unable to allocate reschedule token');
 }
 
-export async function applyReschedule(rawInput: ApplyRescheduleInput) {
+type ApplyRescheduleDependencies = {
+  getSupabaseAdmin?: () => SupabaseClient;
+  listSlots?: (input: Parameters<typeof listSlots>[0]) => Promise<AvailableSlot[]>;
+  now?: () => Date;
+};
+
+export async function applyReschedule(
+  rawInput: ApplyRescheduleInput,
+  dependencies: ApplyRescheduleDependencies = {},
+) {
   const input = applyRescheduleSchema.parse(rawInput);
-  const link = await loadRescheduleLink(input.token);
+  const getAdmin = dependencies.getSupabaseAdmin ?? getSupabaseAdmin;
+  const listAvailableSlots = dependencies.listSlots ?? listSlots;
+  const now = dependencies.now ?? (() => new Date());
+
+  const supabase = getAdmin();
+  const link = await loadRescheduleLink(supabase, input.token);
   if (link.used_at) {
     throw new Error('Reschedule link has already been used.');
   }
-  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+  const currentTime = now();
+  if (link.expires_at && new Date(link.expires_at) < currentTime) {
     throw new Error('Reschedule link has expired.');
   }
 
-  const { appointment, service } = await loadAppointmentWithService(link.appointment_id);
+  const { appointment, service } = await loadAppointmentWithService(supabase, link.appointment_id);
   const startsAt = input.newSlot.startsAt;
   const serviceId = input.newSlot.serviceId;
   if (appointment.service_id && appointment.service_id !== serviceId) {
@@ -112,7 +126,7 @@ export async function applyReschedule(rawInput: ApplyRescheduleInput) {
   }
 
   const staffId = input.newSlot.staffId ?? appointment.staff_id ?? undefined;
-  const validationSlots = await listSlots({
+  const validationSlots = await listAvailableSlots({
     staffId,
     serviceId,
     from: addMinutes(startsAt, -180),
@@ -132,7 +146,6 @@ export async function applyReschedule(rawInput: ApplyRescheduleInput) {
   const effectiveDuration = originalDuration > 0 ? originalDuration : service?.duration_min ?? 60;
   const newEnd = addMinutes(startsAt, effectiveDuration);
 
-  const supabase = getSupabaseAdmin();
   const { data: updated, error: updateError } = await supabase
     .from('appointments')
     .update({
@@ -147,7 +160,7 @@ export async function applyReschedule(rawInput: ApplyRescheduleInput) {
 
   const { error: markUsedError } = await supabase
     .from('reschedule_links')
-    .update({ used_at: new Date().toISOString() })
+    .update({ used_at: currentTime.toISOString() })
     .eq('id', link.id);
   if (markUsedError) throw markUsedError;
 

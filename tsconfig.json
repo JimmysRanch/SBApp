@@ -23,6 +23,10 @@
       "react-dom",
       "jsdom"
     ],
+    "typeRoots": [
+      "./types",
+      "./node_modules/@types"
+    ],
     "baseUrl": ".",
     "paths": {
       "@/components/*": [
@@ -33,6 +37,9 @@
       ],
       "@/hooks/*": [
         "hooks/*"
+      ],
+      "@/server/*": [
+        "src/server/*"
       ],
       "@/types/*": [
         "types/*"
@@ -56,6 +63,7 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.js",
+    "**/*.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [

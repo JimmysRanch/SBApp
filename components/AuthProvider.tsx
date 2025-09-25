@@ -35,13 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (userError) {
-        throw userError;
+      if (sessionError) {
+        throw sessionError;
       }
+
+      const user = session?.user ?? null;
 
       if (!user) {
         setRole("Guest");
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: resolvedRole,
       });
     } catch (error) {
+      console.error("Failed to load auth session:", error);
       setRole("Guest");
       setProfile(null);
     } finally {

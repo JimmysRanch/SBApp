@@ -164,7 +164,7 @@ export async function listSlots(rawInput: SlotQueryInput): Promise<AvailableSlot
   const [{ data: serviceRecord, error: serviceError }] = await Promise.all([
     supabase
       .from('services')
-      .select('id, base_price, duration_min, buffer_pre_min, buffer_post_min')
+      .select('id, business_id, base_price, duration_min, buffer_pre_min, buffer_post_min')
       .eq('id', serviceId)
       .maybeSingle(),
   ]);

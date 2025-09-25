@@ -10,8 +10,8 @@ export type AppRoute =
   | "messages"
   | "settings";
 
-const managerRoles: Role[] = ["master", "admin", "senior_groomer"];
-const frontDeskRoles: Role[] = ["receptionist"];
+const managerRoles: Role[] = ["master", "manager"];
+const frontDeskRoles: Role[] = ["front_desk"];
 const groomerRoles: Role[] = ["groomer"];
 const clientRoles: Role[] = ["client"];
 
@@ -83,13 +83,11 @@ export function roleDisplayName(role: Role): string {
   switch (role) {
     case "master":
       return "Master Account";
-    case "admin":
-      return "Admin";
-    case "senior_groomer":
+    case "manager":
       return "Manager";
     case "groomer":
       return "Groomer";
-    case "receptionist":
+    case "front_desk":
       return "Front Desk";
     case "client":
     default:

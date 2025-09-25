@@ -208,7 +208,7 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
       if (isTruthyFlag(flags.is_manager)) return true;
     }
     const role = viewer.role?.toLowerCase() ?? "";
-    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+    return role.includes("manager") || role.includes("master");
   }, [permissions, viewer]);
 
   const viewerCanEditStaff = useMemo(() => {
@@ -230,7 +230,7 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
       if (isTruthyFlag(flags.is_manager)) return true;
     }
     const role = viewer.role?.toLowerCase() ?? "";
-    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+    return role.includes("manager") || role.includes("master");
   }, [isOwner, permissions, viewer]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);

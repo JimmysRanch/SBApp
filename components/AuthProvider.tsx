@@ -73,15 +73,7 @@ export function useAuth() {
 function permissionsForRole(role: Role): Permissions {
   switch (role) {
     case "master":
-    case "admin":
-      return {
-        canAccessSettings: true,
-        canManageCalendar: true,
-        canManageEmployees: true,
-        canViewReports: true,
-        raw: { role },
-      };
-    case "senior_groomer":
+    case "manager":
       return {
         canAccessSettings: true,
         canManageCalendar: true,
@@ -97,7 +89,7 @@ function permissionsForRole(role: Role): Permissions {
         canViewReports: false,
         raw: { role },
       };
-    case "receptionist":
+    case "front_desk":
       return {
         canAccessSettings: false,
         canManageCalendar: true,
@@ -120,7 +112,7 @@ async function loadUserProfile(user: User | null): Promise<UserProfile | null> {
   if (!user) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role")
+    .select("id, full_name, role, business_id")
     .eq("id", user.id)
     .maybeSingle();
 

@@ -20,6 +20,7 @@ export type AppointmentRow = {
   client_id?: string | null;
   pet_id?: string | null;
   service_id?: string | null;
+  business_id?: string | null;
   starts_at: string;
   ends_at: string;
   price_service?: number | null;
@@ -33,6 +34,7 @@ export type AppointmentRow = {
 
 export type ServiceRow = {
   id: string;
+  business_id: string;
   name?: string | null;
   base_price: number;
   duration_min?: number | null;
@@ -42,6 +44,7 @@ export type ServiceRow = {
 
 export type AddOnRow = {
   id: string;
+  business_id: string;
   name?: string | null;
   price: number;
 };
@@ -50,6 +53,7 @@ export type RescheduleLinkRow = {
   id: string;
   appointment_id: string;
   token: string;
+  business_id?: string | null;
   expires_at: string | null;
   used_at: string | null;
 };

@@ -35,7 +35,7 @@ async function fetchService(serviceId: string) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('services')
-    .select('id, base_price, duration_min, buffer_pre_min, buffer_post_min')
+    .select('id, business_id, base_price, duration_min, buffer_pre_min, buffer_post_min')
     .eq('id', serviceId)
     .maybeSingle();
   if (error) throw error;
@@ -95,13 +95,17 @@ export async function createAppointment(rawPayload: CreateAppointmentInput) {
   if (payload.addOnIds.length > 0) {
     const { data: addOns, error: addOnError } = await supabase
       .from('add_ons')
-      .select('id, price')
+      .select('id, business_id, price')
       .in('id', payload.addOnIds);
     if (addOnError) throw addOnError;
     addOnRows = (addOns as AddOnRow[] | null) ?? [];
     const missing = payload.addOnIds.filter((id) => !addOnRows.some((row) => row.id === id));
+    const mismatched = addOnRows.filter((row) => row.business_id !== service.business_id);
     if (missing.length > 0) {
       throw new Error(`Unknown add-ons: ${missing.join(', ')}`);
+    }
+    if (mismatched.length > 0) {
+      throw new Error('Add-ons must belong to the same business as the service.');
     }
     addOnTotal = addOnRows.reduce((sum, row) => sum + normalisePrice(row.price), 0);
   }
@@ -112,6 +116,7 @@ export async function createAppointment(rawPayload: CreateAppointmentInput) {
     client_id: payload.clientId,
     pet_id: payload.petId ?? null,
     service_id: payload.serviceId,
+    business_id: service.business_id,
     starts_at: toIso(startsAt),
     ends_at: toIso(endsAt),
     price_service: priceService,
@@ -134,6 +139,7 @@ export async function createAppointment(rawPayload: CreateAppointmentInput) {
     const addOnPayload = addOnRows.map((row) => ({
       appointment_id: inserted.id,
       add_on_id: row.id,
+      business_id: service.business_id,
       price: normalisePrice(row.price),
     }));
     const { error: addOnInsertError } = await supabase
@@ -147,6 +153,7 @@ export async function createAppointment(rawPayload: CreateAppointmentInput) {
     action: 'appointment_created',
     entity: 'appointments',
     entity_id: inserted.id,
+    business_id: service.business_id,
   });
 
   return {
@@ -184,6 +191,7 @@ export async function updateAppointment(id: string, rawPayload: UpdateAppointmen
     action: 'appointment_updated',
     entity: 'appointments',
     entity_id: id,
+    business_id: existing.business_id ?? null,
   });
 
   return data ?? existing;
@@ -214,6 +222,7 @@ export async function cancelAppointment(id: string, reason?: string) {
     action: 'appointment_canceled',
     entity: 'appointments',
     entity_id: payload.id,
+    business_id: appointment.business_id ?? null,
   });
 
   return data ?? appointment;

@@ -208,7 +208,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  if (!me || !["master", "admin"].includes(me.role)) {
+  if (!me || !["master", "manager"].includes(me.role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

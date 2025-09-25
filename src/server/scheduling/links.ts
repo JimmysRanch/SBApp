@@ -49,7 +49,7 @@ async function loadRescheduleLink(supabase: SupabaseClient, token: string) {
 async function loadAppointmentWithService(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase
     .from('appointments')
-    .select('*, services:service_id (id, base_price, duration_min, buffer_pre_min, buffer_post_min)')
+    .select('*, services:service_id (id, business_id, base_price, duration_min, buffer_pre_min, buffer_post_min)')
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
@@ -63,6 +63,17 @@ export async function createRescheduleLink(rawInput: RescheduleLinkInput) {
   const input = rescheduleLinkSchema.parse(rawInput);
   const supabase = getSupabaseAdmin();
 
+  const { data: appointmentRow, error: appointmentError } = await supabase
+    .from('appointments')
+    .select('id, business_id')
+    .eq('id', input.appointmentId)
+    .maybeSingle();
+  if (appointmentError) throw appointmentError;
+  const appointmentForLink = appointmentRow as Pick<AppointmentRow, 'id' | 'business_id'> | null;
+  if (!appointmentForLink || !appointmentForLink.business_id) {
+    throw new Error('Appointment business context is required for reschedule links.');
+  }
+
   const ttlHours = input.ttlHours ?? DEFAULT_TTL_HOURS;
   const expiresAt = new Date(Date.now() + ttlHours * 60 * MINUTE);
 
@@ -74,20 +85,22 @@ export async function createRescheduleLink(rawInput: RescheduleLinkInput) {
         appointment_id: input.appointmentId,
         token,
         expires_at: expiresAt.toISOString(),
+        business_id: appointmentForLink.business_id,
       })
       .select('id')
       .maybeSingle();
     if (error && error.code === '23505') {
       continue;
     }
-    if (error) throw error;
-    if (data) {
-      const { error: auditError } = await supabase.from('audit_log').insert({
-        actor_id: input.createdBy ?? null,
-        action: 'appointment_reschedule_link_created',
-        entity: 'appointments',
-        entity_id: input.appointmentId,
-      });
+      if (error) throw error;
+      if (data) {
+        const { error: auditError } = await supabase.from('audit_log').insert({
+          actor_id: input.createdBy ?? null,
+          action: 'appointment_reschedule_link_created',
+          entity: 'appointments',
+          entity_id: input.appointmentId,
+          business_id: appointmentForLink.business_id,
+        });
       if (auditError) throw auditError;
       return {
         token,
@@ -176,6 +189,7 @@ export async function applyReschedule(
     action: 'appointment_rescheduled',
     entity: 'appointments',
     entity_id: appointment.id,
+    business_id: appointment.business_id ?? service?.business_id ?? null,
   });
 
   return updated ?? appointment;

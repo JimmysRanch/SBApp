@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { Nunito } from "next/font/google";
+import type { Metadata } from "next";
 
 import AuthProvider from "@/components/AuthProvider";
 import LogoutButton from "@/components/LogoutButton";
+import PushToggle from "@/components/PushToggle";
 import { navItemsForRole, roleDisplayName } from "@/lib/auth/access";
 import { mapProfileRow, type Role, type UserProfile } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Scruffy Butts",
   description: "Grooming dashboard",
+  manifest: "/manifest.json",
 };
 export const runtime = "nodejs";
 
@@ -90,6 +93,7 @@ export default async function RootLayout({
                   )}
                 </nav>
                 <div className="flex items-center gap-4 text-right text-xs leading-tight text-white/80">
+                  {session?.user ? <PushToggle /> : null}
                   <div className="hidden sm:flex sm:flex-col sm:items-end">
                     <span className="font-semibold text-white">{profile?.full_name ?? session?.user?.email ?? ""}</span>
                     <span className="uppercase tracking-[0.22em] text-[11px] text-white/60">{roleLabel}</span>

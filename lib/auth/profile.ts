@@ -18,9 +18,26 @@ export function normaliseName(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+const roleAliases: Record<string, Role> = {
+  master: 'master',
+  'master account': 'master',
+  admin: 'admin',
+  administrator: 'admin',
+  'senior groomer': 'senior_groomer',
+  'senior_groomer': 'senior_groomer',
+  manager: 'senior_groomer',
+  groomer: 'groomer',
+  'front desk': 'receptionist',
+  'front_desk': 'receptionist',
+  receptionist: 'receptionist',
+  client: 'client',
+};
+
 export function normaliseRole(value: unknown): Role {
   if (typeof value === 'string') {
     const trimmed = value.trim().toLowerCase();
+    const alias = roleAliases[trimmed];
+    if (alias) return alias;
     if (isRole(trimmed)) return trimmed;
   }
   return 'client';

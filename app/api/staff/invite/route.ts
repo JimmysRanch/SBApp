@@ -12,7 +12,9 @@ export async function POST(request: Request) {
 
   const me = await supabase.from("profiles").select("id, role, business_id").eq("id", session.user.id).maybeSingle();
   if (me.error || !me.data?.business_id) return NextResponse.json({ error: "No business" }, { status: 403 });
-  if (!["Master Account","Manager"].includes(String(me.data.role))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["master", "senior_groomer"].includes(String(me.data.role))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { email, role } = await request.json().catch(() => ({}));
   if (!email || !role || !["Manager","Front Desk","Groomer"].includes(role)) {

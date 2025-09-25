@@ -11,20 +11,22 @@ export async function POST(request: Request) {
 
   const me = await supabase.from("profiles").select("id, role, business_id").eq("id", session.user.id).maybeSingle();
   if (me.error || !me.data?.business_id) return NextResponse.json({ error: "No business" }, { status: 403 });
-  if (String(me.data.role) !== "Master Account") return NextResponse.json({ error: "Only Master can transfer" }, { status: 403 });
+  if (String(me.data.role) !== "master") {
+    return NextResponse.json({ error: "Only Master can transfer" }, { status: 403 });
+  }
 
   const { targetUserId } = await request.json().catch(() => ({}));
   if (!targetUserId) return NextResponse.json({ error: "Missing targetUserId" }, { status: 400 });
 
   // Demote any master in same business except target
-  const demote = await supabase.from("profiles").update({ role: "Manager" })
+  const demote = await supabase.from("profiles").update({ role: "senior_groomer" })
     .eq("business_id", me.data.business_id)
-    .eq("role", "Master Account")
+    .eq("role", "master")
     .neq("id", targetUserId);
   if (demote.error) return NextResponse.json({ error: demote.error.message }, { status: 400 });
 
   // Promote target
-  const promote = await supabase.from("profiles").update({ role: "Master Account" })
+  const promote = await supabase.from("profiles").update({ role: "master" })
     .eq("id", targetUserId).eq("business_id", me.data.business_id);
   if (promote.error) return NextResponse.json({ error: promote.error.message }, { status: 400 });
 

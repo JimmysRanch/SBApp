@@ -46,7 +46,7 @@ function hasElevatedAccess(member: TeamMember): boolean {
 }
 
 export default function SettingsPage() {
-  const { loading: authLoading, role, profile, refresh } = useAuth();
+  const { loading: authLoading, role, roleLabel, profile, refresh } = useAuth();
 
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ export default function SettingsPage() {
     }
   }, [authLoading, loadTeam, role]);
 
-  const roleLabel = useMemo(() => role ?? 'Guest', [role]);
+  const displayRole = useMemo(() => roleLabel ?? 'Guest', [roleLabel]);
 
   const userEmail = profile?.email ?? null;
 
@@ -126,7 +126,7 @@ export default function SettingsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand-navy/60">Logged in as</p>
           <p className="text-2xl font-bold text-brand-navy">{userEmail ?? 'Team member'}</p>
           <p className="text-sm text-brand-navy/70">
-            Role: <span className="font-semibold text-brand-navy">{roleLabel}</span>
+            Role: <span className="font-semibold text-brand-navy">{displayRole}</span>
           </p>
           {userEmail && <p className="text-xs text-brand-navy/50">Email: {userEmail}</p>}
         </div>

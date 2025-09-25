@@ -16,15 +16,17 @@ export async function GET() {
     return NextResponse.json({ role: null, profile: null }, { status: 200 });
   }
 
-  const { data: profile, error: profErr } = await supabase
+  const { data: profileRow, error: profErr } = await supabase
     .from("profiles")
-    .select("id, email, role")
+    .select("id, role, full_name")
     .eq("id", session.user.id)
     .maybeSingle();
 
   if (profErr) {
     return NextResponse.json({ error: profErr.message }, { status: 500 });
   }
+
+  const profile = profileRow ? { ...profileRow, email: session.user.email ?? null } : null;
 
   return NextResponse.json({
     role: profile?.role ?? null,

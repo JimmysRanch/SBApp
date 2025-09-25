@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { ReactNode, useEffect, useMemo, useState } from "react";
+import { describeRole, isCanonicalRole, normaliseRole } from "@/lib/auth/profile";
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 import {
   saveCompensationAction,
@@ -60,9 +61,11 @@ export default function EmployeeSettingsPage() {
     return base;
   }, [employee.app_permissions]);
 
+  const initialRoleLabel = describeRole(employee.role) ?? (employee.role ?? "");
+
   const [profile, setProfile] = useState({
     name: employee.name ?? "",
-    role: employee.role ?? "",
+    role: initialRoleLabel,
     email: employee.email ?? "",
     phone: employee.phone ?? "",
     avatar_url: employee.avatar_url ?? "",
@@ -199,7 +202,16 @@ export default function EmployeeSettingsPage() {
 
   const handleProfileSave = async () => {
     setSaving((s) => ({ ...s, profile: true }));
-    const result = await saveProfileAction(employee.id, profile);
+    const trimmedRole = profile.role.trim();
+    let roleForSave = trimmedRole || "";
+    if (trimmedRole) {
+      const slug = normaliseRole(trimmedRole);
+      if (isCanonicalRole(slug) && (slug !== "client" || trimmedRole.toLowerCase() === "client")) {
+        roleForSave = slug;
+      }
+    }
+
+    const result = await saveProfileAction(employee.id, { ...profile, role: roleForSave });
     setSaving((s) => ({ ...s, profile: false }));
     if (!result.success) {
       pushToast(result.error ?? "Failed to save profile", "error");

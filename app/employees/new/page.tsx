@@ -10,6 +10,7 @@ import Card from "@/components/Card";
 import PageContainer from "@/components/PageContainer";
 import { useAuth } from "@/components/AuthProvider";
 import { derivePermissionFlags } from "@/lib/auth/roles";
+import { normaliseRole } from "@/lib/auth/profile";
 import {
   CompensationPlanDraft,
   defaultCompensationPlan,
@@ -234,6 +235,13 @@ export default function NewEmployeePage() {
       return;
     }
 
+    const roleSlug = normaliseRole(trimmedRole);
+    const staffRoleOptions: ReturnType<typeof normaliseRole>[] = ['manager', 'front_desk', 'groomer', 'bather'];
+    if (!staffRoleOptions.includes(roleSlug)) {
+      setError("Please choose a valid staff role");
+      return;
+    }
+
     const draftResult = parseDraft(compensationDraft);
     if (draftResult.errors.length > 0) {
       setError(draftResult.errors.join(" "));
@@ -249,7 +257,7 @@ export default function NewEmployeePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmedName,
-          role: trimmedRole,
+          role: roleSlug,
           email: form.email.trim(),
           phone: form.phone,
           address_street: form.addressStreet.trim() || null,
@@ -312,8 +320,8 @@ export default function NewEmployeePage() {
         <Card>
           <h1 className="text-2xl font-semibold text-brand-navy">Access restricted</h1>
           <p className="mt-2 text-sm text-brand-navy/70">
-            You do not have permission to add staff members. Ask an administrator to adjust your access if you
-            believe this is a mistake.
+            You do not have permission to add staff members. Ask the Master Account or an Admin to adjust your access if
+            you believe this is a mistake.
           </p>
         </Card>
       </PageContainer>

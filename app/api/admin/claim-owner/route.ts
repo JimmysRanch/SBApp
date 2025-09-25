@@ -14,22 +14,22 @@ export async function POST() {
   // Demote any existing master except me
   const demote = await admin
     .from("profiles")
-    .update({ role: "Manager" })
-    .eq("role", "Master Account")
+    .update({ role: "manager" })
+    .in("role", ["master", "Master Account"])
     .neq("id", uid);
   if (demote.error) return NextResponse.json({ error: demote.error.message }, { status: 400 });
 
-  // Ensure my profile exists & is Master Account
+  // Ensure my profile exists & is marked as master
   const upsertProfile = await admin
     .from("profiles")
-    .upsert({ id: uid, full_name: session.user.email ?? "Owner", role: "Master Account" }, { onConflict: "id" });
+    .upsert({ id: uid, full_name: session.user.email ?? "Owner", role: "master" }, { onConflict: "id" });
   if (upsertProfile.error) return NextResponse.json({ error: upsertProfile.error.message }, { status: 400 });
 
   // Ensure employees row with dashboard access
   const upsertEmp = await admin
     .from("employees")
     .upsert(
-      { user_id: uid, name: "Owner", active: true, role: "Manager", app_permissions: { dashboard: true } },
+      { user_id: uid, name: "Owner", active: true, role: "master", app_permissions: { dashboard: true } },
       { onConflict: "user_id" }
     );
   if (upsertEmp.error) return NextResponse.json({ error: upsertEmp.error.message }, { status: 400 });

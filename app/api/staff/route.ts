@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { normaliseRole } from "@/lib/auth/profile";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
@@ -208,7 +209,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  if (!me || !["master", "admin"].includes(me.role)) {
+  const resolvedRole = normaliseRole(me?.role ?? null);
+  if (!me || !["master", "admin"].includes(resolvedRole)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -274,9 +276,14 @@ export async function POST(req: Request) {
     );
   }
 
+  const employeeRole = normaliseRole(data.role);
+  if (!['manager', 'front_desk', 'groomer', 'bather', 'admin'].includes(employeeRole)) {
+    return NextResponse.json({ error: "Unsupported role" }, { status: 400 });
+  }
+
   const employeePayload = {
     name: data.name,
-    role: data.role,
+    role: employeeRole,
     email: data.email,
     phone: data.phone,
     status: normalisedStatus,

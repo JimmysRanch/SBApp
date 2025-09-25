@@ -30,7 +30,7 @@ CREATE OR REPLACE FUNCTION public.set_default_client_profile()
 RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.profiles (id, role)
-  VALUES (NEW.id, 'Client'::role_t)
+  VALUES (NEW.id, 'Client')
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
@@ -54,11 +54,11 @@ BEGIN
     INSERT INTO public.businesses (name) VALUES (COALESCE(p_business_name,'My Grooming Business')) RETURNING id INTO v_bid;
 
     UPDATE public.profiles
-      SET role='Master Account'::role_t, business_id=v_bid
+      SET role='master', business_id=v_bid
       WHERE id = p_user;
 
     INSERT INTO public.employees (user_id, name, active, role, business_id, app_permissions)
-    VALUES (p_user, 'Owner', true, 'Manager', v_bid, '{"dashboard":true}'::jsonb)
+    VALUES (p_user, 'Owner', true, 'master', v_bid, '{"dashboard":true}'::jsonb)
     ON CONFLICT (user_id) DO UPDATE
       SET business_id=EXCLUDED.business_id,
           active=true,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.staff_invites (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id  uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   email        text NOT NULL,
-  role         text NOT NULL CHECK (role IN ('Manager','Front Desk','Groomer')),
+  role         text NOT NULL CHECK (role IN ('master','manager','front_desk','groomer','bather')),
   token        text UNIQUE NOT NULL,
   created_by   uuid REFERENCES public.profiles(id),
   created_at   timestamptz NOT NULL DEFAULT now(),
@@ -97,7 +97,7 @@ FOR ALL USING (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
       AND p.business_id = staff_invites.business_id
-      AND p.role::text IN ('Master Account','Manager')
+      AND p.role IN ('master','manager')
   )
 )
 WITH CHECK (
@@ -105,9 +105,19 @@ WITH CHECK (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
       AND p.business_id = staff_invites.business_id
-      AND p.role::text IN ('Master Account','Manager')
+      AND p.role IN ('master','manager')
   )
 );
+
+UPDATE public.staff_invites
+SET role = CASE role
+  WHEN 'Master Account' THEN 'master'
+  WHEN 'Manager' THEN 'manager'
+  WHEN 'Front Desk' THEN 'front_desk'
+  WHEN 'Groomer' THEN 'groomer'
+  WHEN 'Bather' THEN 'bather'
+  ELSE role END
+WHERE role IN ('Master Account','Manager','Front Desk','Groomer','Bather');
 
 COMMIT;
 

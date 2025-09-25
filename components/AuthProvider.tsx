@@ -1,20 +1,15 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { normaliseRole, type Role } from "@/lib/auth/profile";
+import { roleDisplayName } from "@/lib/auth/access";
 
-type Role =
-  | "Master Account"
-  | "Manager"
-  | "Front Desk"
-  | "Groomer"
-  | "Admin"
-  | "Client"
-  | string
-  | null;
+type ResolvedRole = Role | "guest" | null;
 
 type AuthState = {
   loading: boolean;
-  role: Role;
+  role: ResolvedRole;
+  roleLabel: string | null;
   profile: { id: string; email: string | null; role: Role } | null;
   refresh: () => Promise<void>;
 };
@@ -22,13 +17,15 @@ type AuthState = {
 const AuthCtx = createContext<AuthState>({
   loading: true,
   role: null,
+  roleLabel: null,
   profile: null,
   refresh: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<Role>(null);
+  const [role, setRole] = useState<ResolvedRole>(null);
+  const [roleLabel, setRoleLabel] = useState<string | null>(null);
   const [profile, setProfile] = useState<AuthState["profile"]>(null);
 
   const load = async () => {
@@ -46,7 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const user = session?.user ?? null;
 
       if (!user) {
-        setRole("Guest");
+        setRole("guest");
+        setRoleLabel("Guest");
         setProfile(null);
         return;
       }
@@ -61,9 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw profileError;
       }
 
-      const resolvedRole = (profileData?.role ?? "Guest") as Role;
-
+      const resolvedRole = normaliseRole(profileData?.role);
       setRole(resolvedRole);
+      setRoleLabel(roleDisplayName(resolvedRole));
       setProfile({
         id: profileData?.id ?? user.id,
         email: profileData?.email ?? user.email ?? null,
@@ -71,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error("Failed to load auth session:", error);
-      setRole("Guest");
+      setRole("guest");
+      setRoleLabel("Guest");
       setProfile(null);
     } finally {
       setLoading(false);
@@ -87,7 +86,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  const value = useMemo(() => ({ loading, role, profile, refresh: load }), [loading, role, profile]);
+  const value = useMemo(
+    () => ({ loading, role, roleLabel, profile, refresh: load }),
+    [loading, role, roleLabel, profile]
+  );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { normaliseRole, type Role } from "@/lib/auth/profile";
 
 import EmployeeDetailClient, {
   StaffGoals,
@@ -23,13 +24,24 @@ export default async function EmployeeLayout({ children, params }: LayoutProps) 
 
   const { data: employee, error } = await supabase
     .from("employees")
-    .select("*")
+    .select("*, profile:profiles(id, role, full_name)")
     .eq("id", employeeId)
     .maybeSingle();
 
   if (error || !employee) {
     notFound();
   }
+
+  const { profile: profileRow, ...employeeFields } = employee as {
+    profile?: { role?: string | null; full_name?: string | null } | null;
+  } & Record<string, unknown>;
+
+  const resolvedRole: Role | null = profileRow?.role ? normaliseRole(profileRow.role) : null;
+
+  const staffRecord = {
+    ...(employeeFields as Omit<StaffRecord, "role">),
+    role: resolvedRole,
+  } satisfies StaffRecord;
 
   const { data: goals } = await supabase
     .from("staff_goals")
@@ -39,7 +51,7 @@ export default async function EmployeeLayout({ children, params }: LayoutProps) 
 
   return (
     <EmployeeDetailClient
-      employee={employee as StaffRecord}
+      employee={staffRecord}
       goals={(goals ?? null) as StaffGoals | null}
     >
       {children}

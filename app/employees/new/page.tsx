@@ -10,6 +10,7 @@ import Card from "@/components/Card";
 import PageContainer from "@/components/PageContainer";
 import { useAuth } from "@/components/AuthProvider";
 import { derivePermissionFlags } from "@/lib/auth/roles";
+import { normaliseRole } from "@/lib/auth/profile";
 import {
   CompensationPlanDraft,
   defaultCompensationPlan,
@@ -234,6 +235,12 @@ export default function NewEmployeePage() {
       return;
     }
 
+    const canonicalRole = normaliseRole(trimmedRole);
+    if (canonicalRole === "client") {
+      setError("Choose a staff role to continue");
+      return;
+    }
+
     const draftResult = parseDraft(compensationDraft);
     if (draftResult.errors.length > 0) {
       setError(draftResult.errors.join(" "));
@@ -249,7 +256,7 @@ export default function NewEmployeePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmedName,
-          role: trimmedRole,
+          role: canonicalRole,
           email: form.email.trim(),
           phone: form.phone,
           address_street: form.addressStreet.trim() || null,

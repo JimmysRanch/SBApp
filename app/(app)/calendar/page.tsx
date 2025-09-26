@@ -24,7 +24,7 @@ const COLUMN_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * MINUTE_HEIGHT;
 type StaffMember = DrawerStaffOption & {
   initials: string;
   profileId: string;
-  colorClass: string;
+  colorHex: string;
 };
 
 type Appointment = {
@@ -79,43 +79,47 @@ type Interaction =
       originalStart: number;
     };
 
-const STAFF_COLORS = [
-  "bg-brand-bubble/20 text-white",
-  "bg-emerald-400/20 text-emerald-950",
-  "bg-sky-400/20 text-sky-950",
-  "bg-amber-300/25 text-amber-900",
-  "bg-violet-400/25 text-violet-950",
-];
+const FALLBACK_HEX_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#a855f7"] as const;
 
-const INACTIVE_KEYWORDS = ["inactive", "archived", "disabled", "terminated", "deleted"];
-
-function inferIsActive(record: Record<string, unknown> | null | undefined) {
-  if (!record || typeof record !== "object") {
-    return true;
+function normaliseColorHex(candidate: unknown, fallback: string) {
+  if (typeof candidate !== "string") {
+    return fallback;
   }
-
-  const boolKeys = ["active", "is_active", "enabled", "is_enabled"] as const;
-  for (const key of boolKeys) {
-    const value = (record as Record<string, unknown>)[key];
-    if (typeof value === "boolean") {
-      return value;
-    }
+  const value = candidate.trim();
+  if (!value) return fallback;
+  if (value.startsWith("#") && (value.length === 7 || value.length === 4)) {
+    return value;
   }
+  const lookup: Record<string, string> = {
+    "bg-rose-500": "#f43f5e",
+    "bg-pink-500": "#ec4899",
+    "bg-purple-500": "#a855f7",
+    "bg-violet-500": "#8b5cf6",
+    "bg-indigo-500": "#6366f1",
+    "bg-blue-500": "#3b82f6",
+    "bg-sky-500": "#0ea5e9",
+    "bg-cyan-500": "#06b6d4",
+    "bg-teal-500": "#14b8a6",
+    "bg-emerald-500": "#10b981",
+    "bg-lime-500": "#84cc16",
+    "bg-yellow-400": "#facc15",
+    "bg-amber-500": "#f59e0b",
+    "bg-orange-500": "#f97316",
+    "bg-red-500": "#ef4444",
+  };
+  return lookup[value] ?? fallback;
+}
 
-  const status = (record as Record<string, unknown>).status;
-  if (typeof status === "string") {
-    const lowered = status.toLowerCase();
-    if (INACTIVE_KEYWORDS.some((flag) => lowered.includes(flag))) {
-      return false;
-    }
-  }
-
-  const archivedAt = (record as Record<string, unknown>).archived_at;
-  if (archivedAt !== null && archivedAt !== undefined) {
-    return false;
-  }
-
-  return true;
+function hexToRgba(hex: string, alpha: number) {
+  const normalised = hex.replace("#", "");
+  const value = normalised.length === 3
+    ? normalised.split("").map((char) => char + char).join("")
+    : normalised;
+  const bigint = Number.parseInt(value, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function isMissingTableError(error: PostgrestError | null | undefined) {
@@ -146,6 +150,25 @@ function coerceString(value: unknown, fallback: string) {
 function coerceNumber(value: unknown, fallback: number) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function isActiveRecord(record: unknown) {
+  if (!record || typeof record !== "object") {
+    return true;
+  }
+  const candidate = record as Record<string, unknown>;
+  for (const key of ["active", "enabled", "is_active", "isEnabled"] as const) {
+    const value = candidate[key as keyof typeof candidate];
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+  const status = candidate.status;
+  if (typeof status === "string") {
+    const lowered = status.toLowerCase();
+    return !/(inactive|archived|disabled|terminated)/.test(lowered);
+  }
+  return true;
 }
 
 function addDays(base: Date, amount: number) {
@@ -238,7 +261,7 @@ export default function CalendarPage() {
         rangeEnd.setHours(23, 59, 59, 999);
 
         const [staffResp, serviceResp, sizeResp, addOnResp] = await Promise.all([
-          supabase.from("employees").select("*").order("name"),
+          supabase.from("v_staff_calendar").select("*").order("full_name"),
           supabase.from("services").select("*").order("name"),
           supabase
             .from("service_sizes")
@@ -348,11 +371,12 @@ export default function CalendarPage() {
         const serviceRows = (serviceResp.data ?? []) as any[];
         const addOnRows = (addOnResp.data ?? []) as any[];
 
-        const staffData: StaffMember[] = staffRows
-          .filter((row) => inferIsActive(row))
-          .map((row, index) => {
+        const staffData: StaffMember[] = staffRows.map((row, index) => {
             const baseId = coerceString(row.id, "");
-            const name = coerceString(row.name, baseId ? `Staff #${baseId}` : `Staff #${index + 1}`);
+            const name = coerceString(
+              row.full_name ?? row.name,
+              baseId ? `Staff #${baseId}` : `Staff #${index + 1}`,
+            );
             const providedInitials =
               typeof row.initials === "string" && row.initials.trim().length > 0
                 ? row.initials.trim().slice(0, 2).toUpperCase()
@@ -364,18 +388,20 @@ export default function CalendarPage() {
               .join("")
               .slice(0, 2);
             const initials = providedInitials ?? (generatedInitials || name.slice(0, 2).toUpperCase());
-            const colorCandidates = [row.calendar_color_class, row.color_class].map((value) =>
-              typeof value === "string" && value.trim().length > 0 ? value.trim() : null
-            );
-            const colorClass =
-              colorCandidates.find((value) => value) ?? STAFF_COLORS[index % STAFF_COLORS.length];
+            const fallbackHex = FALLBACK_HEX_COLORS[index % FALLBACK_HEX_COLORS.length];
+            const colorSources = [row.color_hex, row.calendar_color_class, row.color_class];
+            const colorHex = colorSources.reduce<string>((acc, value) => {
+              if (acc) return acc;
+              return normaliseColorHex(value, "");
+            }, "");
+            const resolvedColor = colorHex || fallbackHex;
             const id = baseId || `staff-${index + 1}`;
             return {
               id,
               name,
               initials,
               profileId: id,
-              colorClass,
+              colorHex: resolvedColor,
             } satisfies StaffMember;
           });
         setStaffDirectory(staffData);
@@ -401,19 +427,21 @@ export default function CalendarPage() {
         }
 
         const serviceData: DrawerServiceOption[] = serviceRows
-          .filter((row) => inferIsActive(row))
+          .filter((row) => isActiveRecord(row))
           .map((row, index) => {
             const serviceId = coerceString(row.id, `service-${index + 1}`);
             const sizes = sizeGroups.get(serviceId) ?? [];
-            const fallbackColor = STAFF_COLORS[index % STAFF_COLORS.length] ?? "bg-brand-bubble/20 text-white";
-            const colorCandidates = [row.color_class, row.color, row.calendar_color_class].map((value) =>
-              typeof value === "string" && value.trim().length > 0 ? value.trim() : null
-            );
+            const fallbackColor = FALLBACK_HEX_COLORS[index % FALLBACK_HEX_COLORS.length];
+            const colorCandidates = [row.color_hex, row.color_class, row.color, row.calendar_color_class];
+            const serviceColor = colorCandidates.reduce<string>((acc, value) => {
+              if (acc) return acc;
+              return normaliseColorHex(value, "");
+            }, "");
             return {
               id: serviceId,
               name: coerceString(row.name, "Service"),
               basePrice: coerceNumber(row.base_price, 0),
-              color: colorCandidates.find((value) => value) ?? fallbackColor,
+              color: serviceColor || fallbackColor,
               sizes:
                 sizes.length > 0
                   ? sizes.map(({ sortOrder: _s, ...rest }) => rest)
@@ -430,7 +458,7 @@ export default function CalendarPage() {
 
         setAddOnCatalog(
           addOnRows
-            .filter((row) => inferIsActive(row))
+            .filter((row) => isActiveRecord(row))
             .map((row, index) => ({
               id: coerceString(row.id, `addon-${index + 1}`),
               name: coerceString(row.name, "Add-on"),
@@ -1040,15 +1068,25 @@ export default function CalendarPage() {
                       {columnAppointments.map((appointment) => {
                         const top = minutesToOffset(appointment.startMinutes);
                         const height = durationToHeight(appointment.endMinutes - appointment.startMinutes);
+                        const laneColor = staff.colorHex || "#6366f1";
+                        const backgroundColor = hexToRgba(laneColor, 0.2);
+                        const borderColor = hexToRgba(laneColor, 0.6);
+                        const shadowColor = hexToRgba(laneColor, 0.25);
                         return (
                           <div
                             key={appointment.id}
                             data-appointment-id={appointment.id}
                             className={clsx(
-                              "absolute left-1 right-1 cursor-grab overflow-hidden rounded-2xl border border-white/20 shadow-lg shadow-black/30 transition",
-                              staff.colorClass
+                              "absolute left-1 right-1 cursor-grab overflow-hidden rounded-2xl border transition",
+                              "text-white shadow-lg"
                             )}
-                            style={{ top, height }}
+                            style={{
+                              top,
+                              height,
+                              backgroundColor,
+                              borderColor,
+                              boxShadow: `0 12px 32px ${shadowColor}`,
+                            }}
                             onPointerDown={(event) => beginMove(appointment, event)}
                             onClick={() => openDrawer(appointment.id)}
                           >

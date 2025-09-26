@@ -20,6 +20,7 @@ type TeamMember = {
 const configurationLinks = [
   { href: '/settings/profile', label: 'Profile' },
   { href: '/settings/business', label: 'Business' },
+  { href: '/settings/roles', label: 'Roles & Permissions' },
   { href: '/settings/services', label: 'Services' },
   { href: '/settings/notifications', label: 'Notifications' },
   { href: '/settings/billing', label: 'Billing' },

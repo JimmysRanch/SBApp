@@ -10,9 +10,10 @@ import { useEmployeeDetail } from "../EmployeeDetailClient";
 import { isMissingColumnError, readMoney } from "../data-helpers";
 
 type HistoryRow = {
-  id: number;
+  id: string;
   start_time: string;
-  service: string | null;
+  service_id: string | null;
+  service_name: string | null;
   status: string | null;
   price: number;
   tip: number;
@@ -35,10 +36,12 @@ const defaultFilters: Filters = {
 
 const STATUS_OPTIONS = ["all", "scheduled", "completed", "cancelled", "no-show", "in progress"];
 
+type ServiceOption = { id: string; name: string };
+
 export default function EmployeeHistoryPage() {
   const { employee, openAppointmentDrawer, refreshKey } = useEmployeeDetail();
 
-  const [serviceOptions, setServiceOptions] = useState<string[]>([]);
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [formFilters, setFormFilters] = useState<Filters>(defaultFilters);
   const [activeFilters, setActiveFilters] = useState<Filters>(defaultFilters);
   const [rows, setRows] = useState<HistoryRow[]>([]);
@@ -50,21 +53,47 @@ export default function EmployeeHistoryPage() {
     const fetchServices = async () => {
       const { data, error: serviceError } = await supabase
         .from("appointments")
-        .select("service")
+        .select("service_id")
         .eq("employee_id", employee.id)
-        .not("service", "is", null)
-        .order("service", { ascending: true });
+        .not("service_id", "is", null);
       if (!isMounted) return;
-      if (!serviceError && Array.isArray(data)) {
-        const values = Array.from(
-          new Set(
-            data
-              .map((item) => (typeof item.service === "string" ? item.service : null))
-              .filter(Boolean) as string[]
-          )
-        );
-        setServiceOptions(values);
+      if (serviceError || !Array.isArray(data)) {
+        setServiceOptions([]);
+        return;
       }
+
+      const identifiers = Array.from(
+        new Set(
+          data
+            .map((item) => item?.service_id)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+        )
+      );
+
+      if (identifiers.length === 0) {
+        setServiceOptions([]);
+        return;
+      }
+
+      const { data: serviceRows, error: lookupError } = await supabase
+        .from("services")
+        .select("id,name")
+        .in("id", identifiers)
+        .order("name", { ascending: true });
+
+      if (!isMounted) return;
+      if (lookupError || !Array.isArray(serviceRows)) {
+        setServiceOptions([]);
+        return;
+      }
+
+      const options = (serviceRows as any[])
+        .map((row) => ({
+          id: typeof row.id === "string" ? row.id : String(row.id ?? ""),
+          name: typeof row.name === "string" && row.name.trim().length > 0 ? row.name : "Service",
+        }))
+        .filter((option) => option.id);
+      setServiceOptions(options);
     };
     fetchServices();
     return () => {
@@ -94,16 +123,13 @@ export default function EmployeeHistoryPage() {
       if (activeFilters.status && activeFilters.status !== "all") {
         builder = builder.eq("status", activeFilters.status);
       }
-      if (activeFilters.services.length > 0) {
-        builder = builder.in("service", activeFilters.services);
-      }
 
       return builder;
     };
 
     try {
       let response = await executeQuery(
-        "id,start_time,end_time,service,status,price,price_cents,price_amount,price_amount_cents,tip,tip_amount,tip_cents,tip_amount_cents,pet_name"
+        "id,start_time,end_time,service,service_id,service_name,status,price,price_cents,price_amount,price_amount_cents,tip,tip_amount,tip_cents,tip_amount_cents,pet_name,services(name),pets(name)"
       );
       if (response.error && isMissingColumnError(response.error as PostgrestError)) {
         response = await executeQuery("*");
@@ -113,7 +139,7 @@ export default function EmployeeHistoryPage() {
         throw response.error;
       }
 
-      const mapped = ((response.data as any[]) ?? []).map((item: any) => {
+      const mapped = ((response.data as any[]) ?? []).map((item: any, index: number) => {
         const price = readMoney(item, [
           "price",
           "price_cents",
@@ -122,17 +148,51 @@ export default function EmployeeHistoryPage() {
         ]) ?? 0;
         const tip =
           readMoney(item, ["tip", "tip_amount", "tip_cents", "tip_amount_cents", "gratuity", "gratuity_cents"]) ?? 0;
+        const serviceName =
+          (typeof item.service === "string" && item.service.trim().length > 0 ? item.service : null) ??
+          (typeof item.service_name === "string" && item.service_name.trim().length > 0 ? item.service_name : null) ??
+          (item.services && typeof item.services === "object" ? item.services?.name : null);
+        const petName =
+          (typeof item.pet_name === "string" && item.pet_name.trim().length > 0 ? item.pet_name.trim() : null) ??
+          (item.pets && typeof item.pets === "object" ? item.pets?.name : null);
+        const startRaw =
+          item.start_time ??
+          item.starts_at ??
+          item.start ??
+          item.starts_on ??
+          item.scheduled_at ??
+          item.scheduled_for ??
+          item.service_date ??
+          item.start_date ??
+          item.date ??
+          null;
+        let startIso: string | null = null;
+        if (typeof startRaw === "string") {
+          startIso = startRaw;
+        } else if (startRaw instanceof Date) {
+          startIso = startRaw.toISOString();
+        } else if (typeof startRaw === "number") {
+          const parsed = new Date(startRaw);
+          startIso = Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+        } else if (startRaw) {
+          startIso = String(startRaw);
+        }
         return {
-          id: item.id,
-          start_time: item.start_time,
-          service: item.service,
+          id: item.id ? String(item.id) : `history-${index}`,
+          start_time: startIso,
+          service_id: item.service_id ? String(item.service_id) : null,
+          service_name: serviceName ?? null,
           status: item.status,
           price,
           tip,
-          pet_name: item.pet_name ?? null,
+          pet_name: petName ?? null,
         };
       });
-      setRows(mapped);
+      const filteredByService =
+        activeFilters.services.length === 0
+          ? mapped
+          : mapped.filter((row) => row.service_id && activeFilters.services.includes(row.service_id));
+      setRows(filteredByService);
     } catch (cause) {
       console.error("Failed to load appointment history", cause);
       setError("Unable to load appointment history");
@@ -172,7 +232,7 @@ export default function EmployeeHistoryPage() {
   const serviceBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
     rows.forEach((row) => {
-      const key = row.service ?? "Unknown";
+      const key = row.service_name ?? "Unknown";
       counts[key] = (counts[key] ?? 0) + 1;
     });
     const total = rows.length || 1;
@@ -255,12 +315,12 @@ export default function EmployeeHistoryPage() {
                 <span className="text-xs text-slate-400">No services recorded</span>
               )}
               {serviceOptions.map((service) => {
-                const active = formFilters.services.includes(service);
+                const active = formFilters.services.includes(service.id);
                 return (
                   <button
                     type="button"
-                    key={service}
-                    onClick={() => toggleService(service)}
+                    key={service.id}
+                    onClick={() => toggleService(service.id)}
                     className={clsx(
                       "rounded-full border px-3 py-1 text-xs",
                       active
@@ -268,7 +328,7 @@ export default function EmployeeHistoryPage() {
                         : "border-slate-300 text-slate-500 hover:border-brand-blue hover:text-brand-blue"
                     )}
                   >
-                    {service}
+                    {service.name}
                   </button>
                 );
               })}
@@ -340,11 +400,11 @@ export default function EmployeeHistoryPage() {
                       className="cursor-pointer transition hover:bg-slate-50"
                     >
                       <td className="px-3 py-2 text-slate-600">
-                        {new Date(row.start_time).toLocaleString()}
+                        {row.start_time ? new Date(row.start_time).toLocaleString() : "—"}
                       </td>
                       <td className="px-3 py-2 text-slate-600">
                         <div className="font-medium text-brand-navy">{row.pet_name ?? "—"}</div>
-                        <div className="text-xs text-slate-400">{row.service ?? "Service"}</div>
+                        <div className="text-xs text-slate-400">{row.service_name ?? "Service"}</div>
                       </td>
                       <td className="px-3 py-2 text-slate-600">{formatMoney(row.price)}</td>
                       <td className="px-3 py-2 text-slate-600">{formatMoney(row.tip)}</td>

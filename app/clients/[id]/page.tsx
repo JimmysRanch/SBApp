@@ -10,27 +10,30 @@ import { useParams, useRouter } from 'next/navigation';
 
 
 type Client = {
-  id: number;
-  full_name: string | null;
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
   email: string | null;
   phone: string | null;
   created_at: string;
+  notes: string | null;
 };
 
 type Pet = {
-  id: number;
+  id: string;
   name: string | null;
   breed: string | null;
 };
 
 type Appointment = {
-  id: number;
+  id: string;
   start_time: string;
   end_time: string | null;
   status: string | null;
   price: number | null;
-  service_id: number | null;
-  service: string | null;
+  service_id: string | null;
+  service_name: string | null;
 };
 
 const currencyFormatter = new Intl.NumberFormat(undefined, {
@@ -50,9 +53,8 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
   minute: '2-digit',
 });
 
-function getInitials(name: string | null) {
-  if (!name) return 'SB';
-  const parts = name.split(' ').filter(Boolean);
+function getInitials(first: string | null, last: string | null) {
+  const parts = [first, last].filter(Boolean) as string[];
   if (parts.length === 0) return 'SB';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
@@ -78,7 +80,7 @@ function formatCurrency(value: number | null | undefined) {
 
 export default function ClientDetailPage() {
   const { id: idParam } = useParams<{ id: string }>();
-  const id = Number(idParam);
+  const id = idParam ?? null;
   const router = useRouter();
 
   const [client, setClient] = useState<Client | null>(null);
@@ -88,7 +90,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!Number.isFinite(id)) return;
+    if (!id) return;
 
     let cancelled = false;
 
@@ -99,17 +101,17 @@ export default function ClientDetailPage() {
       const [clientResult, petsResult, apptResult] = await Promise.all([
         supabase
           .from('clients')
-          .select('id,full_name,email,phone,created_at')
+          .select('id,first_name,last_name,email,phone,created_at,notes')
           .eq('id', id)
           .single(),
         supabase
           .from('pets')
           .select('id,name,breed')
           .eq('client_id', id)
-          .order('id', { ascending: false }),
+          .order('name'),
         supabase
           .from('appointments')
-          .select('id,start_time,end_time,status,price,service_id,service')
+          .select('id,start_time,end_time,status,price,service_id,service_size_id,services(name)')
           .eq('client_id', id)
           .order('start_time', { ascending: false })
           .limit(100),
@@ -124,9 +126,31 @@ export default function ClientDetailPage() {
         return;
       }
 
-      setClient(clientResult.data);
-      setPets(petsResult.data ?? []);
-      setAppointments(apptResult.data ?? []);
+      const clientData = clientResult.data
+        ? {
+            ...clientResult.data,
+            full_name: [clientResult.data.first_name, clientResult.data.last_name]
+              .filter(Boolean)
+              .join(' '),
+          }
+        : null;
+      const petData = (petsResult.data ?? []).map((pet) => ({
+        ...pet,
+        id: String(pet.id),
+      }));
+      const apptData = (apptResult.data ?? []).map((appt) => ({
+        id: String(appt.id),
+        start_time: appt.start_time,
+        end_time: appt.end_time,
+        status: appt.status,
+        price: appt.price,
+        service_id: appt.service_id ? String(appt.service_id) : null,
+        service_name: (appt.services as { name?: string | null } | null)?.name ?? null,
+      }));
+
+      setClient(clientData);
+      setPets(petData);
+      setAppointments(apptData);
       setLoading(false);
     })();
 
@@ -251,12 +275,12 @@ export default function ClientDetailPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-5">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-bubble to-brand-lavender text-2xl font-semibold text-primary shadow-soft">
-                  {getInitials(client.full_name)}
+                  {getInitials(client.first_name, client.last_name)}
                 </div>
                 <div className="space-y-3">
                   <div>
                     <h1 className="text-2xl font-bold text-primary-dark">
-                      {client.full_name ?? 'Client'}
+                      {client.full_name || 'Client'}
                     </h1>
                     <p className="text-sm text-brand-navy/60">
                       Client since {formatDate(client.created_at)}
@@ -360,7 +384,7 @@ export default function ClientDetailPage() {
                 {nextAppointment ? (
                   <div className="mt-2 space-y-1">
                     <p className="text-lg font-semibold text-primary-dark">{formatDate(nextAppointment.start_time)}</p>
-                    <p className="text-sm text-brand-navy/70">{nextAppointment.service ?? `Service #${nextAppointment.service_id ?? '—'}`}</p>
+                    <p className="text-sm text-brand-navy/70">{nextAppointment.service_name ?? `Service #${nextAppointment.service_id ?? '—'}`}</p>
                     <span className="inline-flex items-center gap-2 rounded-full bg-brand-bubble/20 px-2 py-0.5 text-xs font-semibold text-brand-bubble">
                       {nextAppointment.status ?? 'Scheduled'}
                     </span>
@@ -405,7 +429,7 @@ export default function ClientDetailPage() {
                         <div className="space-y-1">
                           <p className="text-sm font-semibold text-primary-dark">{formatDateTime(appointment.start_time)}</p>
                           <p className="text-sm text-brand-navy/70">
-                            {appointment.service ?? `Service #${appointment.service_id ?? '—'}`}
+                            {appointment.service_name ?? `Service #${appointment.service_id ?? '—'}`}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 text-right">
@@ -445,7 +469,7 @@ export default function ClientDetailPage() {
                         <div className="space-y-1">
                           <p className="text-sm font-semibold text-primary-dark">{formatDate(appointment.start_time)}</p>
                           <p className="text-sm text-brand-navy/70">
-                            {appointment.service ?? `Service #${appointment.service_id ?? '—'}`}
+                            {appointment.service_name ?? `Service #${appointment.service_id ?? '—'}`}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 text-right text-xs text-brand-navy/60">

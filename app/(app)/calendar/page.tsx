@@ -79,6 +79,75 @@ type Interaction =
       originalStart: number;
     };
 
+const STAFF_COLORS = [
+  "bg-brand-bubble/20 text-white",
+  "bg-emerald-400/20 text-emerald-950",
+  "bg-sky-400/20 text-sky-950",
+  "bg-amber-300/25 text-amber-900",
+  "bg-violet-400/25 text-violet-950",
+];
+
+const INACTIVE_KEYWORDS = ["inactive", "archived", "disabled", "terminated", "deleted"];
+
+function inferIsActive(record: Record<string, unknown> | null | undefined) {
+  if (!record || typeof record !== "object") {
+    return true;
+  }
+
+  const boolKeys = ["active", "is_active", "enabled", "is_enabled"] as const;
+  for (const key of boolKeys) {
+    const value = (record as Record<string, unknown>)[key];
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+
+  const status = (record as Record<string, unknown>).status;
+  if (typeof status === "string") {
+    const lowered = status.toLowerCase();
+    if (INACTIVE_KEYWORDS.some((flag) => lowered.includes(flag))) {
+      return false;
+    }
+  }
+
+  const archivedAt = (record as Record<string, unknown>).archived_at;
+  if (archivedAt !== null && archivedAt !== undefined) {
+    return false;
+  }
+
+  return true;
+}
+
+function isMissingTableError(error: PostgrestError | null | undefined) {
+  if (!error) return false;
+  if (error.code === "42P01") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("schema cache") || message.includes("does not exist");
+}
+
+function isMissingColumnError(error: PostgrestError | null | undefined, column: string) {
+  if (!error) return false;
+  if (error.code === "42703") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  const normalized = column.toLowerCase();
+  return message.includes(`column ${normalized}`) || message.includes(`${normalized} does not exist`);
+}
+
+function coerceString(value: unknown, fallback: string) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return fallback;
+}
+
+function coerceNumber(value: unknown, fallback: number) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 function addDays(base: Date, amount: number) {
   const next = new Date(base);
   next.setDate(next.getDate() + amount);
@@ -125,143 +194,8 @@ function formatTime(minutes: number) {
   return `${displayHour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const staffDirectory: StaffMember[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    initials: "ST",
-    profileId: "staff-sasha",
-    colorClass: "bg-gradient-to-br from-amber-200/80 via-amber-300/70 to-amber-400/80 text-slate-900",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    initials: "MC",
-    profileId: "staff-myles",
-    colorClass: "bg-gradient-to-br from-brand-bubble/80 via-brand-bubble/70 to-brand-lavender/80 text-slate-900",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    initials: "IH",
-    profileId: "staff-imani",
-    colorClass: "bg-gradient-to-br from-emerald-300/80 via-emerald-400/70 to-emerald-500/80 text-slate-900",
-  },
-];
-
-const serviceCatalog: DrawerServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    basePrice: 85,
-    color: "bg-gradient-to-r from-brand-bubble/40 via-brand-bubble/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.35 },
-      { id: "large", label: "Large", multiplier: 1.6 },
-    ],
-  },
-  {
-    id: "bath-blowout",
-    name: "Bath & Blowout",
-    basePrice: 55,
-    color: "bg-gradient-to-r from-sky-400/40 via-sky-400/20 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "de-shed",
-    name: "De-shed Upgrade",
-    basePrice: 40,
-    color: "bg-gradient-to-r from-amber-400/50 via-amber-400/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.4 },
-      { id: "large", label: "Large", multiplier: 1.7 },
-    ],
-  },
-];
-
-const addOnCatalog: DrawerAddOnOption[] = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-  { id: "shed-guard", name: "Shed Guard Treatment", price: 20 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-];
-
-function seedAppointments(todayKey: string): Appointment[] {
-  const tomorrowKey = formatDateKey(addDays(new Date(), 1));
-  return [
-    {
-      id: "apt-1",
-      date: todayKey,
-      staffId: "sasha",
-      serviceId: "full-groom",
-      sizeId: "medium",
-      startMinutes: 9 * 60,
-      endMinutes: 10 * 60 + 30,
-      clientName: "Jordan Rivers",
-      petName: "Mocha",
-      addOnIds: ["teeth"],
-      discount: 0,
-      tax: 6,
-      status: "checked_in",
-      notes: "Prefers hypoallergenic shampoo",
-    },
-    {
-      id: "apt-2",
-      date: todayKey,
-      staffId: "myles",
-      serviceId: "bath-blowout",
-      sizeId: "small",
-      startMinutes: 10 * 60,
-      endMinutes: 11 * 60,
-      clientName: "Ritika Kaur",
-      petName: "Frodo",
-      addOnIds: ["pawdicure"],
-      discount: 5,
-      tax: 4,
-      status: "booked",
-      notes: "Owner will pick up early",
-    },
-    {
-      id: "apt-3",
-      date: todayKey,
-      staffId: "imani",
-      serviceId: "de-shed",
-      sizeId: "large",
-      startMinutes: 13 * 60 + 30,
-      endMinutes: 15 * 60,
-      clientName: "Chris Nolan",
-      petName: "Nova",
-      addOnIds: ["shed-guard", "blueberry"],
-      discount: 0,
-      tax: 9,
-      status: "booked",
-    },
-    {
-      id: "apt-4",
-      date: tomorrowKey,
-      staffId: "sasha",
-      serviceId: "bath-blowout",
-      sizeId: "toy",
-      startMinutes: 8 * 60 + 30,
-      endMinutes: 9 * 60 + 15,
-      clientName: "Elena Diaz",
-      petName: "Nala",
-      addOnIds: [],
-      discount: 0,
-      tax: 3,
-      status: "booked",
-    },
-  ];
-}
+import { supabase } from "@/lib/supabase/client";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 export default function CalendarPage() {
   const { loading, role, profile } = useAuth();
@@ -272,7 +206,12 @@ export default function CalendarPage() {
     return now;
   }, []);
   const todayKey = useMemo(() => formatDateKey(today), [today]);
-  const [appointments, setAppointments] = useState<Appointment[]>(() => seedAppointments(todayKey));
+  const [staffDirectory, setStaffDirectory] = useState<StaffMember[]>([]);
+  const [serviceCatalog, setServiceCatalog] = useState<DrawerServiceOption[]>([]);
+  const [addOnCatalog, setAddOnCatalog] = useState<DrawerAddOnOption[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<Date>(today);
   const [view, setView] = useState<"day" | "week">("day");
   const [interaction, setInteraction] = useState<Interaction | null>(null);
@@ -285,8 +224,318 @@ export default function CalendarPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      setLoadingData(true);
+      setDataError(null);
+      try {
+        const baseStart = view === "week" ? startOfWeek(currentDate) : new Date(currentDate);
+        const baseEnd = view === "week" ? addDays(startOfWeek(currentDate), 6) : new Date(currentDate);
+        const rangeStart = new Date(baseStart);
+        rangeStart.setHours(0, 0, 0, 0);
+        const rangeEnd = new Date(baseEnd);
+        rangeEnd.setHours(23, 59, 59, 999);
+
+        const [staffResp, serviceResp, sizeResp, addOnResp] = await Promise.all([
+          supabase.from("employees").select("*").order("name"),
+          supabase.from("services").select("*").order("name"),
+          supabase
+            .from("service_sizes")
+            .select("id,service_id,label,multiplier,sort_order")
+            .order("sort_order"),
+          supabase.from("add_ons").select("*").order("name"),
+        ]);
+
+        if (staffResp.error) throw staffResp.error;
+        if (serviceResp.error) throw serviceResp.error;
+        const serviceSizeRows: any[] = (() => {
+          if (sizeResp.error) {
+            if (isMissingTableError(sizeResp.error)) {
+              return [];
+            }
+            throw sizeResp.error;
+          }
+          return (sizeResp.data ?? []) as any[];
+        })();
+        if (addOnResp.error) throw addOnResp.error;
+
+        const appointmentColumnsCore =
+          "id,employee_id,service_id,start_time,end_time,tax,status,notes,client:clients(*),pet:pets(*)";
+
+        const runAppointmentQuery = (columns: string) =>
+          supabase
+            .from("appointments")
+            .select(columns)
+            .gte("start_time", rangeStart.toISOString())
+            .lte("start_time", rangeEnd.toISOString())
+            .order("start_time");
+
+        let includeDiscountColumn = true;
+        let includeServiceSizeColumn = true;
+        let appointmentRows: any[] = [];
+        let fetched = false;
+
+        while (!fetched) {
+          const columnParts = [appointmentColumnsCore];
+          if (includeDiscountColumn) columnParts.push("discount");
+          if (includeServiceSizeColumn) columnParts.push("service_size_id");
+          const columnSelection = columnParts.join(",");
+
+          const appointmentResponse = await runAppointmentQuery(columnSelection);
+          if (!appointmentResponse.error) {
+            appointmentRows = (appointmentResponse.data ?? []).map((row: any) => ({
+              ...row,
+              discount: includeDiscountColumn ? row.discount ?? 0 : 0,
+              service_size_id: includeServiceSizeColumn ? row.service_size_id ?? null : null,
+            }));
+            fetched = true;
+            break;
+          }
+
+          const missingDiscount =
+            includeDiscountColumn && isMissingColumnError(appointmentResponse.error, "discount");
+          const missingServiceSize =
+            includeServiceSizeColumn && isMissingColumnError(appointmentResponse.error, "service_size_id");
+
+          if (!missingDiscount && !missingServiceSize) {
+            throw appointmentResponse.error;
+          }
+
+          if (missingDiscount) includeDiscountColumn = false;
+          if (missingServiceSize) includeServiceSizeColumn = false;
+
+          if (!includeDiscountColumn && !includeServiceSizeColumn) {
+            // final attempt with only core columns
+            const fallbackResponse = await runAppointmentQuery(appointmentColumnsCore);
+            if (fallbackResponse.error) {
+              throw fallbackResponse.error;
+            }
+            appointmentRows = (fallbackResponse.data ?? []).map((row: any) => ({
+              ...row,
+              discount: 0,
+              service_size_id: null,
+            }));
+            fetched = true;
+          }
+        }
+
+        let appointmentAddOnRows: any[] = [];
+        if (appointmentRows.length > 0) {
+          const appointmentIds = appointmentRows
+            .map((row) => row.id)
+            .filter((value) => value !== null && value !== undefined);
+
+          if (appointmentIds.length > 0) {
+            const addOnJoinResp = await supabase
+              .from("appointment_add_ons")
+              .select("appointment_id,add_on_id")
+              .in("appointment_id", appointmentIds);
+
+            if (addOnJoinResp.error) {
+              if (!isMissingTableError(addOnJoinResp.error)) {
+                throw addOnJoinResp.error;
+              }
+            } else {
+              appointmentAddOnRows = addOnJoinResp.data ?? [];
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        const staffRows = (staffResp.data ?? []) as any[];
+        const serviceRows = (serviceResp.data ?? []) as any[];
+        const addOnRows = (addOnResp.data ?? []) as any[];
+
+        const staffData: StaffMember[] = staffRows
+          .filter((row) => inferIsActive(row))
+          .map((row, index) => {
+            const baseId = coerceString(row.id, "");
+            const name = coerceString(row.name, baseId ? `Staff #${baseId}` : `Staff #${index + 1}`);
+            const providedInitials =
+              typeof row.initials === "string" && row.initials.trim().length > 0
+                ? row.initials.trim().slice(0, 2).toUpperCase()
+                : null;
+            const generatedInitials = name
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((part) => part[0]?.toUpperCase() ?? "")
+              .join("")
+              .slice(0, 2);
+            const initials = providedInitials ?? (generatedInitials || name.slice(0, 2).toUpperCase());
+            const colorCandidates = [row.calendar_color_class, row.color_class].map((value) =>
+              typeof value === "string" && value.trim().length > 0 ? value.trim() : null
+            );
+            const colorClass =
+              colorCandidates.find((value) => value) ?? STAFF_COLORS[index % STAFF_COLORS.length];
+            const id = baseId || `staff-${index + 1}`;
+            return {
+              id,
+              name,
+              initials,
+              profileId: id,
+              colorClass,
+            } satisfies StaffMember;
+          });
+        setStaffDirectory(staffData);
+
+        const sizeGroups = new Map<
+          string,
+          { id: string; label: string; multiplier: number; sortOrder: number }[]
+        >();
+        for (const size of serviceSizeRows) {
+          const serviceId = String(size.service_id ?? "");
+          if (!serviceId) continue;
+          const entry = sizeGroups.get(serviceId) ?? [];
+          entry.push({
+            id: String(size.id),
+            label: size.label ?? "Size",
+            multiplier: Number(size.multiplier ?? 1),
+            sortOrder: Number(size.sort_order ?? entry.length),
+          });
+          sizeGroups.set(serviceId, entry);
+        }
+        for (const group of sizeGroups.values()) {
+          group.sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
+        }
+
+        const serviceData: DrawerServiceOption[] = serviceRows
+          .filter((row) => inferIsActive(row))
+          .map((row, index) => {
+            const serviceId = coerceString(row.id, `service-${index + 1}`);
+            const sizes = sizeGroups.get(serviceId) ?? [];
+            const fallbackColor = STAFF_COLORS[index % STAFF_COLORS.length] ?? "bg-brand-bubble/20 text-white";
+            const colorCandidates = [row.color_class, row.color, row.calendar_color_class].map((value) =>
+              typeof value === "string" && value.trim().length > 0 ? value.trim() : null
+            );
+            return {
+              id: serviceId,
+              name: coerceString(row.name, "Service"),
+              basePrice: coerceNumber(row.base_price, 0),
+              color: colorCandidates.find((value) => value) ?? fallbackColor,
+              sizes:
+                sizes.length > 0
+                  ? sizes.map(({ sortOrder: _s, ...rest }) => rest)
+                  : [
+                      {
+                        id: `${serviceId}-default`,
+                        label: "Standard",
+                        multiplier: 1,
+                      },
+                    ],
+            } satisfies DrawerServiceOption;
+          });
+        setServiceCatalog(serviceData);
+
+        setAddOnCatalog(
+          addOnRows
+            .filter((row) => inferIsActive(row))
+            .map((row, index) => ({
+              id: coerceString(row.id, `addon-${index + 1}`),
+              name: coerceString(row.name, "Add-on"),
+              price: coerceNumber(row.price, 0),
+            }))
+        );
+
+        const serviceMap = new Map(serviceData.map((svc) => [svc.id, svc]));
+        const staffFallback = staffData[0]?.id ?? "";
+
+        const addOnsByAppointment = new Map<string, string[]>();
+        for (const entry of appointmentAddOnRows) {
+          const appointmentId = entry?.appointment_id;
+          if (appointmentId === null || appointmentId === undefined) {
+            continue;
+          }
+          const id = String(appointmentId);
+          const addOnId = entry?.add_on_id;
+          if (addOnId === null || addOnId === undefined) {
+            if (!addOnsByAppointment.has(id)) {
+              addOnsByAppointment.set(id, []);
+            }
+            continue;
+          }
+          const list = addOnsByAppointment.get(id) ?? [];
+          list.push(String(addOnId));
+          addOnsByAppointment.set(id, list);
+        }
+
+        const appointmentData: Appointment[] = appointmentRows.map((row) => {
+          const start = new Date(row.start_time as string);
+          const end = new Date((row.end_time as string) ?? row.start_time);
+          const serviceId = row.service_id ? String(row.service_id) : serviceData[0]?.id ?? "";
+          const service = serviceMap.get(serviceId) ?? null;
+          const sizeId = row.service_size_id
+            ? String(row.service_size_id)
+            : service?.sizes[0]?.id ?? serviceData[0]?.sizes[0]?.id ?? "";
+          const client = row.client as
+            | {
+                full_name?: string | null;
+                first_name?: string | null;
+                last_name?: string | null;
+                name?: string | null;
+              }
+            | null;
+          const pet = row.pet as { name?: string | null } | null;
+          const structuredName = client
+            ? [client.first_name ?? "", client.last_name ?? ""].filter(Boolean).join(" ").trim()
+            : "";
+          const fallbackName = client
+            ? (client.full_name && client.full_name.trim().length > 0
+                ? client.full_name.trim()
+                : client.name && client.name.trim().length > 0
+                ? client.name.trim()
+                : "")
+            : "";
+          const clientName = client
+            ? (structuredName || fallbackName || "Client").trim() || "Client"
+            : "Walk-in client";
+          const petName =
+            pet && typeof pet.name === "string" && pet.name.trim().length > 0
+              ? pet.name.trim()
+              : "Unassigned";
+          const startMinutesRaw = start.getHours() * 60 + start.getMinutes();
+          const endMinutesRaw = end.getHours() * 60 + end.getMinutes();
+          const startMinutes = clamp(snapMinutes(startMinutesRaw), DAY_START_MINUTES, DAY_END_MINUTES - STEP_MINUTES);
+          const endMinutes = clamp(snapMinutes(endMinutesRaw), startMinutes + STEP_MINUTES, DAY_END_MINUTES);
+          return {
+            id: String(row.id),
+            date: formatDateKey(start),
+            staffId: row.employee_id != null ? String(row.employee_id) : staffFallback,
+            serviceId,
+            sizeId,
+            startMinutes,
+            endMinutes,
+            clientName,
+            petName,
+            addOnIds: addOnsByAppointment.get(String(row.id)) ?? [],
+            discount: Number(row.discount ?? 0),
+            tax: Number(row.tax ?? 0),
+            status: ((row.status as string) ?? "booked") as AppointmentDraft["status"],
+            notes: row.notes ?? undefined,
+          } satisfies Appointment;
+        });
+        setAppointments(appointmentData);
+      } catch (error: any) {
+        if (!cancelled) {
+          setDataError(error?.message ?? "Failed to load calendar data");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingData(false);
+        }
+      }
+    }
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDate, view]);
+
+  useEffect(() => {
     interactionRef.current = interaction;
-  }, [interaction]);
+  }, [interaction, serviceCatalog]);
 
   useEffect(() => {
     function handleMove(event: PointerEvent) {
@@ -369,8 +618,12 @@ export default function CalendarPage() {
         const safeStart = clamp(snapMinutes(start), DAY_START_MINUTES, DAY_END_MINUTES - STEP_MINUTES);
         const safeEnd = clamp(snapMinutes(end), safeStart + STEP_MINUTES, DAY_END_MINUTES);
 
+        if (serviceCatalog.length === 0) {
+          cleanupInteraction();
+          return;
+        }
         const defaultService = serviceCatalog[0];
-        const defaultSize = defaultService.sizes[0];
+        const defaultSize = defaultService.sizes[0] ?? { id: defaultService.id, label: "Standard", multiplier: 1 };
         const id = `apt-${Date.now()}`;
         const fresh: Appointment = {
           id,
@@ -428,7 +681,7 @@ export default function CalendarPage() {
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleCancel);
     };
-  }, [interaction]);
+  }, [interaction, serviceCatalog]);
 
   function staffIdFromPointer(clientX: number) {
     const entries = Object.entries(columnRefs.current);
@@ -601,6 +854,7 @@ export default function CalendarPage() {
   }, [appointmentForDrawer]);
 
   const staffForViewer = useMemo(() => {
+    if (staffDirectory.length === 0) return [] as StaffMember[];
     if (!legacyRole) return staffDirectory;
     if (!isGroomerRole(legacyRole)) return staffDirectory;
     const viewerId = profile?.id;
@@ -609,7 +863,7 @@ export default function CalendarPage() {
       : null;
     if (match) return [match];
     return [staffDirectory[0]];
-  }, [legacyRole, profile?.id]);
+  }, [legacyRole, profile?.id, staffDirectory]);
 
   const currentDateKey = useMemo(() => formatDateKey(currentDate), [currentDate]);
 
@@ -720,198 +974,210 @@ export default function CalendarPage() {
         <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">Click to edit details</span>
       </div>
 
-      {view === "day" ? (
-        <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/5">
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
-          >
-            <div className="border-b border-white/10 bg-white/5 p-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
-              Time
-            </div>
-            {staffForViewer.map((staff) => (
-              <div key={staff.id} className="border-b border-white/10 bg-white/5 p-3">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-xs font-semibold uppercase tracking-[0.2em]">
-                    {staff.initials}
-                  </span>
-                  <div className="flex flex-col text-sm">
-                    <span className="font-semibold text-white">{staff.name}</span>
-                    <span className="text-white/60">{appointments.filter((appt) => appt.date === currentDateKey && appt.staffId === staff.id).length} appointments</span>
-                  </div>
+      {loadingData ? (
+        <div className="rounded-3xl border border-white/15 bg-white/10 p-6 text-center text-sm text-white/70">
+          Loading schedule…
+        </div>
+      ) : dataError ? (
+        <div className="rounded-3xl border border-rose-400/60 bg-rose-500/10 p-6 text-center text-sm text-white">
+          {dataError}
+        </div>
+      ) : (
+        <>
+          {view === "day" ? (
+            <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/5">
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
+              >
+                <div className="border-b border-white/10 bg-white/5 p-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+                  Time
                 </div>
-              </div>
-            ))}
-          </div>
-
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
-          >
-            <div className="relative" style={{ height: COLUMN_HEIGHT }}>
-              {Array.from({ length: DAY_END_MINUTES / 60 - DAY_START_MINUTES / 60 + 1 }, (_, index) => {
-                const hour = Math.floor(DAY_START_MINUTES / 60) + index;
-                return (
-                  <div key={hour} className="absolute left-0 right-0" style={{ top: minutesToOffset(hour * 60) }}>
-                    <div className="h-px w-full bg-white/10" />
-                    <span className="-mt-2 block px-3 text-xs text-white/60">{formatTime(hour * 60)}</span>
+                {staffForViewer.map((staff) => (
+                  <div key={staff.id} className="border-b border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-xs font-semibold uppercase tracking-[0.2em]">
+                        {staff.initials}
+                      </span>
+                      <div className="flex flex-col text-sm">
+                        <span className="font-semibold text-white">{staff.name}</span>
+                        <span className="text-white/60">{appointments.filter((appt) => appt.date === currentDateKey && appt.staffId === staff.id).length} appointments</span>
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-            {staffForViewer.map((staff) => {
-              const columnAppointments = dayAppointments
-                .filter((appointment) => appointment.staffId === staff.id)
-                .sort((a, b) => a.startMinutes - b.startMinutes);
-              return (
-                <div
-                  key={staff.id}
-                  ref={(node) => {
-                    columnRefs.current[staff.id] = node;
-                  }}
-                  style={{ height: COLUMN_HEIGHT }}
-                  className="relative border-l border-white/10 bg-white/[0.04]"
-                  onPointerDown={(event) => beginCreate(staff.id, currentDateKey, event)}
-                >
-                  {columnAppointments.map((appointment) => {
-                    const top = minutesToOffset(appointment.startMinutes);
-                    const height = durationToHeight(appointment.endMinutes - appointment.startMinutes);
+                ))}
+              </div>
+
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
+              >
+                <div className="relative" style={{ height: COLUMN_HEIGHT }}>
+                  {Array.from({ length: DAY_END_MINUTES / 60 - DAY_START_MINUTES / 60 + 1 }, (_, index) => {
+                    const hour = Math.floor(DAY_START_MINUTES / 60) + index;
                     return (
-                      <div
-                        key={appointment.id}
-                        data-appointment-id={appointment.id}
-                        className={clsx(
-                          "absolute left-1 right-1 cursor-grab overflow-hidden rounded-2xl border border-white/20 shadow-lg shadow-black/30 transition", // base
-                          staff.colorClass
-                        )}
-                        style={{ top, height }}
-                        onPointerDown={(event) => beginMove(appointment, event)}
-                        onClick={() => openDrawer(appointment.id)}
-                      >
-                        <div className="px-3 py-2 text-xs">
-                          <p className="text-[0.7rem] uppercase tracking-[0.3em] text-white/70">
-                            {serviceCatalog.find((service) => service.id === appointment.serviceId)?.name ?? "Service"}
-                          </p>
-                          <p className="text-sm font-semibold text-white">{appointment.petName}</p>
-                          <p className="text-xs text-white/80">
-                            {formatTime(appointment.startMinutes)} – {formatTime(appointment.endMinutes)}
-                          </p>
-                          <p className="mt-1 text-[0.7rem] uppercase tracking-[0.3em] text-white/70">{appointment.status.replace(/_/g, " ")}</p>
-                        </div>
-                        <div
-                          role="presentation"
-                          data-role="resize-handle"
-                          onPointerDown={(event) => beginResize(appointment, "start", event)}
-                          className="absolute left-0 right-0 top-0 h-2 cursor-ns-resize"
-                        />
-                        <div
-                          role="presentation"
-                          data-role="resize-handle"
-                          onPointerDown={(event) => beginResize(appointment, "end", event)}
-                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize"
-                        />
+                      <div key={hour} className="absolute left-0 right-0" style={{ top: minutesToOffset(hour * 60) }}>
+                        <div className="h-px w-full bg-white/10" />
+                        <span className="-mt-2 block px-3 text-xs text-white/60">{formatTime(hour * 60)}</span>
                       </div>
                     );
                   })}
-
-                  {interaction?.type === "create" && interaction.staffId === staff.id && (
-                    <div
-                      className="absolute left-1 right-1 rounded-2xl border border-dashed border-white/40 bg-white/20"
-                      style={{
-                        top: minutesToOffset(Math.min(interaction.startMinutes, interaction.endMinutes)),
-                        height: durationToHeight(
-                          Math.max(
-                            STEP_MINUTES,
-                            Math.abs(interaction.endMinutes - interaction.startMinutes)
-                          )
-                        ),
-                      }}
-                    />
-                  )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {weekDays.map((day) => {
-            const key = formatDateKey(day);
-            const dayEntries = weekAppointments.get(key) ?? [];
-            return (
-              <section key={key} className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-5">
-                <header className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                      {day.toLocaleDateString(undefined, { weekday: "short" })}
-                    </p>
-                    <h2 className="text-lg font-semibold text-white">
-                      {day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}
-                    </h2>
-                  </div>
-                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/70">
-                    {dayEntries.length} booked
-                  </span>
-                </header>
-                {dayEntries.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-6 text-sm text-white/60">
-                    No appointments scheduled.
-                  </p>
-                ) : (
-                  <ul className="space-y-3">
-                    {dayEntries.map((appointment) => {
-                      const staff = staffDirectory.find((member) => member.id === appointment.staffId);
-                      const service = serviceCatalog.find((svc) => svc.id === appointment.serviceId);
-                      return (
-                        <li
-                          key={appointment.id}
-                          className="rounded-2xl border border-white/15 bg-white/10 p-4 text-sm transition hover:border-white/30 hover:bg-white/20"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-white">{appointment.petName}</p>
-                              <p className="text-xs text-white/70">{appointment.clientName}</p>
-                              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
-                                {service?.name ?? "Service"}
-                              </p>
-                            </div>
-                            <div className="text-right text-xs text-white/70">
-                              <p>{formatTime(appointment.startMinutes)}</p>
-                              <p>{formatTime(appointment.endMinutes)}</p>
-                              <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.3em]">
-                                {staff?.initials ?? "--"}
-                                <span>{appointment.status.replace(/_/g, " ")}</span>
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
+                {staffForViewer.map((staff) => {
+                  const columnAppointments = dayAppointments
+                    .filter((appointment) => appointment.staffId === staff.id)
+                    .sort((a, b) => a.startMinutes - b.startMinutes);
+                  return (
+                    <div
+                      key={staff.id}
+                      ref={(node) => {
+                        columnRefs.current[staff.id] = node;
+                      }}
+                      style={{ height: COLUMN_HEIGHT }}
+                      className="relative border-l border-white/10 bg-white/[0.04]"
+                      onPointerDown={(event) => beginCreate(staff.id, currentDateKey, event)}
+                    >
+                      {columnAppointments.map((appointment) => {
+                        const top = minutesToOffset(appointment.startMinutes);
+                        const height = durationToHeight(appointment.endMinutes - appointment.startMinutes);
+                        return (
+                          <div
+                            key={appointment.id}
+                            data-appointment-id={appointment.id}
+                            className={clsx(
+                              "absolute left-1 right-1 cursor-grab overflow-hidden rounded-2xl border border-white/20 shadow-lg shadow-black/30 transition",
+                              staff.colorClass
+                            )}
+                            style={{ top, height }}
+                            onPointerDown={(event) => beginMove(appointment, event)}
                             onClick={() => openDrawer(appointment.id)}
-                            className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70 transition hover:border-white/30 hover:text-white"
                           >
-                            Edit details
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-        </div>
-      )}
+                            <div className="px-3 py-2 text-xs">
+                              <p className="text-[0.7rem] uppercase tracking-[0.3em] text-white/70">
+                                {serviceCatalog.find((service) => service.id === appointment.serviceId)?.name ?? "Service"}
+                              </p>
+                              <p className="text-sm font-semibold text-white">{appointment.petName}</p>
+                              <p className="text-xs text-white/80">
+                                {formatTime(appointment.startMinutes)} – {formatTime(appointment.endMinutes)}
+                              </p>
+                              <p className="mt-1 text-[0.7rem] uppercase tracking-[0.3em] text-white/70">{appointment.status.replace(/_/g, " ")}</p>
+                            </div>
+                            <div
+                              role="presentation"
+                              data-role="resize-handle"
+                              onPointerDown={(event) => beginResize(appointment, "start", event)}
+                              className="absolute left-0 right-0 top-0 h-2 cursor-ns-resize"
+                            />
+                            <div
+                              role="presentation"
+                              data-role="resize-handle"
+                              onPointerDown={(event) => beginResize(appointment, "end", event)}
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize"
+                            />
+                          </div>
+                        );
+                      })}
 
-      <AppointmentDetailDrawer
-        open={drawerState.open && !!drawerValue}
-        staff={staffForViewer}
-        services={serviceCatalog}
-        addOns={addOnCatalog}
-        value={drawerValue}
-        onClose={closeDrawer}
-        onSubmit={handleDrawerSubmit}
-        onDelete={handleDrawerDelete}
-      />
+                      {interaction?.type === "create" && interaction.staffId === staff.id && (
+                        <div
+                          className="absolute left-1 right-1 rounded-2xl border border-dashed border-white/40 bg-white/20"
+                          style={{
+                            top: minutesToOffset(Math.min(interaction.startMinutes, interaction.endMinutes)),
+                            height: durationToHeight(
+                              Math.max(
+                                STEP_MINUTES,
+                                Math.abs(interaction.endMinutes - interaction.startMinutes)
+                              )
+                            ),
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {weekDays.map((day) => {
+                const key = formatDateKey(day);
+                const dayEntries = weekAppointments.get(key) ?? [];
+                return (
+                  <section key={key} className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-5">
+                    <header className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                          {day.toLocaleDateString(undefined, { weekday: "short" })}
+                        </p>
+                        <h2 className="text-lg font-semibold text-white">
+                          {day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+                        </h2>
+                      </div>
+                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/70">
+                        {dayEntries.length} booked
+                      </span>
+                    </header>
+                    {dayEntries.length === 0 ? (
+                      <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-6 text-sm text-white/60">
+                        No appointments scheduled.
+                      </p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {dayEntries.map((appointment) => {
+                          const staff = staffDirectory.find((member) => member.id === appointment.staffId);
+                          const service = serviceCatalog.find((svc) => svc.id === appointment.serviceId);
+                          return (
+                            <li
+                              key={appointment.id}
+                              className="rounded-2xl border border-white/15 bg-white/10 p-4 text-sm transition hover:border-white/30 hover:bg-white/20"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{appointment.petName}</p>
+                                  <p className="text-xs text-white/70">{appointment.clientName}</p>
+                                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
+                                    {service?.name ?? "Service"}
+                                  </p>
+                                </div>
+                                <div className="text-right text-xs text-white/70">
+                                  <p>{formatTime(appointment.startMinutes)}</p>
+                                  <p>{formatTime(appointment.endMinutes)}</p>
+                                  <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.3em]">
+                                    {staff?.initials ?? "--"}
+                                    <span>{appointment.status.replace(/_/g, " ")}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => openDrawer(appointment.id)}
+                                className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70 transition hover:border-white/30 hover:text-white"
+                              >
+                                Edit details
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )}
+
+          <AppointmentDetailDrawer
+            open={drawerState.open && !!drawerValue}
+            staff={staffForViewer}
+            services={serviceCatalog}
+            addOns={addOnCatalog}
+            value={drawerValue}
+            onClose={closeDrawer}
+            onSubmit={handleDrawerSubmit}
+            onDelete={handleDrawerDelete}
+          />
+        </>
+      )}
     </div>
   );
 }

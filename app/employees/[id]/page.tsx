@@ -20,6 +20,9 @@ import OverviewWidgets, { OverviewMetrics } from "./components/OverviewWidgets";
 import RecentJobs, { RecentJobRow } from "./components/RecentJobs";
 import { useEmployeeDetail } from "./EmployeeDetailClient";
 
+const RECENT_APPOINTMENT_COLUMNS =
+  "id,start_time,status,price,price_cents,price_amount,price_amount_cents,pet_name,service_id,service_name,pets(name),services(name)";
+
 const emptyMetrics: OverviewMetrics = {
   todayDogs: 0,
   todayHours: 0,
@@ -53,7 +56,7 @@ export default function EmployeeOverviewPage() {
           supabase.rpc("staff_lifetime_metrics", { staff_id: employee.id }),
           supabase
             .from("appointments")
-            .select("id,start_time,service,status,price,price_cents,pet_name")
+            .select(RECENT_APPOINTMENT_COLUMNS)
             .eq("employee_id", employee.id)
             .order("start_time", { ascending: false })
             .limit(8),
@@ -76,14 +79,25 @@ export default function EmployeeOverviewPage() {
           lifetimeRevenue: lifetime.revenue ?? 0,
         });
 
-        const rows = recentRows.map((row: any) => ({
-          id: row.id,
-          start: row.start_time,
-          pet: row.pet_name ?? null,
-          service: row.service ?? null,
-          price: readMoney(row, ["price", "price_cents", "price_amount", "price_amount_cents"]),
-          status: row.status ?? null,
-        }));
+        const rows = recentRows.map((row: any, index: number) => {
+          const petName =
+            row.pet_name ??
+            (row.pet && typeof row.pet === "object" ? row.pet?.name : null) ??
+            (row.pets && typeof row.pets === "object" ? row.pets?.name : null);
+          const serviceName =
+            (typeof row.service === "string" && row.service.trim().length > 0 ? row.service : null) ??
+            (row.service_name && typeof row.service_name === "string" ? row.service_name : null) ??
+            (row.services && typeof row.services === "object" ? row.services?.name : null);
+
+          return {
+            id: row.id ? String(row.id) : `recent-${index}`,
+            start: row.start_time,
+            pet: petName ?? null,
+            service: serviceName ?? null,
+            price: readMoney(row, ["price", "price_cents", "price_amount", "price_amount_cents"]),
+            status: row.status ?? null,
+          };
+        });
 
         setRecent(rows as RecentJobRow[]);
       } catch (cause) {
@@ -208,7 +222,7 @@ async function resolveRecentAppointments(
   }
 
   if (isMissingColumnError(response.error)) {
-    const fallback = await buildRecentAppointmentsQuery(employeeId, "*");
+    const fallback = await buildRecentAppointmentsQuery(employeeId, RECENT_APPOINTMENT_COLUMNS);
     if (!fallback.error) {
       return (fallback.data as any[]) ?? [];
     }
@@ -282,7 +296,10 @@ async function computeLifetimeMetricsFromAppointments(employeeId: number): Promi
   return { dogs: rows.length, revenue };
 }
 
-function buildRecentAppointmentsQuery(employeeId: number, columns: string) {
+function buildRecentAppointmentsQuery(
+  employeeId: number,
+  columns: string = RECENT_APPOINTMENT_COLUMNS
+) {
   return supabase
     .from("appointments")
     .select(columns)

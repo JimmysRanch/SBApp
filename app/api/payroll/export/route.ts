@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     const rate = typeof line.commission_rate === "number" ? line.commission_rate : Number(line.commission_rate ?? 0);
     return {
       date: line.start_time,
-      service: line.service ?? "",
+      service: line.service_name ?? line.service ?? "",
       base,
       commissionRate: rate,
       commissionAmount,

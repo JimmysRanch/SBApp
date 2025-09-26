@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { useAuth } from "@/components/AuthProvider";
 import { canAccessRoute } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import { supabase } from "@/lib/supabase/client";
 
 const currency = new Intl.NumberFormat(undefined, {
   style: "currency",
@@ -38,89 +39,6 @@ type SlotOption = {
   start: string;
   end: string;
 };
-
-const staffOptions: StaffOption[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    role: "Master Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/ST.svg",
-    bio: "Specialises in hand scissoring and anxious pups.",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    role: "Senior Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/MC.svg",
-    bio: "Loves double coats, creative colour and doodles.",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    role: "Pet Stylist",
-    avatar: "https://avatars.dicebear.com/api/initials/IH.svg",
-    bio: "Speedy with bath & tidy packages and small breeds.",
-  },
-];
-
-const slotOptions: SlotOption[] = [
-  { id: "slot-9", label: "Today · 9:00am", start: "2024-04-05T09:00:00", end: "2024-04-05T10:30:00" },
-  { id: "slot-11", label: "Today · 11:30am", start: "2024-04-05T11:30:00", end: "2024-04-05T13:00:00" },
-  { id: "slot-14", label: "Tomorrow · 2:00pm", start: "2024-04-06T14:00:00", end: "2024-04-06T15:30:00" },
-  { id: "slot-16", label: "Saturday · 4:00pm", start: "2024-04-07T16:00:00", end: "2024-04-07T17:30:00" },
-];
-
-const serviceOptions: ServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    duration: 90,
-    basePrice: 85,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.45 },
-      { id: "large", label: "Large", multiplier: 1.75 },
-    ],
-  },
-  {
-    id: "bath-tidy",
-    name: "Bath & Tidy",
-    duration: 70,
-    basePrice: 60,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "paw-spa",
-    name: "Paw Spa Package",
-    duration: 45,
-    basePrice: 45,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.3 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-];
-
-const addOns = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-  { id: "shed-guard", name: "Shed Guard", price: 20 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-];
-
-const pets = [
-  { id: "pet-1", name: "Mocha", breed: "Cockapoo" },
-  { id: "pet-2", name: "Nova", breed: "Husky" },
-  { id: "pet-3", name: "Frodo", breed: "Mini Labradoodle" },
-];
 
 const steps = [
   { id: "staff", label: "Choose staff" },
@@ -162,22 +80,164 @@ export default function BookingClient() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get("clientId") ?? null;
 
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
+  const [slotOptions, setSlotOptions] = useState<SlotOption[]>([]);
+  const [addOns, setAddOns] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [pets, setPets] = useState<{ id: string; name: string; breed: string | null }[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [draft, setDraft] = useState<BookingDraft>(defaultDraft);
   const [showCelebration, setShowCelebration] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      setLoadingData(true);
+      setLoadError(null);
+      try {
+        const [staffResp, servicesResp, addOnResp, petsResp, apptResp] = await Promise.all([
+          supabase
+            .from("employees")
+            .select("id,name,role,avatar_url,manager_notes")
+            .eq("active", true)
+            .order("name"),
+          supabase
+            .from("services")
+            .select("id,name,duration_min,base_price,service_sizes(id,label,multiplier,sort_order)")
+            .eq("active", true)
+            .order("name"),
+          supabase
+            .from("add_ons")
+            .select("id,name,price")
+            .eq("active", true)
+            .order("name"),
+          clientId
+            ? supabase
+                .from("pets")
+                .select("id,name,breed,client_id")
+                .eq("client_id", clientId)
+                .order("name")
+            : supabase.from("pets").select("id,name,breed").order("name"),
+          supabase
+            .from("appointments")
+            .select("id,start_time,end_time,employee_id")
+            .gte("start_time", new Date().toISOString())
+            .order("start_time")
+            .limit(12),
+        ]);
+
+        if (staffResp.error) throw staffResp.error;
+        if (servicesResp.error) throw servicesResp.error;
+        if (addOnResp.error) throw addOnResp.error;
+        if (petsResp.error) throw petsResp.error;
+        if (apptResp.error) throw apptResp.error;
+
+        if (cancelled) return;
+
+        setStaffOptions(
+          (staffResp.data ?? []).map((row) => {
+            const name = row.name ?? `Staff #${row.id}`;
+            const avatarFallback = `https://avatars.dicebear.com/api/initials/${encodeURIComponent(name)}.svg`;
+            return {
+              id: String(row.id),
+              name,
+              role: row.role ?? "Staff",
+              avatar: row.avatar_url ?? avatarFallback,
+              bio: (row.manager_notes as string | null) ?? "",
+            } satisfies StaffOption;
+          })
+        );
+
+        setServiceOptions(
+          (servicesResp.data ?? []).map((row) => ({
+            id: String(row.id),
+            name: row.name ?? "Service",
+            duration: Number(row.duration_min ?? 60),
+            basePrice: Number(row.base_price ?? 0),
+            sizes: (row.service_sizes ?? [])
+              .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map((size: any) => ({
+                id: String(size.id),
+                label: size.label ?? "Size",
+                multiplier: Number(size.multiplier ?? 1),
+              })),
+          }))
+        );
+
+        setAddOns((addOnResp.data ?? []).map((row) => ({
+          id: String(row.id),
+          name: row.name ?? "Add-on",
+          price: Number(row.price ?? 0),
+        })));
+
+        setPets(
+          (petsResp.data ?? []).map((row) => ({
+            id: String(row.id),
+            name: row.name ?? "Pet",
+            breed: row.breed ?? null,
+          }))
+        );
+
+        const slotFormatter = new Intl.DateTimeFormat(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+
+        setSlotOptions(
+          (apptResp.data ?? []).map((row) => {
+            const start = row.start_time as string;
+            const end = row.end_time as string;
+            const startDate = new Date(start);
+            return {
+              id: String(row.id),
+              label: slotFormatter.format(startDate),
+              start,
+              end,
+            } as SlotOption;
+          })
+        );
+      } catch (error: any) {
+        if (!cancelled) {
+          setLoadError(error?.message ?? "Failed to load booking data");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingData(false);
+        }
+      }
+    }
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
+
+  useEffect(() => {
+    setDraft((prev) => ({
+      ...prev,
+      staffId: prev.staffId ?? staffOptions[0]?.id ?? null,
+      serviceId: prev.serviceId ?? serviceOptions[0]?.id ?? null,
+      sizeId: prev.sizeId ?? serviceOptions[0]?.sizes[0]?.id ?? null,
+    }));
+  }, [staffOptions, serviceOptions]);
+
   const activeStep = steps[activeStepIndex];
   const selectedStaff = useMemo(
     () => staffOptions.find((staff) => staff.id === draft.staffId) ?? null,
-    [draft.staffId]
+    [draft.staffId, staffOptions]
   );
   const selectedSlot = useMemo(
     () => slotOptions.find((slot) => slot.id === draft.slotId) ?? null,
-    [draft.slotId]
+    [draft.slotId, slotOptions]
   );
   const selectedService = useMemo(
     () => serviceOptions.find((service) => service.id === draft.serviceId) ?? null,
-    [draft.serviceId]
+    [draft.serviceId, serviceOptions]
   );
   const selectedSize = useMemo(() => {
     if (!selectedService || !draft.sizeId) return null;
@@ -185,7 +245,7 @@ export default function BookingClient() {
   }, [draft.sizeId, selectedService]);
   const selectedPet = useMemo(
     () => pets.find((pet) => pet.id === draft.petId) ?? null,
-    [draft.petId]
+    [draft.petId, pets]
   );
 
   const basePrice = useMemo(() => {
@@ -199,7 +259,7 @@ export default function BookingClient() {
         const addOn = addOns.find((item) => item.id === id);
         return total + (addOn?.price ?? 0);
       }, 0),
-    [draft.addOnIds]
+    [draft.addOnIds, addOns]
   );
 
   const subtotal = basePrice + addOnTotal;
@@ -309,6 +369,12 @@ export default function BookingClient() {
         })}
       </ol>
 
+      {loadingData ? (
+        <div className="rounded-3xl border border-white/30 bg-white/10 p-8 text-center text-white">Loading booking data…</div>
+      ) : loadError ? (
+        <div className="rounded-3xl border border-rose-400/60 bg-rose-500/10 p-8 text-center text-white">{loadError}</div>
+      ) : (
+        <>
       <section className="rounded-3xl border border-white/15 bg-white/5 p-6">
         {activeStep.id === "staff" && (
           <div className="grid gap-4 md:grid-cols-3">
@@ -672,6 +738,8 @@ export default function BookingClient() {
           )}
         </div>
       </footer>
+        </>
+      )}
 
       {showCelebration && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur">

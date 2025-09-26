@@ -5,7 +5,7 @@ import PageContainer from '@/components/PageContainer';
 import { createClient } from '@/lib/supabase/server';
 
 type Client = {
-  id: number;
+  id: string;
   full_name: string | null;
   email: string | null;
   phone: string | null;
@@ -25,21 +25,41 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const query = Array.isArray(rawQuery) ? rawQuery[0] ?? '' : rawQuery ?? '';
   const trimmedQuery = query.trim();
 
-  let request = supabase
-    .from('clients_with_pets')
-    .select('id, full_name, email, phone, pet_names, created_at')
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name, email, phone, created_at, pets(name)')
     .order('created_at', { ascending: false })
     .limit(200);
 
-  if (trimmedQuery) {
-    const pattern = `%${trimmedQuery}%`;
-    request = request.or(
-      `full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},pet_names.ilike.${pattern}`
-    );
-  }
+  const mapped: Client[] = (data ?? []).map((row) => {
+    const first = (row.first_name as string | null) ?? '';
+    const last = (row.last_name as string | null) ?? '';
+    const fullName = `${first} ${last}`.trim() || null;
+    const petNames = Array.isArray(row.pets)
+      ? row.pets
+          .map((pet: any) => (pet?.name as string | null)?.trim())
+          .filter(Boolean)
+          .join(' • ')
+      : null;
+    return {
+      id: String(row.id),
+      full_name: fullName,
+      email: (row.email as string | null) ?? null,
+      phone: (row.phone as string | null) ?? null,
+      pet_names: petNames?.length ? petNames : null,
+      created_at: row.created_at as string,
+    } satisfies Client;
+  });
 
-  const { data, error } = await request;
-  const rows = (data ?? []) as Client[];
+  const normalizedQuery = trimmedQuery.toLowerCase();
+  const rows = trimmedQuery
+    ? mapped.filter((row) => {
+        const haystacks = [row.full_name, row.email, row.phone, row.pet_names]
+          .map((value) => value?.toLowerCase() ?? '')
+          .join(' ');
+        return haystacks.includes(normalizedQuery);
+      })
+    : mapped;
   const err = error?.message ?? null;
 
   return (

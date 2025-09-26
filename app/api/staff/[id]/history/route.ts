@@ -19,7 +19,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: ok } = await supabase.rpc('has_perm', { _uid: uid, _perm: 'manage_staff' });
   if (!ok && uid !== sid) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-  let q = supabase.from('appointments').select('id,starts_at,ends_at,service_id,status,total_price,tip').eq('staff_id', sid);
+  let q = supabase
+    .from('appointments')
+    .select('id,starts_at,ends_at,service_id,services(name),status,total_price,tip')
+    .eq('staff_id', sid);
   if (from) q = q.gte('starts_at', from);
   if (to) q = q.lte('starts_at', to);
   if (status && status !== 'all') q = q.eq('status', status);

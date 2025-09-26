@@ -2,6 +2,8 @@
 
 import clsx from "clsx";
 
+import { roleDisplayName } from "@/lib/auth/access";
+
 import { useEmployeeDetail } from "../EmployeeDetailClient";
 
 type StaffHeaderProps = {
@@ -26,8 +28,9 @@ export default function StaffHeader({ onCall, onText, onEmail }: StaffHeaderProp
   const statusLabel = employee.status
     ? employee.status
     : employee.active === false
-    ? "Inactive"
-    : "Active";
+        ? "Inactive"
+        : "Active";
+  const roleLabel = employee.role ? roleDisplayName(employee.role) : null;
 
   const statusTone = clsx(
     "rounded-full border px-3 py-1 text-xs font-semibold capitalize",
@@ -63,7 +66,7 @@ export default function StaffHeader({ onCall, onText, onEmail }: StaffHeaderProp
               <h1 className="text-xl font-semibold text-brand-navy">{employee.name ?? "Staff member"}</h1>
               <span className={statusTone}>{statusLabel}</span>
             </div>
-            <div className="text-sm font-medium text-slate-500">{employee.role ?? "—"}</div>
+            <div className="text-sm font-medium text-slate-500">{roleLabel ?? "—"}</div>
             <div className="text-sm text-slate-400">{contactDetails || "No contact info"}</div>
           </div>
         </div>

@@ -29,7 +29,7 @@ export async function POST() {
   const upsertEmp = await admin
     .from("employees")
     .upsert(
-      { user_id: uid, name: "Owner", active: true, role: "Manager", app_permissions: { dashboard: true } },
+      { user_id: uid, name: "Owner", active: true, app_permissions: { dashboard: true } },
       { onConflict: "user_id" }
     );
   if (upsertEmp.error) return NextResponse.json({ error: upsertEmp.error.message }, { status: 400 });

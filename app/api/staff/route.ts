@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { normaliseRole, type Role } from "@/lib/auth/profile";
 import {
   clonePlan,
   defaultCompensationPlan,
@@ -186,6 +187,7 @@ const staffSchema = z.object({
   emergency_contact_phone: optionalPhone,
   manager_notes: optionalText,
   goals: goalsSchema,
+  user_id: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -232,6 +234,12 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
+  const canonicalRole = normaliseRole(data.role);
+  const allowedRoles: Role[] = ["master", "admin", "senior_groomer", "groomer", "receptionist"];
+  if (!allowedRoles.includes(canonicalRole)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
+
   const compensationPlan = data.compensation_plan
     ? toStoredPlan(data.compensation_plan)
     : clonePlan(defaultCompensationPlan);
@@ -274,9 +282,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const employeePayload = {
+  const employeePayload: Record<string, unknown> = {
     name: data.name,
-    role: data.role,
     email: data.email,
     phone: data.phone,
     status: normalisedStatus,
@@ -296,6 +303,9 @@ export async function POST(req: Request) {
     app_permissions: data.app_permissions,
     manager_notes: data.manager_notes,
   };
+  if (data.user_id) {
+    employeePayload.user_id = data.user_id;
+  }
 
   const { data: created, error: insertError } = await admin
     .from("employees")
@@ -305,6 +315,16 @@ export async function POST(req: Request) {
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
+  if (data.user_id) {
+    const { error: profileUpdateError } = await admin
+      .from("profiles")
+      .update({ role: canonicalRole })
+      .eq("id", data.user_id);
+    if (profileUpdateError) {
+      return NextResponse.json({ error: profileUpdateError.message }, { status: 400 });
+    }
   }
 
   if (created?.id && data.goals) {

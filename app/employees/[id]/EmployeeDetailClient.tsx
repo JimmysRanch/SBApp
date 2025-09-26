@@ -16,6 +16,7 @@ import PageContainer from "@/components/PageContainer";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { canManageWorkspace, derivePermissionFlags } from "@/lib/auth/roles";
+import { normaliseRole, type Role } from "@/lib/auth/profile";
 import { readMoney } from "./data-helpers";
 
 import StaffHeader from "./components/StaffHeader";
@@ -27,7 +28,7 @@ export type StaffRecord = {
   email: string | null;
   phone: string | null;
   user_id?: string | null;
-  role: string | null;
+  role: Role | null;
   avatar_url: string | null;
   active: boolean | null;
   status?: string | null;
@@ -57,7 +58,7 @@ export type StaffGoals = {
 export type ViewerRecord = {
   id: number;
   name: string | null;
-  role: string | null;
+  role: Role | null;
   app_permissions: Record<string, unknown> | null;
 };
 
@@ -177,12 +178,20 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
       }
       const { data, error } = await supabase
         .from("employees")
-        .select("id,name,role,app_permissions")
+        .select("id,name,app_permissions,profile:profiles(role)")
         .eq("email", email)
         .maybeSingle();
       if (!isActive) return;
       if (!error && data) {
-        setViewer(data as ViewerRecord);
+        const profileRole =
+          (data as { profile?: { role?: string | null } | null })?.profile?.role ?? null;
+        const resolvedRole = profileRole ? normaliseRole(profileRole) : null;
+        setViewer({
+          id: (data as { id: number }).id,
+          name: (data as { name: string | null }).name ?? null,
+          role: resolvedRole,
+          app_permissions: (data as { app_permissions?: Record<string, unknown> | null }).app_permissions ?? null,
+        });
       } else {
         setViewer(null);
       }
@@ -210,8 +219,8 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
       if (isTruthyFlag(flags.can_manage_discounts)) return true;
       if (isTruthyFlag(flags.is_manager)) return true;
     }
-    const role = viewer.role?.toLowerCase() ?? "";
-    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+    const viewerRole = viewer.role;
+    return viewerRole ? ["master", "admin", "senior_groomer"].includes(viewerRole) : false;
   }, [permissions, viewer]);
 
   const viewerCanEditStaff = useMemo(() => {
@@ -226,8 +235,8 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
       if (isTruthyFlag(flags.can_view_reports)) return true;
       if (isTruthyFlag(flags.is_manager)) return true;
     }
-    const role = viewer.role?.toLowerCase() ?? "";
-    return role.includes("manager") || role.includes("owner") || role.includes("admin");
+    const viewerRole = viewer.role;
+    return viewerRole ? ["master", "admin", "senior_groomer"].includes(viewerRole) : false;
   }, [isOwner, permissions, viewer]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);

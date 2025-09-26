@@ -24,6 +24,8 @@ import {
   toStoredPlan,
 } from "@/lib/compensationPlan";
 import { supabase } from "@/lib/supabase/client";
+import { roleDisplayName } from "@/lib/auth/access";
+import type { Role } from "@/lib/auth/profile";
 
 type PermissionKey =
   | "can_view_reports"
@@ -41,6 +43,14 @@ const PERMISSION_OPTIONS: PermissionOption[] = [
 ];
 
 const STATUS_OPTIONS = ["Active", "Inactive", "On leave"];
+
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: "master", label: roleDisplayName("master") },
+  { value: "admin", label: roleDisplayName("admin") },
+  { value: "senior_groomer", label: roleDisplayName("senior_groomer") },
+  { value: "groomer", label: roleDisplayName("groomer") },
+  { value: "receptionist", label: roleDisplayName("receptionist") },
+];
 
 export default function EmployeeSettingsPage() {
   const { employee, goals, viewerCanEditStaff, pushToast } = useEmployeeDetail();
@@ -60,9 +70,22 @@ export default function EmployeeSettingsPage() {
     return base;
   }, [employee.app_permissions]);
 
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<{
+    name: string;
+    role: Role;
+    email: string;
+    phone: string;
+    avatar_url: string;
+    status: string;
+    address_street: string;
+    address_city: string;
+    address_state: string;
+    address_zip: string;
+    emergency_contact_name: string;
+    emergency_contact_phone: string;
+  }>({
     name: employee.name ?? "",
-    role: employee.role ?? "",
+    role: employee.role ?? "groomer",
     email: employee.email ?? "",
     phone: employee.phone ?? "",
     avatar_url: employee.avatar_url ?? "",
@@ -199,7 +222,7 @@ export default function EmployeeSettingsPage() {
 
   const handleProfileSave = async () => {
     setSaving((s) => ({ ...s, profile: true }));
-    const result = await saveProfileAction(employee.id, profile);
+    const result = await saveProfileAction(employee.id, employee.user_id ?? null, profile);
     setSaving((s) => ({ ...s, profile: false }));
     if (!result.success) {
       pushToast(result.error ?? "Failed to save profile", "error");
@@ -207,6 +230,12 @@ export default function EmployeeSettingsPage() {
     }
     setEditing((e) => ({ ...e, profile: false }));
     pushToast("Profile updated", "success");
+    if (!result.roleUpdated && !employee.user_id) {
+      pushToast(
+        "Link this staff member to a user account to change their permissions.",
+        "warning",
+      );
+    }
   };
 
   const savePlanAndPermissions = async (
@@ -298,11 +327,16 @@ export default function EmployeeSettingsPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <TextField label="Name" value={profile.name} onChange={(v) => setProfile((p) => ({ ...p, name: v }))}
             disabled={!editing.profile || saving.profile} />
-          <TextField label="Role" value={profile.role} onChange={(v) => setProfile((p) => ({ ...p, role: v }))}
+          <SelectField
+            label="Role"
+            value={profile.role}
+            options={ROLE_OPTIONS}
+            onChange={(v) => setProfile((p) => ({ ...p, role: v as Role }))}
+            disabled={!editing.profile || saving.profile || !employee.user_id}
+          />
+        <TextField label="Email" value={profile.email} onChange={(v) => setProfile((p) => ({ ...p, email: v }))}
             disabled={!editing.profile || saving.profile} />
-          <TextField label="Email" value={profile.email} onChange={(v) => setProfile((p) => ({ ...p, email: v }))}
-            disabled={!editing.profile || saving.profile} />
-          <TextField label="Phone" value={profile.phone} onChange={(v) => setProfile((p) => ({ ...p, phone: v }))}
+        <TextField label="Phone" value={profile.phone} onChange={(v) => setProfile((p) => ({ ...p, phone: v }))}
             disabled={!editing.profile || saving.profile} />
           <TextField label="Avatar URL" value={profile.avatar_url} onChange={(v) => setProfile((p) => ({ ...p, avatar_url: v }))}
             disabled={!editing.profile || saving.profile} />
@@ -325,6 +359,11 @@ export default function EmployeeSettingsPage() {
           <TextField label="Emergency Contact Phone" value={profile.emergency_contact_phone}
             onChange={(v) => setProfile((p) => ({ ...p, emergency_contact_phone: v }))} disabled={!editing.profile || saving.profile} />
         </div>
+        {!employee.user_id && (
+          <p className="mt-2 text-xs text-slate-500">
+            Connect this staff record to a user account before changing their role or permissions.
+          </p>
+        )}
       </section>
 
       {/* App permissions */}
@@ -870,7 +909,8 @@ function TextField({ label, value, onChange, disabled }: TextFieldProps) {
   );
 }
 
-type SelectFieldProps = { label: string; value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean };
+type SelectOption = string | { value: string; label: string };
+type SelectFieldProps = { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; disabled?: boolean };
 function SelectField({ label, value, options, onChange, disabled }: SelectFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm text-slate-600">
@@ -881,9 +921,15 @@ function SelectField({ label, value, options, onChange, disabled }: SelectFieldP
         disabled={disabled}
         className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
       >
-        {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
-        ))}
+        {options.map((option) => {
+          const { value: optionValue, label: optionLabel } =
+            typeof option === "string" ? { value: option, label: option } : option;
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
     </label>
   );

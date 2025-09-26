@@ -21,7 +21,7 @@ export default function TopNav() {
 
   return (
     <header className="flex w-full items-center justify-between gap-6">
-      <nav className="flex flex-wrap items-center gap-2">
+      <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -41,7 +41,7 @@ export default function TopNav() {
           );
         })}
       </nav>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex flex-shrink-0 items-center gap-3 text-sm">
         <span className="truncate max-w-[12rem] text-white/90" title={name}>
           {name}
         </span>

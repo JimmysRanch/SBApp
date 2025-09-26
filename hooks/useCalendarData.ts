@@ -4,45 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-const STAFF_COLOR_CLASSES = [
-  "bg-brand-bubble/20 text-white",
-  "bg-emerald-400/20 text-emerald-950",
-  "bg-sky-400/20 text-sky-950",
-  "bg-amber-300/30 text-amber-900",
-  "bg-violet-400/25 text-violet-950",
-];
-
-const INACTIVE_KEYWORDS = ["inactive", "archived", "disabled", "terminated", "deleted"];
-
-function inferIsActive(record: Record<string, unknown> | null | undefined) {
-  if (!record || typeof record !== "object") {
-    return true;
-  }
-
-  const boolKeys = ["active", "is_active", "enabled", "is_enabled"] as const;
-  for (const key of boolKeys) {
-    const value = (record as Record<string, unknown>)[key];
-    if (typeof value === "boolean") {
-      return value;
-    }
-  }
-
-  const status = (record as Record<string, unknown>).status;
-  if (typeof status === "string") {
-    const lowered = status.toLowerCase();
-    if (INACTIVE_KEYWORDS.some((flag) => lowered.includes(flag))) {
-      return false;
-    }
-  }
-
-  const archivedAt = (record as Record<string, unknown>).archived_at;
-  if (archivedAt !== null && archivedAt !== undefined) {
-    return false;
-  }
-
-  return true;
-}
-
 function coerceString(value: unknown, fallback: string) {
   if (typeof value === "string" && value.trim().length > 0) {
     return value.trim();
@@ -58,11 +19,28 @@ function coerceNumber(value: unknown, fallback: number) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function isActiveRecord(record: Record<string, unknown> | null | undefined) {
+  if (!record) return true;
+  const candidates = ["active", "enabled", "is_active", "isEnabled"] as const;
+  for (const key of candidates) {
+    const value = record[key];
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+  const status = record.status;
+  if (typeof status === "string") {
+    const lowered = status.toLowerCase();
+    return !/(inactive|archived|disabled|terminated)/.test(lowered);
+  }
+  return true;
+}
+
 export interface Employee {
   id: string;
   name: string;
   initials?: string | null;
-  colorClass?: string | null;
+  colorHex?: string | null;
 }
 export interface Service  {
   id: string;
@@ -129,35 +107,38 @@ export function useCalendarData(currentDate: Date, view: View) {
     (async () => {
       try {
         setLoading(true);
-        // employees
-        const { data: emps, error: e1 } = await supabase.from("employees").select("*").order("name");
+        // staff lanes come from the calendar view which already filters to active
+        const { data: emps, error: e1 } = await supabase
+          .from("v_staff_calendar")
+          .select("id,full_name,initials,color_hex")
+          .order("full_name");
         if (e1) throw e1;
-        const rows = (emps ?? []) as any[];
-        const active = rows
-          .filter((record) => inferIsActive(record))
-          .map((record, index: number) => {
-            const id = coerceString(record.id, `staff-${index + 1}`);
-            const name = coerceString(record.name, id ? `#${id}` : `#${index + 1}`);
-            const initials = name
-              .split(/\s+/)
-              .filter(Boolean)
-              .map((part) => part[0]?.toUpperCase() ?? "")
-              .join("")
-              .slice(0, 2) || name.slice(0, 2).toUpperCase();
-            const colorClass = STAFF_COLOR_CLASSES[index % STAFF_COLOR_CLASSES.length];
-            return {
-              id,
-              name,
-              initials,
-              colorClass,
-            };
-          });
+        const rows = (emps ?? []) as { id: string; full_name: string | null; initials: string | null; color_hex: string | null }[];
+        const active = rows.map((record, index: number) => {
+          const id = coerceString(record.id, `staff-${index + 1}`);
+          const name = coerceString(record.full_name, id ? `#${id}` : `#${index + 1}`);
+          const initials = record.initials
+            ? record.initials.trim() || null
+            : name
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((part) => part[0]?.toUpperCase() ?? "")
+                .join("")
+                .slice(0, 2) || name.slice(0, 2).toUpperCase();
+          const colorHex = record.color_hex && record.color_hex.trim().length > 0 ? record.color_hex : null;
+          return {
+            id,
+            name,
+            initials,
+            colorHex,
+          };
+        });
         // services
         const { data: svcs, error: e2 } = await supabase.from("services").select("*").order("name");
         if (e2) throw e2;
         const svcRows = (svcs ?? []) as any[];
         const svc = svcRows
-          .filter((record) => inferIsActive(record))
+          .filter((record) => isActiveRecord(record))
           .map((s: any, index: number) => ({
             id: coerceString(s.id, `service-${index + 1}`),
             name: coerceString(s.name, "Service"),

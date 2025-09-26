@@ -163,7 +163,7 @@ export default function BookingClient() {
       setLoadError(null);
       try {
         const [staffResp, servicesResp, sizeResp, addOnResp, petsResp, apptResp] = await Promise.all([
-          supabase.from("employees").select("*").order("name"),
+          supabase.from("v_staff_calendar").select("*").order("full_name"),
           supabase.from("services").select("*").order("name"),
           supabase
             .from("service_sizes")
@@ -233,7 +233,10 @@ export default function BookingClient() {
             .map((row, index) => {
               const baseId = coerceString(row.id, "");
               const id = baseId || `staff-${index + 1}`;
-              const name = coerceString(row.name, baseId ? `Staff #${baseId}` : `Staff #${index + 1}`);
+              const name = coerceString(
+                row.full_name ?? row.name,
+                baseId ? `Staff #${baseId}` : `Staff #${index + 1}`,
+              );
               const avatarFallback = `https://avatars.dicebear.com/api/initials/${encodeURIComponent(name)}.svg`;
               return {
                 id,

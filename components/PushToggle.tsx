@@ -22,7 +22,11 @@ export default function PushToggle() {
     setEnabled(true);
   }
   return (
-    <button onClick={enable} disabled={enabled}>
+    <button
+      onClick={enable}
+      disabled={enabled}
+      className="rounded-full border border-white/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+    >
       {enabled ? "Push Enabled" : "Enable Push"}
     </button>
   );

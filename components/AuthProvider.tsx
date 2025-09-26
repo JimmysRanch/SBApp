@@ -6,11 +6,18 @@ import { roleDisplayName } from "@/lib/auth/access";
 
 type ResolvedRole = Role | "guest" | null;
 
+type AuthProfile = {
+  id: string;
+  email: string | null;
+  role: Role;
+  fullName: string | null;
+};
+
 type AuthState = {
   loading: boolean;
   role: ResolvedRole;
   roleLabel: string | null;
-  profile: { id: string; email: string | null; role: Role } | null;
+  profile: AuthProfile | null;
   refresh: () => Promise<void>;
 };
 
@@ -66,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: profileData?.id ?? user.id,
         email: user.email ?? null,
         role: resolvedRole,
+        fullName: profileData?.full_name ?? null,
       });
     } catch (error) {
       console.error("Failed to load auth session:", error);

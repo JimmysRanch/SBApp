@@ -6,6 +6,8 @@ import { useMemo } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { navItemsForRole } from "@/lib/auth/access";
+import LogoutButton from "@/components/LogoutButton";
+import PushToggle from "@/components/PushToggle";
 
 export default function TopNav() {
   const { loading, role, roleLabel, profile } = useAuth();
@@ -17,10 +19,24 @@ export default function TopNav() {
   }, [role]);
 
   const badge = loading ? "…" : roleLabel ?? "Guest";
-  const name = profile?.email ?? "User";
+  const firstName = useMemo(() => {
+    if (loading) return "Loading…";
+    const fullName = profile?.fullName?.trim();
+    if (fullName) {
+      const [first] = fullName.split(/\s+/);
+      if (first) return first;
+    }
+    const email = profile?.email ?? "";
+    if (email) {
+      const [local] = email.split("@");
+      if (local) return local;
+      return email;
+    }
+    return "Guest";
+  }, [loading, profile]);
 
   return (
-    <header className="flex w-full items-center justify-between gap-6">
+    <header className="flex w-full flex-wrap items-center justify-between gap-6">
       <nav className="flex flex-wrap items-center gap-2">
         {navItems.map((item) => {
           const isActive =
@@ -41,13 +57,19 @@ export default function TopNav() {
           );
         })}
       </nav>
-      <div className="flex items-center gap-3 text-sm">
-        <span className="truncate max-w-[12rem] text-white/90" title={name}>
-          {name}
-        </span>
-        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/80">
-          {badge}
-        </span>
+      <div className="flex flex-1 items-start justify-end gap-4">
+        <PushToggle />
+        <div className="flex flex-col items-center text-center text-white/90">
+          <span className="text-sm font-semibold leading-tight" title={firstName}>
+            {firstName}
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-white/70">
+            {badge}
+          </span>
+          <div className="mt-1.5">
+            <LogoutButton />
+          </div>
+        </div>
       </div>
     </header>
   );

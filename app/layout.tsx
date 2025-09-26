@@ -3,8 +3,6 @@ import { Nunito } from "next/font/google";
 import type { Metadata } from "next";
 
 import AuthProvider from "@/components/AuthProvider";
-import LogoutButton from "@/components/LogoutButton";
-import PushToggle from "@/components/PushToggle";
 import TopNav from "@/components/TopNav";
 import "./globals.css";
 
@@ -52,10 +50,6 @@ export default function RootLayout({
                 </Link>
                 <div className="flex flex-1 justify-end">
                   <TopNav />
-                </div>
-                <div className="flex items-center gap-4 text-right text-xs leading-tight text-white/80">
-                  <PushToggle />
-                  <LogoutButton />
                 </div>
               </div>
             </header>

@@ -238,7 +238,7 @@ export default function CalendarPage() {
         rangeEnd.setHours(23, 59, 59, 999);
 
         const [staffResp, serviceResp, sizeResp, addOnResp] = await Promise.all([
-          supabase.from("employees").select("*").order("name"),
+          supabase.from("v_staff_calendar").select("*").order("full_name"),
           supabase.from("services").select("*").order("name"),
           supabase
             .from("service_sizes")
@@ -352,7 +352,10 @@ export default function CalendarPage() {
           .filter((row) => inferIsActive(row))
           .map((row, index) => {
             const baseId = coerceString(row.id, "");
-            const name = coerceString(row.name, baseId ? `Staff #${baseId}` : `Staff #${index + 1}`);
+            const name = coerceString(
+              row.full_name ?? row.name,
+              baseId ? `Staff #${baseId}` : `Staff #${index + 1}`,
+            );
             const providedInitials =
               typeof row.initials === "string" && row.initials.trim().length > 0
                 ? row.initials.trim().slice(0, 2).toUpperCase()
@@ -364,7 +367,7 @@ export default function CalendarPage() {
               .join("")
               .slice(0, 2);
             const initials = providedInitials ?? (generatedInitials || name.slice(0, 2).toUpperCase());
-            const colorCandidates = [row.calendar_color_class, row.color_class].map((value) =>
+            const colorCandidates = [row.color_hex, row.calendar_color_class, row.color_class].map((value) =>
               typeof value === "string" && value.trim().length > 0 ? value.trim() : null
             );
             const colorClass =

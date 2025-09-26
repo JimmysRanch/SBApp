@@ -13,6 +13,7 @@ import AppointmentDetailDrawer, {
 } from "@/components/scheduling/AppointmentDetailDrawer";
 import { canAccessRoute, isGroomerRole } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import { useSchedulingCatalog } from "@/hooks/useSchedulingCatalog";
 
 const STEP_MINUTES = 15;
 const DAY_START_MINUTES = 7 * 60;
@@ -125,154 +126,53 @@ function formatTime(minutes: number) {
   return `${displayHour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const staffDirectory: StaffMember[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    initials: "ST",
-    profileId: "staff-sasha",
-    colorClass: "bg-gradient-to-br from-amber-200/80 via-amber-300/70 to-amber-400/80 text-slate-900",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    initials: "MC",
-    profileId: "staff-myles",
-    colorClass: "bg-gradient-to-br from-brand-bubble/80 via-brand-bubble/70 to-brand-lavender/80 text-slate-900",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    initials: "IH",
-    profileId: "staff-imani",
-    colorClass: "bg-gradient-to-br from-emerald-300/80 via-emerald-400/70 to-emerald-500/80 text-slate-900",
-  },
-];
-
-const serviceCatalog: DrawerServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    basePrice: 85,
-    color: "bg-gradient-to-r from-brand-bubble/40 via-brand-bubble/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.35 },
-      { id: "large", label: "Large", multiplier: 1.6 },
-    ],
-  },
-  {
-    id: "bath-blowout",
-    name: "Bath & Blowout",
-    basePrice: 55,
-    color: "bg-gradient-to-r from-sky-400/40 via-sky-400/20 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "de-shed",
-    name: "De-shed Upgrade",
-    basePrice: 40,
-    color: "bg-gradient-to-r from-amber-400/50 via-amber-400/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.4 },
-      { id: "large", label: "Large", multiplier: 1.7 },
-    ],
-  },
-];
-
-const addOnCatalog: DrawerAddOnOption[] = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-  { id: "shed-guard", name: "Shed Guard Treatment", price: 20 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-];
-
-function seedAppointments(todayKey: string): Appointment[] {
-  const tomorrowKey = formatDateKey(addDays(new Date(), 1));
-  return [
-    {
-      id: "apt-1",
-      date: todayKey,
-      staffId: "sasha",
-      serviceId: "full-groom",
-      sizeId: "medium",
-      startMinutes: 9 * 60,
-      endMinutes: 10 * 60 + 30,
-      clientName: "Jordan Rivers",
-      petName: "Mocha",
-      addOnIds: ["teeth"],
-      discount: 0,
-      tax: 6,
-      status: "checked_in",
-      notes: "Prefers hypoallergenic shampoo",
-    },
-    {
-      id: "apt-2",
-      date: todayKey,
-      staffId: "myles",
-      serviceId: "bath-blowout",
-      sizeId: "small",
-      startMinutes: 10 * 60,
-      endMinutes: 11 * 60,
-      clientName: "Ritika Kaur",
-      petName: "Frodo",
-      addOnIds: ["pawdicure"],
-      discount: 5,
-      tax: 4,
-      status: "booked",
-      notes: "Owner will pick up early",
-    },
-    {
-      id: "apt-3",
-      date: todayKey,
-      staffId: "imani",
-      serviceId: "de-shed",
-      sizeId: "large",
-      startMinutes: 13 * 60 + 30,
-      endMinutes: 15 * 60,
-      clientName: "Chris Nolan",
-      petName: "Nova",
-      addOnIds: ["shed-guard", "blueberry"],
-      discount: 0,
-      tax: 9,
-      status: "booked",
-    },
-    {
-      id: "apt-4",
-      date: tomorrowKey,
-      staffId: "sasha",
-      serviceId: "bath-blowout",
-      sizeId: "toy",
-      startMinutes: 8 * 60 + 30,
-      endMinutes: 9 * 60 + 15,
-      clientName: "Elena Diaz",
-      petName: "Nala",
-      addOnIds: [],
-      discount: 0,
-      tax: 3,
-      status: "booked",
-    },
-  ];
-}
-
 export default function CalendarPage() {
   const { loading, role, profile } = useAuth();
   const legacyRole = useMemo(() => toLegacyRole(role), [role]);
+  const {
+    staff: staffCatalog,
+    services: serviceDefinitions,
+    addOns: addOnDefinitions,
+    loading: catalogLoading,
+    error: catalogError,
+  } = useSchedulingCatalog();
+
+  const staffDirectory = useMemo<StaffMember[]>(
+    () =>
+      staffCatalog.map((staff) => ({
+        id: staff.id,
+        name: staff.name,
+        initials: staff.initials,
+        profileId: staff.id,
+        colorClass: staff.colorClass,
+      })),
+    [staffCatalog]
+  );
+
+  const serviceCatalog = useMemo<DrawerServiceOption[]>(
+    () =>
+      serviceDefinitions.map((service) => ({
+        id: service.id,
+        name: service.name,
+        basePrice: service.basePrice,
+        sizes: service.sizes,
+        color: service.colorClass,
+      })),
+    [serviceDefinitions]
+  );
+
+  const addOnCatalog = useMemo<DrawerAddOnOption[]>(
+    () => addOnDefinitions.map((addOn) => ({ id: addOn.id, name: addOn.name, price: addOn.price })),
+    [addOnDefinitions]
+  );
+
   const today = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     return now;
   }, []);
   const todayKey = useMemo(() => formatDateKey(today), [today]);
-  const [appointments, setAppointments] = useState<Appointment[]>(() => seedAppointments(todayKey));
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [currentDate, setCurrentDate] = useState<Date>(today);
   const [view, setView] = useState<"day" | "week">("day");
   const [interaction, setInteraction] = useState<Interaction | null>(null);
@@ -286,7 +186,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     interactionRef.current = interaction;
-  }, [interaction]);
+  }, [interaction, serviceCatalog]);
 
   useEffect(() => {
     function handleMove(event: PointerEvent) {
@@ -369,8 +269,17 @@ export default function CalendarPage() {
         const safeStart = clamp(snapMinutes(start), DAY_START_MINUTES, DAY_END_MINUTES - STEP_MINUTES);
         const safeEnd = clamp(snapMinutes(end), safeStart + STEP_MINUTES, DAY_END_MINUTES);
 
+        if (serviceCatalog.length === 0) {
+          cleanupInteraction();
+          return;
+        }
+
         const defaultService = serviceCatalog[0];
-        const defaultSize = defaultService.sizes[0];
+        const defaultSize = defaultService.sizes[0] ?? {
+          id: `${defaultService.id}-standard`,
+          label: "Standard",
+          multiplier: 1,
+        };
         const id = `apt-${Date.now()}`;
         const fresh: Appointment = {
           id,
@@ -428,7 +337,7 @@ export default function CalendarPage() {
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleCancel);
     };
-  }, [interaction]);
+  }, [interaction, serviceCatalog]);
 
   function staffIdFromPointer(clientX: number) {
     const entries = Object.entries(columnRefs.current);
@@ -601,15 +510,18 @@ export default function CalendarPage() {
   }, [appointmentForDrawer]);
 
   const staffForViewer = useMemo(() => {
+    if (staffDirectory.length === 0) return [];
     if (!legacyRole) return staffDirectory;
     if (!isGroomerRole(legacyRole)) return staffDirectory;
     const viewerId = profile?.id;
-    const match = viewerId
-      ? staffDirectory.find((staff) => staff.profileId === viewerId)
-      : null;
-    if (match) return [match];
+    if (viewerId) {
+      const match = staffDirectory.find((staff) => staff.profileId === viewerId);
+      if (match) return [match];
+    }
     return [staffDirectory[0]];
-  }, [legacyRole, profile?.id]);
+  }, [legacyRole, profile?.id, staffDirectory]);
+
+  const staffColumnCount = Math.max(staffForViewer.length, 1);
 
   const currentDateKey = useMemo(() => formatDateKey(currentDate), [currentDate]);
 
@@ -720,11 +632,35 @@ export default function CalendarPage() {
         <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">Click to edit details</span>
       </div>
 
+      {catalogError && (
+        <div className="rounded-3xl border border-rose-400/40 bg-rose-500/20 px-5 py-4 text-sm text-rose-100">
+          {catalogError}
+        </div>
+      )}
+
+      {catalogLoading && staffDirectory.length === 0 && (
+        <div className="rounded-3xl border border-white/15 bg-white/5 px-5 py-4 text-sm text-white/70">
+          Loading staff and services…
+        </div>
+      )}
+
+      {!catalogLoading && staffDirectory.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-white/5 px-5 py-4 text-sm text-white/70">
+          Add staff members to the Employees area to start scheduling.
+        </div>
+      )}
+
+      {!catalogLoading && serviceCatalog.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-white/5 px-5 py-4 text-sm text-white/70">
+          Create services in settings so bookings know what to schedule.
+        </div>
+      )}
+
       {view === "day" ? (
         <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/5">
           <div
             className="grid"
-            style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
+            style={{ gridTemplateColumns: `80px repeat(${staffColumnCount}, minmax(200px, 1fr))` }}
           >
             <div className="border-b border-white/10 bg-white/5 p-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
               Time
@@ -746,7 +682,7 @@ export default function CalendarPage() {
 
           <div
             className="grid"
-            style={{ gridTemplateColumns: `80px repeat(${staffForViewer.length}, minmax(200px, 1fr))` }}
+            style={{ gridTemplateColumns: `80px repeat(${staffColumnCount}, minmax(200px, 1fr))` }}
           >
             <div className="relative" style={{ height: COLUMN_HEIGHT }}>
               {Array.from({ length: DAY_END_MINUTES / 60 - DAY_START_MINUTES / 60 + 1 }, (_, index) => {

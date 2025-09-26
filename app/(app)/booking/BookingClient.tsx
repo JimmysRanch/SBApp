@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -9,28 +9,13 @@ import clsx from "clsx";
 import { useAuth } from "@/components/AuthProvider";
 import { canAccessRoute } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import { useSchedulingCatalog } from "@/hooks/useSchedulingCatalog";
 
 const currency = new Intl.NumberFormat(undefined, {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 0,
 });
-
-type StaffOption = {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  bio: string;
-};
-
-type ServiceOption = {
-  id: string;
-  name: string;
-  duration: number;
-  basePrice: number;
-  sizes: { id: string; label: string; multiplier: number }[];
-};
 
 type SlotOption = {
   id: string;
@@ -39,87 +24,11 @@ type SlotOption = {
   end: string;
 };
 
-const staffOptions: StaffOption[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    role: "Master Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/ST.svg",
-    bio: "Specialises in hand scissoring and anxious pups.",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    role: "Senior Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/MC.svg",
-    bio: "Loves double coats, creative colour and doodles.",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    role: "Pet Stylist",
-    avatar: "https://avatars.dicebear.com/api/initials/IH.svg",
-    bio: "Speedy with bath & tidy packages and small breeds.",
-  },
-];
-
 const slotOptions: SlotOption[] = [
   { id: "slot-9", label: "Today · 9:00am", start: "2024-04-05T09:00:00", end: "2024-04-05T10:30:00" },
   { id: "slot-11", label: "Today · 11:30am", start: "2024-04-05T11:30:00", end: "2024-04-05T13:00:00" },
   { id: "slot-14", label: "Tomorrow · 2:00pm", start: "2024-04-06T14:00:00", end: "2024-04-06T15:30:00" },
   { id: "slot-16", label: "Saturday · 4:00pm", start: "2024-04-07T16:00:00", end: "2024-04-07T17:30:00" },
-];
-
-const serviceOptions: ServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    duration: 90,
-    basePrice: 85,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.45 },
-      { id: "large", label: "Large", multiplier: 1.75 },
-    ],
-  },
-  {
-    id: "bath-tidy",
-    name: "Bath & Tidy",
-    duration: 70,
-    basePrice: 60,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "paw-spa",
-    name: "Paw Spa Package",
-    duration: 45,
-    basePrice: 45,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.3 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-];
-
-const addOns = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-  { id: "shed-guard", name: "Shed Guard", price: 20 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-];
-
-const pets = [
-  { id: "pet-1", name: "Mocha", breed: "Cockapoo" },
-  { id: "pet-2", name: "Nova", breed: "Husky" },
-  { id: "pet-3", name: "Frodo", breed: "Mini Labradoodle" },
 ];
 
 const steps = [
@@ -162,6 +71,15 @@ export default function BookingClient() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get("clientId") ?? null;
 
+  const {
+    staff: staffOptions,
+    services: serviceOptions,
+    addOns,
+    pets: petOptions,
+    loading: catalogLoading,
+    error: catalogError,
+  } = useSchedulingCatalog(clientId);
+
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [draft, setDraft] = useState<BookingDraft>(defaultDraft);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -169,7 +87,7 @@ export default function BookingClient() {
   const activeStep = steps[activeStepIndex];
   const selectedStaff = useMemo(
     () => staffOptions.find((staff) => staff.id === draft.staffId) ?? null,
-    [draft.staffId]
+    [draft.staffId, staffOptions]
   );
   const selectedSlot = useMemo(
     () => slotOptions.find((slot) => slot.id === draft.slotId) ?? null,
@@ -177,15 +95,15 @@ export default function BookingClient() {
   );
   const selectedService = useMemo(
     () => serviceOptions.find((service) => service.id === draft.serviceId) ?? null,
-    [draft.serviceId]
+    [draft.serviceId, serviceOptions]
   );
   const selectedSize = useMemo(() => {
     if (!selectedService || !draft.sizeId) return null;
     return selectedService.sizes.find((size) => size.id === draft.sizeId) ?? null;
   }, [draft.sizeId, selectedService]);
   const selectedPet = useMemo(
-    () => pets.find((pet) => pet.id === draft.petId) ?? null,
-    [draft.petId]
+    () => petOptions.find((pet) => pet.id === draft.petId) ?? null,
+    [draft.petId, petOptions]
   );
 
   const basePrice = useMemo(() => {
@@ -199,7 +117,7 @@ export default function BookingClient() {
         const addOn = addOns.find((item) => item.id === id);
         return total + (addOn?.price ?? 0);
       }, 0),
-    [draft.addOnIds]
+    [addOns, draft.addOnIds]
   );
 
   const subtotal = basePrice + addOnTotal;
@@ -223,6 +141,47 @@ export default function BookingClient() {
         return !draft.confirmed;
     }
   }, [activeStep.id, draft]);
+
+  useEffect(() => {
+    setDraft((prev) => {
+      let next = prev;
+      let changed = false;
+
+      if (prev.staffId && !staffOptions.some((staff) => staff.id === prev.staffId)) {
+        next = { ...next, staffId: null };
+        changed = true;
+      }
+
+      if (prev.serviceId && !serviceOptions.some((service) => service.id === prev.serviceId)) {
+        next = { ...next, serviceId: null, sizeId: null };
+        changed = true;
+      }
+
+      if (prev.serviceId) {
+        const service = serviceOptions.find((svc) => svc.id === prev.serviceId);
+        if (service) {
+          const size = service.sizes.find((option) => option.id === prev.sizeId);
+          if (!size) {
+            next = { ...next, sizeId: service.sizes[0]?.id ?? null };
+            changed = true;
+          }
+        }
+      }
+
+      if (prev.petId && !petOptions.some((pet) => pet.id === prev.petId)) {
+        next = { ...next, petId: null };
+        changed = true;
+      }
+
+      const validAddOns = prev.addOnIds.filter((id) => addOns.some((option) => option.id === id));
+      if (validAddOns.length !== prev.addOnIds.length) {
+        next = { ...next, addOnIds: validAddOns };
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [addOns, petOptions, serviceOptions, staffOptions]);
 
   function goNext() {
     setActiveStepIndex((index) => Math.min(index + 1, steps.length - 1));
@@ -284,6 +243,12 @@ export default function BookingClient() {
         </Link>
       </header>
 
+      {catalogError && (
+        <div className="rounded-3xl border border-rose-400/40 bg-rose-500/20 px-5 py-4 text-sm text-rose-100">
+          {catalogError}
+        </div>
+      )}
+
       <ol className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.35em] text-white/60">
         {steps.map((step, index) => {
           const isComplete = index < activeStepIndex;
@@ -312,36 +277,54 @@ export default function BookingClient() {
       <section className="rounded-3xl border border-white/15 bg-white/5 p-6">
         {activeStep.id === "staff" && (
           <div className="grid gap-4 md:grid-cols-3">
-            {staffOptions.map((staff) => {
-              const active = staff.id === draft.staffId;
-              return (
-                <button
-                  key={staff.id}
-                  type="button"
-                  onClick={() => setDraft((prev) => ({ ...prev, staffId: staff.id }))}
-                  className={clsx(
-                    "flex h-full flex-col gap-3 rounded-2xl border p-4 text-left transition",
-                    active
-                      ? "border-white/70 bg-white/20 text-white shadow-lg shadow-black/30"
-                      : "border-white/10 bg-white/5 text-white/70 hover:border-white/30 hover:bg-white/10"
-                  )}
-                >
-                  <Image
-                    src={staff.avatar}
-                    alt={staff.name}
-                    width={56}
-                    height={56}
-                    unoptimized
-                    className="h-14 w-14 rounded-full border border-white/20 bg-white/20 object-cover"
-                  />
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">{staff.name}</h2>
-                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">{staff.role}</p>
-                  </div>
-                  <p className="text-sm leading-relaxed text-white/70">{staff.bio}</p>
-                </button>
-              );
-            })}
+            {catalogLoading && staffOptions.length === 0 ? (
+              <p className="col-span-full text-sm text-white/70">Loading team members…</p>
+            ) : staffOptions.length === 0 ? (
+              <p className="col-span-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
+                Add a staff member to the Employees tab to start booking.
+              </p>
+            ) : (
+              staffOptions.map((staff) => {
+                const active = staff.id === draft.staffId;
+                return (
+                  <button
+                    key={staff.id}
+                    type="button"
+                    onClick={() => setDraft((prev) => ({ ...prev, staffId: staff.id }))}
+                    className={clsx(
+                      "flex h-full flex-col gap-3 rounded-2xl border p-4 text-left transition",
+                      active
+                        ? "border-white/70 bg-white/20 text-white shadow-lg shadow-black/30"
+                        : "border-white/10 bg-white/5 text-white/70 hover:border-white/30 hover:bg-white/10"
+                    )}
+                  >
+                    <div className="h-14 w-14 overflow-hidden rounded-full border border-white/20 bg-white/10">
+                      {staff.avatarUrl ? (
+                        <Image
+                          src={staff.avatarUrl}
+                          alt={staff.name}
+                          width={56}
+                          height={56}
+                          unoptimized
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center text-lg font-semibold text-white/80">
+                          {staff.initials}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">{staff.name}</h2>
+                      <p className="text-xs uppercase tracking-[0.35em] text-white/50">{staff.role ?? "Team"}</p>
+                    </div>
+                    <p className="text-sm leading-relaxed text-white/70">
+                      {staff.bio ?? "Tap to assign this groomer"}
+                    </p>
+                  </button>
+                );
+              })
+            )}
           </div>
         )}
 
@@ -376,28 +359,36 @@ export default function BookingClient() {
 
         {activeStep.id === "pet" && (
           <div className="grid gap-4 sm:grid-cols-3">
-            {pets.map((pet) => {
-              const active = pet.id === draft.petId;
-              return (
-                <button
-                  key={pet.id}
-                  type="button"
-                  onClick={() => setDraft((prev) => ({ ...prev, petId: pet.id }))}
-                  className={clsx(
-                    "flex h-full flex-col justify-between rounded-2xl border p-4 text-left transition",
-                    active
-                      ? "border-brand-bubble/70 bg-brand-bubble/20 text-white"
-                      : "border-white/10 bg-white/5 text-white/70 hover:border-white/25 hover:bg-white/10"
-                  )}
-                >
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{pet.name}</h3>
-                    <p className="text-xs uppercase tracking-[0.3em] text-white/60">{pet.breed}</p>
-                  </div>
-                  <p className="mt-4 text-xs text-white/50">Tap to assign appointment</p>
-                </button>
-              );
-            })}
+            {catalogLoading && petOptions.length === 0 ? (
+              <p className="col-span-full text-sm text-white/70">Loading pets…</p>
+            ) : petOptions.length === 0 ? (
+              <p className="col-span-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
+                We couldn’t find any pets for this client yet.
+              </p>
+            ) : (
+              petOptions.map((pet) => {
+                const active = pet.id === draft.petId;
+                return (
+                  <button
+                    key={pet.id}
+                    type="button"
+                    onClick={() => setDraft((prev) => ({ ...prev, petId: pet.id }))}
+                    className={clsx(
+                      "flex h-full flex-col justify-between rounded-2xl border p-4 text-left transition",
+                      active
+                        ? "border-brand-bubble/70 bg-brand-bubble/20 text-white"
+                        : "border-white/10 bg-white/5 text-white/70 hover:border-white/25 hover:bg-white/10"
+                    )}
+                  >
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">{pet.name}</h3>
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/60">{pet.breed}</p>
+                    </div>
+                    <p className="mt-4 text-xs text-white/50">Tap to assign appointment</p>
+                  </button>
+                );
+              })
+            )}
             <button
               type="button"
               className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/30 bg-white/5 p-4 text-center text-sm text-white/60 transition hover:border-white/50 hover:text-white"
@@ -411,85 +402,99 @@ export default function BookingClient() {
         {activeStep.id === "service" && (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              {serviceOptions.map((service) => {
-                const active = service.id === draft.serviceId;
-                return (
-                  <button
-                    key={service.id}
-                    type="button"
-                    onClick={() =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        serviceId: service.id,
-                        sizeId: service.sizes[0].id,
-                      }))
-                    }
-                    className={clsx(
-                      "flex h-full flex-col rounded-2xl border p-4 text-left transition",
-                      active
-                        ? "border-white/70 bg-white/20 text-white"
-                        : "border-white/10 bg-white/5 text-white/70 hover:border-white/25 hover:bg-white/10"
-                    )}
-                  >
-                    <h3 className="text-lg font-semibold text-white">{service.name}</h3>
-                    <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                      {service.duration} min · {currency.format(service.basePrice)} base
-                    </p>
-                    <p className="mt-3 text-xs text-white/60">
-                      Choose a size to apply multipliers and adjust pricing.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {service.sizes.map((size) => {
-                        const activeSize = size.id === draft.sizeId;
-                        return (
-                          <button
-                            key={size.id}
-                            type="button"
-                            onClick={() =>
-                              setDraft((prev) => ({
-                                ...prev,
-                                serviceId: service.id,
-                                sizeId: size.id,
-                              }))
-                            }
-                            className={clsx(
-                              "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition",
-                              activeSize
-                                ? "border-white bg-white text-slate-900"
-                                : "border-white/20 text-white/70 hover:border-white/40"
-                            )}
-                          >
-                            {size.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </button>
-                );
-              })}
+              {catalogLoading && serviceOptions.length === 0 ? (
+                <p className="col-span-full text-sm text-white/70">Loading services…</p>
+              ) : serviceOptions.length === 0 ? (
+                <p className="col-span-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white/70">
+                  Add services in the scheduling settings to continue.
+                </p>
+              ) : (
+                serviceOptions.map((service) => {
+                  const active = service.id === draft.serviceId;
+                  return (
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          serviceId: service.id,
+                          sizeId: service.sizes[0].id,
+                        }))
+                      }
+                      className={clsx(
+                        "flex h-full flex-col rounded-2xl border p-4 text-left transition",
+                        active
+                          ? "border-white/70 bg-white/20 text-white"
+                          : "border-white/10 bg-white/5 text-white/70 hover:border-white/25 hover:bg-white/10"
+                      )}
+                    >
+                      <h3 className="text-lg font-semibold text-white">{service.name}</h3>
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                        {service.duration} min · {currency.format(service.basePrice)} base
+                      </p>
+                      <p className="mt-3 text-xs text-white/60">
+                        Choose a size to apply multipliers and adjust pricing.
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {service.sizes.map((size) => {
+                          const activeSize = size.id === draft.sizeId;
+                          return (
+                            <button
+                              key={size.id}
+                              type="button"
+                              onClick={() =>
+                                setDraft((prev) => ({
+                                  ...prev,
+                                  serviceId: service.id,
+                                  sizeId: size.id,
+                                }))
+                              }
+                              className={clsx(
+                                "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition",
+                                activeSize
+                                  ? "border-white bg-white text-slate-900"
+                                  : "border-white/20 text-white/70 hover:border-white/40"
+                              )}
+                            >
+                              {size.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
               <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white/60">Add-ons</h3>
               <div className="mt-3 flex flex-wrap gap-2">
-                {addOns.map((addOn) => {
-                  const activeAddOn = draft.addOnIds.includes(addOn.id);
-                  return (
-                    <button
-                      key={addOn.id}
-                      type="button"
-                      onClick={() => toggleAddOn(addOn.id)}
-                      className={clsx(
-                        "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition",
-                        activeAddOn
-                          ? "border-brand-bubble/70 bg-brand-bubble/20 text-white"
-                          : "border-white/20 text-white/70 hover:border-white/40"
-                      )}
-                    >
-                      {addOn.name} · {currency.format(addOn.price)}
-                    </button>
-                  );
-                })}
+                {catalogLoading && addOns.length === 0 ? (
+                  <span className="text-xs text-white/60">Loading add-ons…</span>
+                ) : addOns.length === 0 ? (
+                  <span className="text-xs text-white/60">No add-ons configured yet.</span>
+                ) : (
+                  addOns.map((addOn) => {
+                    const activeAddOn = draft.addOnIds.includes(addOn.id);
+                    return (
+                      <button
+                        key={addOn.id}
+                        type="button"
+                        onClick={() => toggleAddOn(addOn.id)}
+                        className={clsx(
+                          "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition",
+                          activeAddOn
+                            ? "border-brand-bubble/70 bg-brand-bubble/20 text-white"
+                            : "border-white/20 text-white/70 hover:border-white/40"
+                        )}
+                      >
+                        {addOn.name} · {currency.format(addOn.price)}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 

@@ -166,7 +166,7 @@ export default async function ClientHome() {
             When you book your next visit it will appear here. Need to make one now?
           </p>
           <Link
-            href="/book"
+            href="/booking"
             className="mt-4 inline-flex items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-navy transition hover:bg-white/90"
           >
             Book an appointment

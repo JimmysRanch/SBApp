@@ -21,6 +21,7 @@ export function normaliseName(value: unknown): string | null {
 const roleAliases: Record<string, Role> = {
   master: 'master',
   'master account': 'master',
+  owner: 'master',
   admin: 'admin',
   administrator: 'admin',
   'senior groomer': 'senior_groomer',
@@ -30,6 +31,7 @@ const roleAliases: Record<string, Role> = {
   'front desk': 'receptionist',
   'front_desk': 'receptionist',
   receptionist: 'receptionist',
+  assistant: 'receptionist',
   client: 'client',
 };
 

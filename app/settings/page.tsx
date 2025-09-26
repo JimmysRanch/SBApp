@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase/client';
 import { canManageWorkspace } from '@/lib/auth/roles';
+import { normaliseRole, type Role } from '@/lib/auth/profile';
+import { roleDisplayName } from '@/lib/auth/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +15,7 @@ type TeamMember = {
   id: number | null;
   name: string | null;
   email: string | null;
-  role: string | null;
+  role: Role | null;
   app_permissions: Record<string, unknown> | null;
 };
 
@@ -27,8 +29,7 @@ const configurationLinks = [
 ];
 
 function hasElevatedAccess(member: TeamMember): boolean {
-  const role = member.role?.toLowerCase() ?? '';
-  if (role.includes('owner') || role.includes('admin') || role.includes('manager')) {
+  if (member.role && ['master', 'admin', 'senior_groomer'].includes(member.role)) {
     return true;
   }
 
@@ -66,12 +67,20 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase
         .from('employees')
-        .select('id,name,email,role,app_permissions')
+        .select('id,name,email,app_permissions,profile:profiles(role)')
         .order('name');
 
       if (error) throw error;
 
-      const rows = (data ?? []) as TeamMember[];
+      const rows = ((data ?? []) as Array<
+        Omit<TeamMember, 'role'> & { profile?: { role?: string | null } | null }
+      >).map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        app_permissions: row.app_permissions,
+        role: row.profile?.role ? normaliseRole(row.profile.role) : null,
+      }));
       setTeam(rows.filter(hasElevatedAccess));
     } catch (error: any) {
       setErr(error?.message || 'Unable to load team members.');
@@ -180,7 +189,7 @@ export default function SettingsPage() {
                     {member.name ?? member.email ?? `Team member #${member.id ?? '—'}`}
                   </p>
                   <p className="text-xs text-brand-navy/60">
-                    {member.email ?? '—'} • {member.role ?? 'Team member'}
+              {member.email ?? '—'} • {member.role ? roleDisplayName(member.role) : 'Team member'}
                   </p>
                 </li>
               ))}

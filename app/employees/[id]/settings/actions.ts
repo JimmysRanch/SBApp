@@ -5,12 +5,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { CompensationPlan } from "@/lib/compensationPlan";
 import { toStoredPlan } from "@/lib/compensationPlan";
+import { normaliseRole, type Role } from "@/lib/auth/profile";
 
 export async function saveProfileAction(
   staffId: number,
+  userId: string | null,
   input: {
     name: string;
-    role: string;
+    role: Role;
     email: string;
     phone: string;
     avatar_url: string;
@@ -27,7 +29,6 @@ export async function saveProfileAction(
   const status = input.status || "Active";
   const payload = {
     name: input.name || null,
-    role: input.role || null,
     email: input.email || null,
     phone: input.phone || null,
     avatar_url: input.avatar_url || null,
@@ -44,8 +45,24 @@ export async function saveProfileAction(
   if (error) {
     return { success: false, error: error.message };
   }
+
+  const allowedRoles: Role[] = ["master", "admin", "senior_groomer", "groomer", "receptionist"];
+  const resolvedRole = normaliseRole(input.role);
+  if (!allowedRoles.includes(resolvedRole)) {
+    return { success: false, error: "Invalid role selection" };
+  }
+
+  let roleUpdated = false;
+  if (userId) {
+    const { error: profileError } = await supabase.from("profiles").update({ role: resolvedRole }).eq("id", userId);
+    if (profileError) {
+      return { success: false, error: profileError.message };
+    }
+    roleUpdated = true;
+  }
+
   revalidatePath(`/employees/${staffId}/settings`);
-  return { success: true };
+  return { success: true, roleUpdated, role: roleUpdated ? resolvedRole : null };
 }
 
 export async function saveCompensationAction(

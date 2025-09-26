@@ -7,10 +7,51 @@ import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
 // Type definition for an employee record
+const INACTIVE_KEYWORDS = ["inactive", "archived", "disabled", "terminated", "deleted"];
+
 interface Employee {
   id: string;
   name: string;
-  active: boolean | null;
+  active: boolean;
+}
+
+function inferIsActive(record: Record<string, unknown> | null | undefined) {
+  if (!record || typeof record !== "object") {
+    return true;
+  }
+
+  const boolKeys = ["active", "is_active", "enabled", "is_enabled"] as const;
+  for (const key of boolKeys) {
+    const value = (record as Record<string, unknown>)[key];
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+
+  const status = (record as Record<string, unknown>).status;
+  if (typeof status === "string") {
+    const lowered = status.toLowerCase();
+    if (INACTIVE_KEYWORDS.some((flag) => lowered.includes(flag))) {
+      return false;
+    }
+  }
+
+  const archivedAt = (record as Record<string, unknown>).archived_at;
+  if (archivedAt !== null && archivedAt !== undefined) {
+    return false;
+  }
+
+  return true;
+}
+
+function coerceString(value: unknown, fallback: string) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return fallback;
 }
 
 /**
@@ -25,11 +66,15 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     const run = async () => {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, name, active")
-        .order("name");
-      if (!error && data) setRows(data as Employee[]);
+      const { data, error } = await supabase.from("employees").select("*").order("name");
+      if (!error && data) {
+        const mapped = (data as any[]).map((row, index) => ({
+          id: coerceString(row.id, `staff-${index + 1}`),
+          name: coerceString(row.name, `Staff #${index + 1}`),
+          active: inferIsActive(row),
+        }));
+        setRows(mapped);
+      }
       setLoading(false);
     };
     run();

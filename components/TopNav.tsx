@@ -10,7 +10,7 @@ import LogoutButton from "@/components/LogoutButton";
 import PushToggle from "@/components/PushToggle";
 
 export default function TopNav() {
-  const { loading, role, roleLabel, profile } = useAuth();
+  const { loading, role, profile } = useAuth();
   const pathname = usePathname() ?? "/";
 
   const navItems = useMemo(() => {
@@ -18,7 +18,6 @@ export default function TopNav() {
     return navItemsForRole(role);
   }, [role]);
 
-  const badge = loading ? "…" : roleLabel ?? "Guest";
   const firstName = useMemo(() => {
     if (loading) return "Loading…";
     const fullName = profile?.fullName?.trim();
@@ -59,16 +58,11 @@ export default function TopNav() {
       </nav>
       <div className="flex flex-1 items-start justify-end gap-4">
         <PushToggle />
-        <div className="flex flex-col items-center text-center text-white/90">
+        <div className="flex flex-col items-center gap-1 text-center text-white/90">
           <span className="text-sm font-semibold leading-tight" title={firstName}>
             {firstName}
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-white/70">
-            {badge}
-          </span>
-          <div className="mt-1.5">
-            <LogoutButton />
-          </div>
+          <LogoutButton />
         </div>
       </div>
     </header>

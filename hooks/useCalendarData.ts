@@ -3,20 +3,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-export interface Employee { id: string; name: string; }
-export interface Service  { id: string; name: string; minutes: number; }
+export interface Employee {
+  id: string;
+  name: string;
+  initials?: string | null;
+  colorClass?: string | null;
+}
+export interface Service  {
+  id: string;
+  name: string;
+  minutes: number;
+}
 export interface Appt {
   id: string;
-  employee_id: string;     // bigint -> string in JS
+  employee_id: string;
   client_id?: string | null;
   pet_id?: string | null;
-  service_id: string;      // int -> string in JS
+  service_id: string | null;
+  service_size_id?: string | null;
   service?: string | null;
   price?: number | null;
+  price_addons?: number | null;
+  discount?: number | null;
+  tax?: number | null;
   status?: string | null;
   notes?: string | null;
-  start_time: string;      // ISO
-  end_time:   string;      // ISO
+  start_time: string;
+  end_time:   string;
 }
 
 type View = "day" | "week" | "month";
@@ -55,13 +68,31 @@ export function useCalendarData(currentDate: Date, view: View) {
       try {
         setLoading(true);
         // employees
-        const { data: emps, error: e1 } = await supabase.from("employees").select("id,name,active").order("name");
+        const { data: emps, error: e1 } = await supabase
+          .from("employees")
+          .select("id,name,active,initials,calendar_color_class")
+          .order("name");
         if (e1) throw e1;
-        const active = (emps || []).filter((e:any) => e.active !== false).map((e:any) => ({ id: String(e.id), name: e.name || `#${e.id}` }));
-        // services from service_catalog
-        const { data: svcs, error: e2 } = await supabase.from("service_catalog").select("id,name,default_minutes").order("id");
+        const active = (emps || [])
+          .filter((e: any) => e.active !== false)
+          .map((e: any) => ({
+            id: String(e.id),
+            name: e.name || `#${e.id}`,
+            initials: e.initials ?? null,
+            colorClass: e.calendar_color_class ?? null,
+          }));
+        // services
+        const { data: svcs, error: e2 } = await supabase
+          .from("services")
+          .select("id,name,duration_min")
+          .eq("active", true)
+          .order("name");
         if (e2) throw e2;
-        const svc = (svcs || []).map((s:any) => ({ id: String(s.id), name: s.name, minutes: Number(s.default_minutes || 60) }));
+        const svc = (svcs || []).map((s: any) => ({
+          id: String(s.id),
+          name: s.name,
+          minutes: Number(s.duration_min ?? 60),
+        }));
         if (!cancelled) { setEmployees(active); setServices(svc); }
       } catch (e:any) {
         if (!cancelled) setErr(e.message || String(e));
@@ -80,15 +111,18 @@ export function useCalendarData(currentDate: Date, view: View) {
         setLoading(true);
         const { data, error } = await supabase
           .from("appointments")
-          .select("id,employee_id,client_id,pet_id,service_id,price,status,notes,start_time,end_time")
+          .select(
+            "id,employee_id,client_id,pet_id,service_id,service_size_id,price,price_addons,discount,tax,status,notes,start_time,end_time"
+          )
           .lt("start_time", toISO)
           .gt("end_time", fromISO);
         if (error) throw error;
         const mapped: Appt[] = (data || []).map((a:any) => ({
           ...a,
           id: String(a.id),
-          employee_id: String(a.employee_id),
-          service_id: String(a.service_id),
+          employee_id: a.employee_id != null ? String(a.employee_id) : "",
+          service_id: a.service_id ? String(a.service_id) : null,
+          service_size_id: a.service_size_id ? String(a.service_size_id) : null,
           start_time: a.start_time,
           end_time: a.end_time,
         }));
@@ -126,14 +160,16 @@ export function useCalendarData(currentDate: Date, view: View) {
 
   // helpers
   async function checkConflict(employee_id: string, startISO: string, endISO: string, excludeId?: string) {
-    const { data, error } = await supabase.rpc("find_conflicts", {
-      p_staff_id: Number(employee_id),          // RPC arg uses bigint
-      p_start: startISO,
-      p_end: endISO,
-      p_exclude_appointment_id: excludeId ? Number(excludeId) : null
-    });
+    const query = supabase
+      .from("appointments")
+      .select("id,start_time,end_time")
+      .eq("employee_id", Number(employee_id))
+      .lt("start_time", endISO)
+      .gt("end_time", startISO);
+    if (excludeId) query.neq("id", excludeId);
+    const { data, error } = await query;
     if (error) throw error;
-    return Boolean(data);
+    return (data ?? []).length > 0;
   }
 
   function durationForService(service_id: string) {
@@ -149,11 +185,25 @@ export function useCalendarData(currentDate: Date, view: View) {
     if (conflict) return { error: "Time conflict for selected staff." };
     const { data, error } = await supabase
       .from("appointments")
-      .insert([{ employee_id: Number(input.employee_id), service_id: Number(input.service_id), start_time: input.start_time, end_time: endISO, notes: input.notes ?? null }])
+      .insert([
+        {
+          employee_id: Number(input.employee_id),
+          service_id: input.service_id,
+          start_time: input.start_time,
+          end_time: endISO,
+          notes: input.notes ?? null,
+        },
+      ])
       .select()
       .single();
     if (error) return { error: error.message };
-    const ap: Appt = { ...data, id: String(data.id), employee_id: String(data.employee_id), service_id: String(data.service_id) };
+    const ap: Appt = {
+      ...data,
+      id: String(data.id),
+      employee_id: data.employee_id != null ? String(data.employee_id) : "",
+      service_id: data.service_id ? String(data.service_id) : null,
+      service_size_id: data.service_size_id ? String(data.service_size_id) : null,
+    };
     setAppointments(prev => [...prev, ap]);
     return { error: null };
   }
@@ -173,22 +223,28 @@ export function useCalendarData(currentDate: Date, view: View) {
       .from("appointments")
       .update({
         employee_id: Number(newEmp),
-        service_id: Number(newServiceId),
+        service_id: newServiceId,
         start_time: newStart,
         end_time: newEnd,
         notes: input.notes ?? cur?.notes ?? null
       })
-      .eq("id", Number(id))
+      .eq("id", id)
       .select()
       .single();
     if (error) return { error: error.message };
-    const ap: Appt = { ...data, id: String(data.id), employee_id: String(data.employee_id), service_id: String(data.service_id) };
+    const ap: Appt = {
+      ...data,
+      id: String(data.id),
+      employee_id: data.employee_id != null ? String(data.employee_id) : "",
+      service_id: data.service_id ? String(data.service_id) : null,
+      service_size_id: data.service_size_id ? String(data.service_size_id) : null,
+    };
     setAppointments(prev => prev.map(x => x.id === ap.id ? ap : x));
     return { error: null };
   }
 
   async function deleteAppt(id: string) {
-    const { error } = await supabase.from("appointments").delete().eq("id", Number(id));
+    const { error } = await supabase.from("appointments").delete().eq("id", id);
     if (error) return { error: error.message };
     setAppointments(prev => prev.filter(x => x.id !== id));
     return { error: null };

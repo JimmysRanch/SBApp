@@ -16,6 +16,7 @@ import PageContainer from "@/components/PageContainer";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { canManageWorkspace, derivePermissionFlags } from "@/lib/auth/roles";
+import { readMoney } from "./data-helpers";
 
 import StaffHeader from "./components/StaffHeader";
 import StaffTabs from "./components/StaffTabs";
@@ -62,7 +63,7 @@ export type ViewerRecord = {
 
 export type AppointmentDiscount = {
   id: number;
-  appointment_id?: number;
+  appointment_id?: string;
   amount: number;
   reason: string;
   created_at?: string;
@@ -70,11 +71,12 @@ export type AppointmentDiscount = {
 };
 
 export type AppointmentDetail = {
-  id: number;
+  id: string;
   start_time: string | null;
   end_time: string | null;
   status: string | null;
   service: string | null;
+  service_id?: string | null;
   price: number | null;
   notes: string | null;
   vaccine_flag?: boolean | null;
@@ -89,7 +91,7 @@ export type AppointmentDetail = {
 };
 
 type DiscountDraft = {
-  appointmentId: number;
+  appointmentId: string;
   amount: number;
   reason: string;
   discountId?: number | null;
@@ -110,7 +112,7 @@ type EmployeeDetailContextValue = {
   appointmentDetail: AppointmentDetail | null;
   appointmentLoading: boolean;
   refreshKey: number;
-  openAppointmentDrawer: (appointmentId: number) => void;
+  openAppointmentDrawer: (appointmentId: string) => void;
   closeDrawer: () => void;
   openDiscountModal: (draft: DiscountDraft) => void;
   refreshAppointmentDetail: () => Promise<void>;
@@ -192,7 +194,7 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     };
   }, [email]);
 
-  const [drawerAppointmentId, setDrawerAppointmentId] = useState<number | null>(null);
+  const [drawerAppointmentId, setDrawerAppointmentId] = useState<string | null>(null);
   const [appointmentDetail, setAppointmentDetail] = useState<AppointmentDetail | null>(null);
   const [appointmentLoading, setAppointmentLoading] = useState(false);
   const [discountDraft, setDiscountDraft] = useState<DiscountDraft | null>(null);
@@ -245,67 +247,140 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     if (!drawerAppointmentId) return;
     setAppointmentLoading(true);
     try {
+      const baseSelect =
+        "id,start_time,end_time,starts_at,ends_at,status,notes,note,service,service_id,service_name,price,price_cents,price_amount,price_amount_cents,owner_name,owner_email,owner_phone,pet_name,pet_breed,client_id,pet_id,services(name),clients:client_id(first_name,last_name,full_name,email,phone),pets:pet_id(name,breed),appointment_add_ons(add_on:add_ons(name))";
+
+      let record: any = null;
       const { data, error } = await supabase
         .from("appointments")
-        .select("*")
+        .select(baseSelect)
         .eq("id", drawerAppointmentId)
         .maybeSingle();
 
       if (error || !data) {
-        pushToast("Unable to load appointment", "error");
-        setAppointmentDetail(null);
-        setAppointmentLoading(false);
-        return;
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("id", drawerAppointmentId)
+          .maybeSingle();
+        if (fallbackError || !fallbackData) {
+          pushToast("Unable to load appointment", "error");
+          setAppointmentDetail(null);
+          setAppointmentLoading(false);
+          return;
+        }
+        record = fallbackData;
+      } else {
+        record = data;
       }
 
-      const detail: AppointmentDetail = {
-        id: data.id,
-        start_time: data.start_time ?? null,
-        end_time: data.end_time ?? null,
-        status: data.status ?? null,
-        service: data.service ?? null,
-        price: typeof data.price === "number" ? data.price : data.price_cents ? data.price_cents / 100 : null,
-        notes: data.notes ?? data.note ?? null,
-        vaccine_flag: data.vaccine_flag ?? data.requires_vaccine ?? null,
-        owner_name: data.owner_name ?? null,
-        owner_email: data.owner_email ?? null,
-        owner_phone: data.owner_phone ?? null,
-        pet_name: data.pet_name ?? null,
-        pet_breed: data.pet_breed ?? null,
-        services: Array.isArray(data.services) ? data.services : data.service ? [data.service] : [],
+      const normaliseIso = (value: unknown): string | null => {
+        if (!value) return null;
+        if (typeof value === "string") return value;
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === "number") {
+          const parsed = new Date(value);
+          return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+        }
+        return String(value);
       };
 
-      if (!detail.owner_name && data.client_id) {
+      const serviceName =
+        (typeof record.service === "string" && record.service.trim().length > 0 ? record.service.trim() : null) ??
+        (typeof record.service_name === "string" && record.service_name.trim().length > 0 ? record.service_name.trim() : null) ??
+        (record.services && typeof record.services === "object" ? record.services?.name : null);
+
+      const clientRecord =
+        record.clients ?? record.client ?? record.customer ?? record.owner ?? null;
+      const clientFullName =
+        (clientRecord && typeof clientRecord.full_name === "string" && clientRecord.full_name.trim().length > 0
+          ? clientRecord.full_name.trim()
+          : null) ??
+        [clientRecord?.first_name, clientRecord?.last_name].filter(Boolean).join(" ").trim() ||
+        null;
+
+      const petRecord = record.pets ?? record.pet ?? null;
+      const addOnNames = Array.isArray(record.appointment_add_ons)
+        ? (record.appointment_add_ons as any[])
+            .map((item) => {
+              if (!item) return null;
+              const source = item.add_on ?? item.addOn ?? item;
+              return typeof source?.name === "string" && source.name.trim().length > 0
+                ? source.name.trim()
+                : null;
+            })
+            .filter((name): name is string => Boolean(name))
+        : [];
+
+      const detail: AppointmentDetail = {
+        id: record.id ? String(record.id) : drawerAppointmentId,
+        start_time: normaliseIso(
+          record.start_time ?? record.starts_at ?? record.start ?? record.scheduled_at ?? record.start_date ?? record.date ?? null
+        ),
+        end_time: normaliseIso(record.end_time ?? record.ends_at ?? record.end ?? record.ends_on ?? null),
+        status: record.status ?? null,
+        service: serviceName ?? null,
+        service_id: record.service_id ? String(record.service_id) : null,
+        price: readMoney(record, ["price", "price_cents", "price_amount", "price_amount_cents"]),
+        notes: record.notes ?? record.note ?? null,
+        vaccine_flag: record.vaccine_flag ?? record.requires_vaccine ?? null,
+        owner_name: record.owner_name ?? clientFullName ?? null,
+        owner_email: record.owner_email ?? clientRecord?.email ?? null,
+        owner_phone: record.owner_phone ?? clientRecord?.phone ?? null,
+        pet_name:
+          (typeof record.pet_name === "string" && record.pet_name.trim().length > 0 ? record.pet_name.trim() : null) ??
+          (petRecord && typeof petRecord.name === "string" ? petRecord.name : null),
+        pet_breed:
+          (typeof record.pet_breed === "string" && record.pet_breed.trim().length > 0 ? record.pet_breed.trim() : null) ??
+          (petRecord && typeof petRecord.breed === "string" ? petRecord.breed : null),
+        services: [serviceName, ...addOnNames].filter((name): name is string => Boolean(name)),
+      };
+
+      if (!detail.owner_name && record.client_id) {
         const { data: client } = await supabase
           .from("clients")
-          .select("full_name,email,phone")
-          .eq("id", data.client_id)
+          .select("first_name,last_name,full_name,email,phone")
+          .eq("id", record.client_id)
           .maybeSingle();
         if (client) {
-          detail.owner_name = client.full_name ?? null;
-          detail.owner_email = client.email ?? null;
-          detail.owner_phone = client.phone ?? null;
+          const fallbackName =
+            (typeof client.full_name === "string" && client.full_name.trim().length > 0
+              ? client.full_name.trim()
+              : null) ??
+            [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
+          detail.owner_name = fallbackName || detail.owner_name;
+          detail.owner_email = client.email ?? detail.owner_email ?? null;
+          detail.owner_phone = client.phone ?? detail.owner_phone ?? null;
         }
       }
 
-      if (!detail.pet_name && data.pet_id) {
+      if (!detail.pet_name && record.pet_id) {
         const { data: pet } = await supabase
           .from("pets")
           .select("name,breed")
-          .eq("id", data.pet_id)
+          .eq("id", record.pet_id)
           .maybeSingle();
         if (pet) {
-          detail.pet_name = pet.name ?? null;
-          detail.pet_breed = pet.breed ?? null;
+          detail.pet_name = pet.name ?? detail.pet_name ?? null;
+          detail.pet_breed = pet.breed ?? detail.pet_breed ?? null;
         }
       }
 
       const { data: discounts } = await supabase
         .from("appointment_discounts")
-        .select("id,amount,reason,created_at,created_by")
+        .select("id,amount,amount_cents,reason,created_at,created_by,appointment_id")
         .eq("appointment_id", drawerAppointmentId)
         .order("created_at", { ascending: true });
-      detail.appointment_discounts = (discounts ?? []) as AppointmentDiscount[];
+      detail.appointment_discounts = Array.isArray(discounts)
+        ? (discounts as any[]).map((discount) => ({
+            id: discount.id,
+            appointment_id: discount.appointment_id ? String(discount.appointment_id) : drawerAppointmentId,
+            amount: readMoney(discount, ["amount", "amount_cents"]) ?? 0,
+            reason: discount.reason ?? "",
+            created_at: discount.created_at ?? null,
+            created_by: discount.created_by ?? null,
+          }))
+        : [];
 
       try {
         const { data: photos } = await supabase
@@ -336,7 +411,7 @@ export default function EmployeeDetailClient({ children, employee, goals }: Prop
     }
   }, [drawerAppointmentId, fetchAppointmentDetail]);
 
-  const openAppointmentDrawer = useCallback((appointmentId: number) => {
+  const openAppointmentDrawer = useCallback((appointmentId: string) => {
     setDrawerAppointmentId(appointmentId);
   }, []);
 

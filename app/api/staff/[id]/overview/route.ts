@@ -26,7 +26,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
   const { data: recent } = await supabase
     .from('appointments')
-    .select('id,starts_at,ends_at,client_id,service_id,status,total_price')
+    .select('id,starts_at,ends_at,client_id,service_id,services(name),status,total_price')
     .eq('staff_id', sid).order('starts_at', { ascending: false }).limit(8);
 
   return NextResponse.json({ today: await k(d0,d1), week: await k(w0,w1), month: await k(m0,m1), recent: recent ?? [] });

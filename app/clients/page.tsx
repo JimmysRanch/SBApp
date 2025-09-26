@@ -5,7 +5,7 @@ import PageContainer from '@/components/PageContainer';
 import { createClient } from '@/lib/supabase/server';
 
 type Client = {
-  id: number;
+  id: string;
   full_name: string | null;
   email: string | null;
   phone: string | null;
@@ -25,21 +25,57 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const query = Array.isArray(rawQuery) ? rawQuery[0] ?? '' : rawQuery ?? '';
   const trimmedQuery = query.trim();
 
-  let request = supabase
-    .from('clients_with_pets')
-    .select('id, full_name, email, phone, pet_names, created_at')
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, pets(*)')
     .order('created_at', { ascending: false })
     .limit(200);
 
-  if (trimmedQuery) {
-    const pattern = `%${trimmedQuery}%`;
-    request = request.or(
-      `full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},pet_names.ilike.${pattern}`
-    );
-  }
+  const mapped: Client[] = (data ?? []).map((row: any) => {
+    const first = typeof row.first_name === 'string' ? row.first_name : '';
+    const last = typeof row.last_name === 'string' ? row.last_name : '';
+    const structuredFullName = `${first} ${last}`.trim();
+    const fallbackFullName =
+      (typeof row.full_name === 'string' && row.full_name.trim().length > 0
+        ? row.full_name.trim()
+        : typeof row.name === 'string'
+        ? row.name.trim()
+        : '') || null;
+    const fullName = structuredFullName.length > 0 ? structuredFullName : fallbackFullName;
+    const pets = Array.isArray(row.pets) ? row.pets : [];
+    const petNames = pets
+      .map((pet: any) => {
+        const raw = typeof pet?.name === 'string' ? pet.name.trim() : '';
+        return raw.length > 0 ? raw : null;
+      })
+      .filter(Boolean)
+      .join(' • ');
+    const createdAt =
+      typeof row.created_at === 'string'
+        ? row.created_at
+        : typeof row.inserted_at === 'string'
+        ? row.inserted_at
+        : new Date().toISOString();
 
-  const { data, error } = await request;
-  const rows = (data ?? []) as Client[];
+    return {
+      id: String(row.id),
+      full_name: fullName,
+      email: typeof row.email === 'string' ? row.email : null,
+      phone: typeof row.phone === 'string' ? row.phone : null,
+      pet_names: petNames.length > 0 ? petNames : null,
+      created_at: createdAt,
+    } satisfies Client;
+  });
+
+  const normalizedQuery = trimmedQuery.toLowerCase();
+  const rows = trimmedQuery
+    ? mapped.filter((row) => {
+        const haystacks = [row.full_name, row.email, row.phone, row.pet_names]
+          .map((value) => value?.toLowerCase() ?? '')
+          .join(' ');
+        return haystacks.includes(normalizedQuery);
+      })
+    : mapped;
   const err = error?.message ?? null;
 
   return (

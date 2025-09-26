@@ -3,7 +3,7 @@
 import clsx from "clsx";
 
 export type RecentJobRow = {
-  id: number;
+  id: string;
   start: string;
   pet: string | null;
   service: string | null;
@@ -14,7 +14,7 @@ export type RecentJobRow = {
 type RecentJobsProps = {
   loading: boolean;
   rows: RecentJobRow[];
-  onSelect: (id: number) => void;
+  onSelect: (id: string) => void;
 };
 
 function formatCurrency(value: number | null) {

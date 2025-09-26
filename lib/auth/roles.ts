@@ -1,6 +1,14 @@
 import { isFrontDeskRole, isGroomerRole, isManagerRole } from "@/lib/auth/access";
 import type { Role as LegacyRole } from "@/lib/auth/profile";
 
+export type RoleName = 'Admin' | 'Manager' | 'Groomer' | 'Bather' | 'Front Desk' | 'Client';
+export type Role = { id: string; name: RoleName; permissions: string[] };
+
+export function can(user: { is_master?: boolean; role?: Role }, perm: string) {
+  if (user?.is_master) return true;
+  return !!user?.role?.permissions?.includes(perm);
+}
+
 export function toLegacyRole(role: string | null): LegacyRole | null {
   if (!role) return null;
   const normalized = role.toLowerCase();

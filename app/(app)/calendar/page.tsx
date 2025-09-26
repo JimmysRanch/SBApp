@@ -13,6 +13,11 @@ import AppointmentDetailDrawer, {
 } from "@/components/scheduling/AppointmentDetailDrawer";
 import { canAccessRoute, isGroomerRole } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import {
+  addOnCatalog as addOnDefinitions,
+  serviceCatalog as serviceDefinitions,
+  staffDirectory as staffProfiles,
+} from "@/lib/data/catalog";
 
 const STEP_MINUTES = 15;
 const DAY_START_MINUTES = 7 * 60;
@@ -125,75 +130,27 @@ function formatTime(minutes: number) {
   return `${displayHour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const staffDirectory: StaffMember[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    initials: "ST",
-    profileId: "staff-sasha",
-    colorClass: "bg-gradient-to-br from-amber-200/80 via-amber-300/70 to-amber-400/80 text-slate-900",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    initials: "MC",
-    profileId: "staff-myles",
-    colorClass: "bg-gradient-to-br from-brand-bubble/80 via-brand-bubble/70 to-brand-lavender/80 text-slate-900",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    initials: "IH",
-    profileId: "staff-imani",
-    colorClass: "bg-gradient-to-br from-emerald-300/80 via-emerald-400/70 to-emerald-500/80 text-slate-900",
-  },
-];
+const staffDirectory: StaffMember[] = staffProfiles.map(
+  ({ id, name, initials, profileId, colorClass }) => ({
+    id,
+    name,
+    initials,
+    profileId,
+    colorClass,
+  })
+);
 
-const serviceCatalog: DrawerServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    basePrice: 85,
-    color: "bg-gradient-to-r from-brand-bubble/40 via-brand-bubble/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.35 },
-      { id: "large", label: "Large", multiplier: 1.6 },
-    ],
-  },
-  {
-    id: "bath-blowout",
-    name: "Bath & Blowout",
-    basePrice: 55,
-    color: "bg-gradient-to-r from-sky-400/40 via-sky-400/20 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "de-shed",
-    name: "De-shed Upgrade",
-    basePrice: 40,
-    color: "bg-gradient-to-r from-amber-400/50 via-amber-400/25 to-transparent text-white",
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.4 },
-      { id: "large", label: "Large", multiplier: 1.7 },
-    ],
-  },
-];
+const serviceCatalog: DrawerServiceOption[] = serviceDefinitions.map(
+  ({ id, name, basePrice, sizes, color }) => ({
+    id,
+    name,
+    basePrice,
+    sizes,
+    color,
+  })
+);
 
-const addOnCatalog: DrawerAddOnOption[] = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-  { id: "shed-guard", name: "Shed Guard Treatment", price: 20 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-];
+const addOnCatalog: DrawerAddOnOption[] = addOnDefinitions;
 
 function seedAppointments(todayKey: string): Appointment[] {
   const tomorrowKey = formatDateKey(addDays(new Date(), 1));
@@ -218,7 +175,7 @@ function seedAppointments(todayKey: string): Appointment[] {
       id: "apt-2",
       date: todayKey,
       staffId: "myles",
-      serviceId: "bath-blowout",
+      serviceId: "bath-tidy",
       sizeId: "small",
       startMinutes: 10 * 60,
       endMinutes: 11 * 60,
@@ -234,7 +191,7 @@ function seedAppointments(todayKey: string): Appointment[] {
       id: "apt-3",
       date: todayKey,
       staffId: "imani",
-      serviceId: "de-shed",
+      serviceId: "paw-spa",
       sizeId: "large",
       startMinutes: 13 * 60 + 30,
       endMinutes: 15 * 60,
@@ -249,7 +206,7 @@ function seedAppointments(todayKey: string): Appointment[] {
       id: "apt-4",
       date: tomorrowKey,
       staffId: "sasha",
-      serviceId: "bath-blowout",
+      serviceId: "bath-tidy",
       sizeId: "toy",
       startMinutes: 8 * 60 + 30,
       endMinutes: 9 * 60 + 15,

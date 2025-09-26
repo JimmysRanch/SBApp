@@ -9,6 +9,11 @@ import clsx from "clsx";
 import { useAuth } from "@/components/AuthProvider";
 import { canAccessRoute } from "@/lib/auth/access";
 import { toLegacyRole } from "@/lib/auth/roles";
+import {
+  addOnCatalog,
+  serviceCatalog,
+  staffDirectory as staffProfiles,
+} from "@/lib/data/catalog";
 
 const currency = new Intl.NumberFormat(undefined, {
   style: "currency",
@@ -39,29 +44,9 @@ type SlotOption = {
   end: string;
 };
 
-const staffOptions: StaffOption[] = [
-  {
-    id: "sasha",
-    name: "Sasha Taylor",
-    role: "Master Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/ST.svg",
-    bio: "Specialises in hand scissoring and anxious pups.",
-  },
-  {
-    id: "myles",
-    name: "Myles Chen",
-    role: "Senior Groomer",
-    avatar: "https://avatars.dicebear.com/api/initials/MC.svg",
-    bio: "Loves double coats, creative colour and doodles.",
-  },
-  {
-    id: "imani",
-    name: "Imani Hart",
-    role: "Pet Stylist",
-    avatar: "https://avatars.dicebear.com/api/initials/IH.svg",
-    bio: "Speedy with bath & tidy packages and small breeds.",
-  },
-];
+const staffOptions: StaffOption[] = staffProfiles.map(
+  ({ id, name, role, avatar, bio }) => ({ id, name, role, avatar, bio })
+);
 
 const slotOptions: SlotOption[] = [
   { id: "slot-9", label: "Today · 9:00am", start: "2024-04-05T09:00:00", end: "2024-04-05T10:30:00" },
@@ -70,51 +55,17 @@ const slotOptions: SlotOption[] = [
   { id: "slot-16", label: "Saturday · 4:00pm", start: "2024-04-07T16:00:00", end: "2024-04-07T17:30:00" },
 ];
 
-const serviceOptions: ServiceOption[] = [
-  {
-    id: "full-groom",
-    name: "Full Groom",
-    duration: 90,
-    basePrice: 85,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.2 },
-      { id: "medium", label: "Medium", multiplier: 1.45 },
-      { id: "large", label: "Large", multiplier: 1.75 },
-    ],
-  },
-  {
-    id: "bath-tidy",
-    name: "Bath & Tidy",
-    duration: 70,
-    basePrice: 60,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.1 },
-      { id: "medium", label: "Medium", multiplier: 1.25 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-  {
-    id: "paw-spa",
-    name: "Paw Spa Package",
-    duration: 45,
-    basePrice: 45,
-    sizes: [
-      { id: "toy", label: "Toy", multiplier: 1 },
-      { id: "small", label: "Small", multiplier: 1.15 },
-      { id: "medium", label: "Medium", multiplier: 1.3 },
-      { id: "large", label: "Large", multiplier: 1.5 },
-    ],
-  },
-];
+const serviceOptions: ServiceOption[] = serviceCatalog.map(
+  ({ id, name, duration, basePrice, sizes }) => ({
+    id,
+    name,
+    duration,
+    basePrice,
+    sizes,
+  })
+);
 
-const addOns = [
-  { id: "teeth", name: "Teeth brushing", price: 12 },
-  { id: "blueberry", name: "Blueberry facial", price: 15 },
-  { id: "shed-guard", name: "Shed Guard", price: 20 },
-  { id: "pawdicure", name: "Pawdicure", price: 18 },
-];
+const addOns = addOnCatalog;
 
 const pets = [
   { id: "pet-1", name: "Mocha", breed: "Cockapoo" },

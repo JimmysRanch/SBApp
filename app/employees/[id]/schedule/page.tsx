@@ -35,6 +35,8 @@ type BlackoutFormState = {
   end: string;
 };
 
+const DEFAULT_BUFFER_MINUTES = 10;
+
 const dayOptions = [
   { value: "MO", label: "Mon" },
   { value: "TU", label: "Tue" },
@@ -134,11 +136,12 @@ export default function EmployeeSchedulePage() {
       startTime: "09:00",
       endTime: "17:00",
       tz: timezone,
-      bufferPre: 10,
-      bufferPost: 10,
+      bufferPre: DEFAULT_BUFFER_MINUTES,
+      bufferPost: DEFAULT_BUFFER_MINUTES,
     })
   );
   const [blackoutForm, setBlackoutForm] = useState<BlackoutFormState>({ start: "", end: "" });
+  const [showBufferFields, setShowBufferFields] = useState(false);
 
   const staffProfileId = useMemo(() => employee.user_id ?? String(employee.id), [employee.id, employee.user_id]);
 
@@ -163,8 +166,8 @@ export default function EmployeeSchedulePage() {
           id: String(row.id),
           rrule_text: row.rrule_text,
           tz: row.tz,
-          buffer_pre_min: row.buffer_pre_min ?? 10,
-          buffer_post_min: row.buffer_post_min ?? 10,
+          buffer_pre_min: row.buffer_pre_min ?? DEFAULT_BUFFER_MINUTES,
+          buffer_post_min: row.buffer_post_min ?? DEFAULT_BUFFER_MINUTES,
           created_at: row.created_at,
         }))
       );
@@ -194,9 +197,10 @@ export default function EmployeeSchedulePage() {
       startTime: "09:00",
       endTime: "17:00",
       tz: timezone,
-      bufferPre: 10,
-      bufferPost: 10,
+      bufferPre: DEFAULT_BUFFER_MINUTES,
+      bufferPost: DEFAULT_BUFFER_MINUTES,
     });
+    setShowBufferFields(false);
   }
 
   async function saveAvailability() {
@@ -228,8 +232,12 @@ export default function EmployeeSchedulePage() {
       staff_id: staffProfileId,
       rrule_text: rrule,
       tz: availabilityForm.tz,
-      buffer_pre_min: availabilityForm.bufferPre,
-      buffer_post_min: availabilityForm.bufferPost,
+      buffer_pre_min: showBufferFields
+        ? availabilityForm.bufferPre
+        : DEFAULT_BUFFER_MINUTES,
+      buffer_post_min: showBufferFields
+        ? availabilityForm.bufferPost
+        : DEFAULT_BUFFER_MINUTES,
     };
 
     const query = editingRuleId
@@ -259,6 +267,9 @@ export default function EmployeeSchedulePage() {
       bufferPre: rule.buffer_pre_min,
       bufferPost: rule.buffer_post_min,
     });
+    setShowBufferFields(
+      rule.buffer_pre_min !== DEFAULT_BUFFER_MINUTES || rule.buffer_post_min !== DEFAULT_BUFFER_MINUTES
+    );
     setEditingRuleId(rule.id);
   }
 
@@ -401,42 +412,65 @@ export default function EmployeeSchedulePage() {
               </label>
             </div>
 
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-white/70">Timezone</span>
-              <input
-                value={availabilityForm.tz}
-                onChange={(event) =>
-                  setAvailabilityForm((prev) => ({ ...prev, tz: event.target.value.trim() }))
-                }
-                className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
-              />
-            </label>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Scheduling timezone</p>
+              <p className="mt-1 text-white/80">{availabilityForm.tz}</p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <label className="flex flex-col gap-1">
-                <span className="text-white/70">Buffer before (min)</span>
+            <div className="space-y-3 text-sm">
+              <label className="flex items-center gap-2 text-white/70">
                 <input
-                  type="number"
-                  min={0}
-                  value={availabilityForm.bufferPre}
-                  onChange={(event) =>
-                    setAvailabilityForm((prev) => ({ ...prev, bufferPre: Number(event.target.value) || 0 }))
-                  }
-                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                  type="checkbox"
+                  checked={showBufferFields}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setShowBufferFields(checked);
+                    if (!checked) {
+                      setAvailabilityForm((prev) => ({
+                        ...prev,
+                        bufferPre: DEFAULT_BUFFER_MINUTES,
+                        bufferPost: DEFAULT_BUFFER_MINUTES,
+                      }));
+                    }
+                  }}
+                  className="h-4 w-4 rounded border border-white/30 bg-white/10 text-brand-bubble focus:ring-brand-bubble"
                 />
+                <span>Customize appointment buffers</span>
               </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-white/70">Buffer after (min)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={availabilityForm.bufferPost}
-                  onChange={(event) =>
-                    setAvailabilityForm((prev) => ({ ...prev, bufferPost: Number(event.target.value) || 0 }))
-                  }
-                  className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
-                />
-              </label>
+              {showBufferFields && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-white/70">Buffer before (min)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={availabilityForm.bufferPre}
+                      onChange={(event) =>
+                        setAvailabilityForm((prev) => ({
+                          ...prev,
+                          bufferPre: Number(event.target.value) || 0,
+                        }))
+                      }
+                      className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-white/70">Buffer after (min)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={availabilityForm.bufferPost}
+                      onChange={(event) =>
+                        setAvailabilityForm((prev) => ({
+                          ...prev,
+                          bufferPost: Number(event.target.value) || 0,
+                        }))
+                      }
+                      className="h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white focus:border-white/40 focus:outline-none"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">

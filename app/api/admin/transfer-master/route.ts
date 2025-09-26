@@ -31,10 +31,18 @@ export async function POST(request: Request) {
   if (promote.error) return NextResponse.json({ error: promote.error.message }, { status: 400 });
 
   // Ensure employees row for target
-  await supabase.from("employees").upsert({
-    user_id: targetUserId, name: "Owner", active: true, role: "Manager",
-    business_id: me.data.business_id, app_permissions: { dashboard: true }
-  }, { onConflict: "user_id" });
+  await supabase
+    .from("employees")
+    .upsert(
+      {
+        user_id: targetUserId,
+        name: "Owner",
+        active: true,
+        business_id: me.data.business_id,
+        app_permissions: { dashboard: true },
+      },
+      { onConflict: "user_id" },
+    );
 
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { derivePermissionFlags } from "@/lib/auth/roles";
 import { normaliseRole, type Role } from "@/lib/auth/profile";
 import {
   clonePlan,
@@ -190,6 +191,19 @@ const staffSchema = z.object({
   user_id: z.string().uuid().optional(),
 });
 
+function hasTruthyFlag(value: unknown): boolean {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  if (typeof value === "string") {
+    const normalised = value.trim().toLowerCase();
+    return ["true", "1", "yes", "y", "on"].includes(normalised);
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value !== 0 : false;
+  }
+  return false;
+}
+
 export async function POST(req: Request) {
   const supabase = createRouteHandlerClient({ cookies });
   const {
@@ -210,7 +224,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  if (!me || !["master", "admin"].includes(me.role)) {
+  if (!me) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const permissionFlags = derivePermissionFlags(me.role ?? null);
+  let canManageStaff = permissionFlags.canManageEmployees;
+
+  if (!canManageStaff) {
+    const { data: viewerRow } = await supabase
+      .from("employees")
+      .select("app_permissions")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (viewerRow && typeof viewerRow.app_permissions === "object" && viewerRow.app_permissions !== null) {
+      const perms = viewerRow.app_permissions as Record<string, unknown>;
+      if (hasTruthyFlag(perms.can_manage_staff) || hasTruthyFlag(perms.is_manager)) {
+        canManageStaff = true;
+      }
+    }
+  }
+
+  if (!canManageStaff) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

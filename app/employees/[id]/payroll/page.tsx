@@ -20,7 +20,7 @@ import {
 } from "../data-helpers";
 
 type ServicePayrollLine = {
-  appointment_id: number;
+  appointment_id: string;
   start_time: string | null;
   service: string | null;
   base_price: number | null;
@@ -149,18 +149,33 @@ export default function EmployeePayrollPage() {
         throw response.error;
       }
 
-      const sanitized = ((response.data as any[]) ?? []).map((line: any) => ({
-        appointment_id: line.appointment_id,
-        start_time: line.start_time,
-        service: line.service,
-        base_price: readMoney(line, ["base_price", "base_price_cents"]) ?? 0,
-        commission_rate: toNumber(line.commission_rate) ?? 0,
-        commission_amount: readMoney(line, ["commission_amount", "commission_amount_cents"]) ?? 0,
-        adjustment_amount: readMoney(line, ["adjustment_amount", "adjustment_amount_cents"]) ?? 0,
-        adjustment_reason: line.adjustment_reason ?? null,
-        final_earnings: readMoney(line, ["final_earnings", "final_earnings_cents"]) ?? 0,
-        week_index: toNumber(line.week_index),
-      }));
+      const sanitized = ((response.data as any[]) ?? [])
+        .map((line: any) => {
+          const startIso =
+            typeof line.start_time === "string"
+              ? line.start_time
+              : line.start_time instanceof Date
+              ? line.start_time.toISOString()
+              : line.start_time
+              ? String(line.start_time)
+              : null;
+          const serviceName =
+            (typeof line.service === "string" && line.service.trim().length > 0 ? line.service.trim() : null) ??
+            (typeof line.service_name === "string" && line.service_name.trim().length > 0 ? line.service_name.trim() : null);
+          return {
+            appointment_id: line.appointment_id ? String(line.appointment_id) : "",
+            start_time: startIso,
+            service: serviceName,
+            base_price: readMoney(line, ["base_price", "base_price_cents"]) ?? 0,
+            commission_rate: toNumber(line.commission_rate) ?? 0,
+            commission_amount: readMoney(line, ["commission_amount", "commission_amount_cents"]) ?? 0,
+            adjustment_amount: readMoney(line, ["adjustment_amount", "adjustment_amount_cents"]) ?? 0,
+            adjustment_reason: line.adjustment_reason ?? null,
+            final_earnings: readMoney(line, ["final_earnings", "final_earnings_cents"]) ?? 0,
+            week_index: toNumber(line.week_index),
+          };
+        })
+        .filter((line) => line.appointment_id);
 
       setLineMode("service");
       setServiceLines(sanitized as ServicePayrollLine[]);
@@ -484,7 +499,7 @@ async function buildPayrollLinesFromAppointments(
     "date",
   ];
   const selectColumns = [
-    "id,start_time,service,price,price_cents,price_amount,price_amount_cents,starts_at,start,starts_on,scheduled_at,scheduled_for,start_date,service_date,appointment_date,date,service_name,service_type,base_price,base_price_cents",
+    "id,start_time,service,service_id,service_name,price,price_cents,price_amount,price_amount_cents,starts_at,start,starts_on,scheduled_at,scheduled_for,start_date,service_date,appointment_date,date,service_type,base_price,base_price_cents,services(name)",
     "*",
   ];
 
@@ -779,10 +794,11 @@ async function buildPayrollLinesFromAppointments(
 
   const appointmentIds = filteredRows
     .map((row) => row.id)
-    .filter((id) => typeof id === "number");
+    .filter((id) => (typeof id === "string" && id.trim().length > 0) || typeof id === "number")
+    .map((id) => (typeof id === "string" ? id : String(id)));
 
   const discountMap = new Map<
-    number,
+    string,
     { total: number; reasons: string[] }
   >();
 
@@ -811,8 +827,14 @@ async function buildPayrollLinesFromAppointments(
       }
     } else {
       (discountResponse.data as any[])?.forEach((item: any) => {
-        const id = item.appointment_id;
-        if (typeof id !== "number") return;
+        const idValue = item.appointment_id;
+        const id =
+          typeof idValue === "string"
+            ? idValue
+            : typeof idValue === "number"
+            ? String(idValue)
+            : null;
+        if (!id) return;
         const amount = readMoney(item, ["amount", "amount_cents"]) ?? 0;
         const reason = typeof item.reason === "string" && item.reason.trim() ? item.reason.trim() : null;
         const entry = discountMap.get(id) ?? { total: 0, reasons: [] };
@@ -827,8 +849,14 @@ async function buildPayrollLinesFromAppointments(
 
   const rate = toNumber(commissionRate) ?? 0;
 
-  return filteredRows.map((row) => {
-    const id = row.id as number;
+  return filteredRows.map((row, index) => {
+    const idValue = row.id;
+    const id =
+      typeof idValue === "string"
+        ? idValue
+        : typeof idValue === "number"
+        ? String(idValue)
+        : `appointment-${index}`;
     const base =
       readMoney(row, [
         "price",
@@ -870,7 +898,13 @@ async function buildPayrollLinesFromAppointments(
         : null;
 
     const serviceName =
-      row.service ?? row.service_name ?? row.service_type ?? row.title ?? row.service_label ?? null;
+      (typeof row.service === "string" && row.service.trim().length > 0 ? row.service.trim() : null) ??
+      (typeof row.service_name === "string" && row.service_name.trim().length > 0 ? row.service_name.trim() : null) ??
+      (row.services && typeof row.services === "object" ? row.services?.name : null) ??
+      row.service_type ??
+      row.title ??
+      row.service_label ??
+      null;
 
     return {
       appointment_id: id,

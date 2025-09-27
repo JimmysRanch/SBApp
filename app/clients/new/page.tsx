@@ -283,15 +283,19 @@ export default function NewClientPage() {
         }
       }
 
-      const { data: client, error: clientError } = await supabase
+      const appDb = supabase.schema('app');
+
+      const e164Phone = `+1${digits}`;
+      const { data: client, error: clientError } = await appDb
         .from('clients')
         .insert({
-          full_name: `${trimmedFirst} ${trimmedLast}`,
           first_name: trimmedFirst,
           last_name: trimmedLast,
-          phone: digits,
+          phone: e164Phone,
           email: trimmedEmail,
-          hear_about_us: selectedHearAboutUs,
+          address_jsonb: {
+            marketing_source: selectedHearAboutUs,
+          },
         })
         .select('id')
         .single();
@@ -301,17 +305,20 @@ export default function NewClientPage() {
       }
 
       for (const dog of dogsToSave) {
-        const { error: petError } = await supabase.from('pets').insert({
+        const noteSegments = [
+          dog.gender ? `Gender: ${dog.gender}` : null,
+          dog.age.trim() ? `Age: ${dog.age.trim()}` : null,
+          dog.weight.trim() ? `Weight: ${dog.weight.trim()}` : null,
+          dog.hairType.trim() ? `Coat: ${dog.hairType.trim()}` : null,
+          dog.medical.trim() ? `Medical: ${dog.medical.trim()}` : null,
+          dog.neutered ? 'Spayed/neutered' : null,
+        ].filter(Boolean);
+
+        const { error: petError } = await appDb.from('pets').insert({
           client_id: client.id,
           name: dog.name.trim() || null,
           breed: dog.breed.trim() || null,
-          gender: dog.gender || null,
-          age: dog.age.trim() || null,
-          neutered: dog.neutered,
-          hair_type: dog.hairType.trim() || null,
-          weight: dog.weight.trim() || null,
-          medical: dog.medical.trim() || null,
-          photo_url: null,
+          notes: noteSegments.length > 0 ? noteSegments.join(' • ') : null,
         });
 
         if (petError) {

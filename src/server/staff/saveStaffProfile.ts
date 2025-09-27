@@ -84,9 +84,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   };
   let staffResult;
   if (staffId) {
-    staffResult = await supabase.from("app.staff").update(staffObj).eq("id", staffId).select("*").single();
+    staffResult = await supabase.from("app.staff").update(staffObj as any).eq("id", staffId).select("*").single();
   } else {
-    staffResult = await supabase.from("app.staff").insert(staffObj).select("*").single();
+    staffResult = await supabase.from("app.staff").insert(staffObj as any).select("*").single();
   }
   if (staffResult.error) throw staffResult.error;
   const newStaff = staffResult.data;
@@ -96,11 +96,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   if (rest.permissions.length) {
     const permissionsData = rest.permissions.map(p => ({ 
       staff_id: newStaff.id, 
-      perm_key: p.perm_key,
-      allowed: p.allowed 
+      ...p 
     }));
-    // @ts-ignore
-    await supabase.from("app.staff_permissions").upsert(permissionsData);
+    await supabase.from("app.staff_permissions").upsert(permissionsData as any);
   }
 
   // Comp plan
@@ -109,19 +107,12 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
     ...rest.compPlan,
     updated_at: new Date().toISOString(),
   };
-  // @ts-ignore
-  await supabase.from("app.comp_plans").upsert(compPlanData);
+  await supabase.from("app.comp_plans").upsert(compPlanData as any);
 
   // Team overrides
   await supabase.from("app.team_overrides").delete().or(`manager_id.eq.${newStaff.id},member_id.eq.${newStaff.id}`);
   if (rest.overrides.length) {
-    const overridesData = rest.overrides.map(o => ({
-      manager_id: o.manager_id,
-      member_id: o.member_id,
-      override_pct: o.override_pct
-    }));
-    // @ts-ignore
-    await supabase.from("app.team_overrides").upsert(overridesData);
+    await supabase.from("app.team_overrides").upsert(rest.overrides as any);
   }
 
   // Availability
@@ -129,14 +120,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   if (rest.availability.length) {
     const availabilityData = rest.availability.map(a => ({
       staff_id: newStaff.id,
-      dow: a.dow,
-      start_time: a.start_time,
-      end_time: a.end_time,
-      effective_from: a.effective_from,
-      effective_to: a.effective_to
+      ...a
     }));
-    // @ts-ignore
-    await supabase.from("app.staff_availability").upsert(availabilityData);
+    await supabase.from("app.staff_availability").upsert(availabilityData as any);
   }
 
   // Services
@@ -144,12 +130,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   if (rest.services.length) {
     const servicesData = rest.services.map(s => ({
       staff_id: newStaff.id,
-      service_id: s.service_id,
-      price_override: s.price_override,
-      duration_override: s.duration_override
+      ...s
     }));
-    // @ts-ignore
-    await supabase.from("app.staff_services").upsert(servicesData);
+    await supabase.from("app.staff_services").upsert(servicesData as any);
   }
 
   // Audit event

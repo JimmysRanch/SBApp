@@ -19,6 +19,7 @@ on:
 env:
   ROLLOUT_TIMESTAMP: ${{ github.run_id }}-${{ github.run_number }}
   TARGET_FUNCS: "list_staff,list_clients,revenue_summary,employee_workload"
+  SUPABASE_CLI_VERSION: v1.191.2
 
 jobs:
   rollout:
@@ -39,18 +40,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go (build Supabase CLI)
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Build Supabase CLI
+      - name: Install Supabase CLI (pinned binary, no build)
         run: |
           set -e
-          go install github.com/supabase/cli@latest
-          echo "$HOME/go/bin" >> $GITHUB_PATH
-          export PATH="$HOME/go/bin:$PATH"
-          supabase --version
+          V="${SUPABASE_CLI_VERSION:-v1.191.2}"
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64) ARCH=amd64 ;;
+            aarch64|arm64) ARCH=arm64 ;;
+          esac
+            OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          URL="https://github.com/supabase/cli/releases/download/${V}/supabase_${OS}_${ARCH}.tar.gz"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" | tar -xz supabase
+          sudo mv supabase /usr/local/bin/supabase
+          supabase --version || { echo "Supabase CLI failed to install"; exit 1; }
 
       - name: Write Supabase config
         run: |
@@ -148,37 +152,37 @@ jobs:
             echo "No DB password; skipping analytics checks."
             exit 0
           fi
-            set +e
-            cat > analytics.sql <<'EOF'
-            with fns(name) as (values ('revenue_summary'), ('employee_workload'))
-            select f.name,
-                   case when exists (
-                     select 1 from pg_proc p
-                     join pg_namespace n on n.oid=p.pronamespace
-                     where n.nspname='app' and p.proname=f.name
-                   ) then 'PRESENT' else 'MISSING' end as status
-            from fns f
-            order by 1;
+          set +e
+          cat > analytics.sql <<'EOF'
+          with fns(name) as (values ('revenue_summary'), ('employee_workload'))
+          select f.name,
+                 case when exists (
+                   select 1 from pg_proc p
+                   join pg_namespace n on n.oid=p.pronamespace
+                   where n.nspname='app' and p.proname=f.name
+                 ) then 'PRESENT' else 'MISSING' end as status
+          from fns f
+          order by 1;
 
-            DO $$
+          DO $$
+          BEGIN
             BEGIN
-              BEGIN
-                PERFORM app.revenue_summary((now()-interval '7 days')::timestamptz, now()::timestamptz);
-                RAISE NOTICE 'revenue_summary call ok';
-              EXCEPTION WHEN OTHERS THEN
-                RAISE NOTICE 'revenue_summary call failed: %', SQLERRM;
-              END;
+              PERFORM app.revenue_summary((now()-interval '7 days')::timestamptz, now()::timestamptz);
+              RAISE NOTICE 'revenue_summary call ok';
+            EXCEPTION WHEN OTHERS THEN
+              RAISE NOTICE 'revenue_summary call failed: %', SQLERRM;
+            END;
 
-              BEGIN
-                PERFORM app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, NULL);
-                RAISE NOTICE 'employee_workload call ok';
-              EXCEPTION WHEN OTHERS THEN
-                RAISE NOTICE 'employee_workload call failed: %', SQLERRM;
-              END;
-            END$$;
-            EOF
-            psql -v ON_ERROR_STOP=0 -f analytics.sql > analytics_results.txt 2>&1
-            echo "Analytics inspection done."
+            BEGIN
+              PERFORM app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, NULL);
+              RAISE NOTICE 'employee_workload call ok';
+            EXCEPTION WHEN OTHERS THEN
+              RAISE NOTICE 'employee_workload call failed: %', SQLERRM;
+            END;
+          END$$;
+          EOF
+          psql -v ON_ERROR_STOP=0 -f analytics.sql > analytics_results.txt 2>&1
+          echo "Analytics inspection done."
 
       - name: Setup Node (for smoke)
         uses: actions/setup-node@v4
@@ -295,7 +299,7 @@ jobs:
             out.meta.finished=new Date().toISOString()
             console.log(JSON.stringify(out,null,2))
           }
-          main().catch(e=>{ console.error('SMOKE_TEST_FAILURE:',e.message); process.exit(1) })
+            main().catch(e=>{ console.error('SMOKE_TEST_FAILURE:',e.message); process.exit(1) })
           EOF
 
       - name: Run smoke test

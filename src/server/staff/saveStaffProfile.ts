@@ -84,11 +84,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   };
   let staffResult;
   if (staffId) {
-    // @ts-ignore
-    staffResult = await supabase.from("app.staff").update(staffObj as any).eq("id", staffId).select("*").single();
+    staffResult = await supabase.from("app.staff").update(staffObj).eq("id", staffId).select("*").single();
   } else {
-    // @ts-ignore
-    staffResult = await supabase.from("app.staff").insert(staffObj as any).select("*").single();
+    staffResult = await supabase.from("app.staff").insert(staffObj).select("*").single();
   }
   if (staffResult.error) throw staffResult.error;
   const newStaff = staffResult.data;
@@ -98,7 +96,7 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   if (rest.permissions.length) {
     const permissionsData = rest.permissions.map(p => ({ 
       staff_id: newStaff.id, 
-      perm_key: p.perm_key, 
+      perm_key: p.perm_key,
       allowed: p.allowed 
     }));
     // @ts-ignore
@@ -106,24 +104,31 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   }
 
   // Comp plan
-  await supabase.from("app.comp_plans").upsert({
+  const compPlanData = {
     staff_id: newStaff.id,
     ...rest.compPlan,
     updated_at: new Date().toISOString(),
-  });
+  };
+  // @ts-ignore
+  await supabase.from("app.comp_plans").upsert(compPlanData);
 
   // Team overrides
   await supabase.from("app.team_overrides").delete().or(`manager_id.eq.${newStaff.id},member_id.eq.${newStaff.id}`);
   if (rest.overrides.length) {
+    const overridesData = rest.overrides.map(o => ({
+      manager_id: o.manager_id,
+      member_id: o.member_id,
+      override_pct: o.override_pct
+    }));
     // @ts-ignore
-    await supabase.from("app.team_overrides").upsert(rest.overrides.map(o => ({ ...o })));
+    await supabase.from("app.team_overrides").upsert(overridesData);
   }
 
   // Availability
   await supabase.from("app.staff_availability").delete().eq("staff_id", newStaff.id);
   if (rest.availability.length) {
-    const availabilityData = rest.availability.map(a => ({ 
-      staff_id: newStaff.id, 
+    const availabilityData = rest.availability.map(a => ({
+      staff_id: newStaff.id,
       dow: a.dow,
       start_time: a.start_time,
       end_time: a.end_time,

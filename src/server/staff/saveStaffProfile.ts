@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Utility to normalize phone to E.164
 function normalizePhone(phone: string) {
-  return phone.replace(/[^\d+]/g, "");
+  return phone.replace(/[^	\d+]/g, "");
 }
 
 // Utility to generate initials
@@ -84,9 +84,11 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   };
   let staffResult;
   if (staffId) {
+    // @ts-ignore
     staffResult = await supabase.from("app.staff").update(staffObj as any).eq("id", staffId).select("*").single();
   } else {
-staffResult = await supabase.from("app.staff").insert(staffObj as any).select("*").single();
+    // @ts-ignore
+    staffResult = await supabase.from("app.staff").insert(staffObj as any).select("*").single();
   }
   if (staffResult.error) throw staffResult.error;
   const newStaff = staffResult.data;

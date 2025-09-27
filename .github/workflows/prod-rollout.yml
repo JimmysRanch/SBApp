@@ -42,16 +42,34 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install Supabase CLI
+      - name: Install Supabase CLI (resilient)
+        id: supabase_cli
         run: |
-          curl -fsSL https://github.com/supabase/cli/releases/download/v1.189.6/supabase_1.189.6_linux_amd64.tar.gz \
-            | tar -xz -C /usr/local/bin supabase
-          supabase --version
+          set -e
+          echo "Attempting to download latest Supabase CLI binary..."
+          ARCH=$(uname -m)
+          # Normalize arch for Supabase naming
+            case "$ARCH" in
+              x86_64) ARCH=amd64 ;;
+              aarch64) ARCH=arm64 ;;
+            esac
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          BIN_URL="https://github.com/supabase/cli/releases/latest/download/supabase_${OS}_${ARCH}.tar.gz"
+          echo "URL: $BIN_URL"
+          if curl -fsSL "$BIN_URL" | tar -xz -C /usr/local/bin supabase 2>/dev/null; then
+            echo "Binary installed."
+          else
+            echo "Binary download failed, falling back to npm install..."
+            npm install -g supabase
+          fi
+          echo "Installed version:"
+          supabase --version || { echo "Supabase CLI not found after install"; exit 1; }
 
       - name: Write config
         run: |
           mkdir -p supabase
           echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
+          echo "Config written."
 
       - name: DB Push
         env:
@@ -75,13 +93,17 @@ jobs:
 
       - name: Summarize
         run: |
-            echo "## Rollout Summary" > summary.md
-            echo "**Run ID:** $GITHUB_RUN_ID" >> summary.md
-            echo "" >> summary.md
-            echo "Smoke output (first 80 lines)" >> summary.md
-            echo '```json' >> summary.md
-            head -n 80 smoke-results.json >> summary.md
-            echo '```' >> summary.md
+          {
+            echo "## Rollout Summary"
+            echo
+            echo "**Run ID:** $GITHUB_RUN_ID"
+            echo "**Timestamp:** $(date -u)"
+            echo
+            echo "### Smoke Test JSON (truncated)"
+            echo '```json'
+            head -n 120 smoke-results.json || true
+            echo '```'
+          } > summary.md
 
       - uses: actions/upload-artifact@v4
         with:

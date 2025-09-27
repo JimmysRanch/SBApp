@@ -134,98 +134,112 @@ as $$
   where a.employee_id = staff_id;
 $$;
 
--- grant execute permissions to authenticated users
 grant execute on function public.staff_today_metrics(bigint) to authenticated;
 grant execute on function public.staff_week_metrics(bigint) to authenticated;
 grant execute on function public.staff_lifetime_metrics(bigint) to authenticated;
 
--- Row level security policies
 alter table public.employees enable row level security;
 alter table public.staff_goals enable row level security;
 alter table public.appointment_discounts enable row level security;
 alter table public.staff_shifts enable row level security;
 alter table public.staff_time_off enable row level security;
 
-create policy if not exists "Employees base view" on public.employees
-  for select
-  using (
-    auth.role() = 'authenticated'
-    and (manager_notes is null or coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='employees' AND policyname='Employees base view') THEN
+    EXECUTE $P$CREATE POLICY "Employees base view" ON public.employees
+      FOR SELECT USING (
+        auth.role() = 'authenticated'
+        AND (manager_notes IS NULL OR coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      );$P$;
+  END IF;
 
-create policy if not exists "Employees manager view" on public.employees
-  for select
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='employees' AND policyname='Employees manager view') THEN
+    EXECUTE $P$CREATE POLICY "Employees manager view" ON public.employees
+      FOR SELECT USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
 
-create policy if not exists "Employees manager update" on public.employees
-  for update
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  with check (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='employees' AND policyname='Employees manager update') THEN
+    EXECUTE $P$CREATE POLICY "Employees manager update" ON public.employees
+      FOR UPDATE USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      WITH CHECK (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
 
-create policy if not exists "Appointment discounts read" on public.appointment_discounts
-  for select
-  using (auth.role() = 'authenticated');
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='appointment_discounts' AND policyname='Appointment discounts read') THEN
+    EXECUTE $P$CREATE POLICY "Appointment discounts read" ON public.appointment_discounts
+      FOR SELECT USING (auth.role() = 'authenticated');$P$;
+  END IF;
 
-create policy if not exists "Appointment discounts manage" on public.appointment_discounts
-  for all
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  with check (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='appointment_discounts' AND policyname='Appointment discounts manage') THEN
+    EXECUTE $P$CREATE POLICY "Appointment discounts manage" ON public.appointment_discounts
+      FOR ALL USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      WITH CHECK (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
 
-create policy if not exists "Staff goals read" on public.staff_goals
-  for select
-  using (
-    auth.role() = 'authenticated'
-    and (
-      coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
-      or staff_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
-    )
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_goals' AND policyname='Staff goals read') THEN
+    EXECUTE $P$CREATE POLICY "Staff goals read" ON public.staff_goals
+      FOR SELECT USING (
+        auth.role() = 'authenticated'
+        AND (
+          coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
+          OR staff_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
+        )
+      );$P$;
+  END IF;
 
-create policy if not exists "Staff goals manage" on public.staff_goals
-  for all
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  with check (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_goals' AND policyname='Staff goals manage') THEN
+    EXECUTE $P$CREATE POLICY "Staff goals manage" ON public.staff_goals
+      FOR ALL USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      WITH CHECK (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
 
-create policy if not exists "Staff shifts read" on public.staff_shifts
-  for select
-  using (
-    auth.role() = 'authenticated'
-    and (
-      employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
-      or coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
-    )
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_shifts' AND policyname='Staff shifts read') THEN
+    EXECUTE $P$CREATE POLICY "Staff shifts read" ON public.staff_shifts
+      FOR SELECT USING (
+        auth.role() = 'authenticated'
+        AND (
+          employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
+          OR coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
+        )
+      );$P$;
+  END IF;
 
-create policy if not exists "Staff shifts self insert" on public.staff_shifts
-  for insert
-  with check (
-    auth.role() = 'authenticated'
-    and employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_shifts' AND policyname='Staff shifts self insert') THEN
+    EXECUTE $P$CREATE POLICY "Staff shifts self insert" ON public.staff_shifts
+      FOR INSERT WITH CHECK (
+        auth.role() = 'authenticated'
+        AND employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
+      );$P$;
+  END IF;
 
-create policy if not exists "Staff shifts manage" on public.staff_shifts
-  for all
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  with check (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_shifts' AND policyname='Staff shifts manage') THEN
+    EXECUTE $P$CREATE POLICY "Staff shifts manage" ON public.staff_shifts
+      FOR ALL USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      WITH CHECK (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
 
-create policy if not exists "Time off read" on public.staff_time_off
-  for select
-  using (
-    auth.role() = 'authenticated'
-    and (
-      employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
-      or coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
-    )
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_time_off' AND policyname='Time off read') THEN
+    EXECUTE $P$CREATE POLICY "Time off read" ON public.staff_time_off
+      FOR SELECT USING (
+        auth.role() = 'authenticated'
+        AND (
+          employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
+          OR coalesce((auth.jwt() ->> 'is_manager')::boolean, false)
+        )
+      );$P$;
+  END IF;
 
-create policy if not exists "Time off request" on public.staff_time_off
-  for insert
-  with check (
-    auth.role() = 'authenticated'
-    and employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_time_off' AND policyname='Time off request') THEN
+    EXECUTE $P$CREATE POLICY "Time off request" ON public.staff_time_off
+      FOR INSERT WITH CHECK (
+        auth.role() = 'authenticated'
+        AND employee_id::text = coalesce(auth.jwt() ->> 'employee_id', '0')
+      );$P$;
+  END IF;
 
-create policy if not exists "Time off manage" on public.staff_time_off
-  for update
-  using (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
-  with check (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='staff_time_off' AND policyname='Time off manage') THEN
+    EXECUTE $P$CREATE POLICY "Time off manage" ON public.staff_time_off
+      FOR UPDATE USING (coalesce((auth.jwt() ->> 'is_manager')::boolean, false))
+      WITH CHECK (coalesce((auth.jwt() ->> 'is_manager')::boolean, false));$P$;
+  END IF;
+END$$;

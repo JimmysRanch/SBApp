@@ -1,0 +1,52 @@
+name: Prod Smoke (Minimal)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type YES to run smoke test"
+        required: true
+        default: "NO"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "YES" ]; then
+            echo "Need YES"; exit 1;
+          fi
+          echo "Confirmed."
+
+      - name: Checkout (just to access script)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps for smoke script
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install @supabase/supabase-js ts-node typescript --no-audit --no-fund
+
+      - name: Run smoke test
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ ! -f scripts/prod_smoke.ts ]; then
+            echo "Missing scripts/prod_smoke.ts"; exit 1;
+          fi
+          npx ts-node scripts/prod_smoke.ts > smoke-results.json
+          echo "Smoke test finished."
+          cat smoke-results.json | head -n 80
+
+      - name: Upload smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ github.run_id }}
+          path: smoke-results.json

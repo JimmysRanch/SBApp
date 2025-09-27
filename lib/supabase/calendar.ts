@@ -13,16 +13,41 @@ export async function listEvents(params: {
   to?: string;
   staffId?: string;
   type?: string;
+  page?: number;
+  size?: number;
+  businessId?: string;
 } = {}) {
   const client = getSupabaseAdmin();
-  let q = client.from(TABLE).select("*").order("start", { ascending: true });
+  let q = client.from(TABLE).select("*", { count: 'exact' }).order("start", { ascending: true });
   if (params.from) q = q.gte("end", params.from);
   if (params.to) q = q.lte("start", params.to);
   if (params.staffId) q = q.eq("staffId", params.staffId);
   if (params.type) q = q.eq("type", params.type);
-  const { data, error } = await q;
+  
+  // Business scoping (if business_id exists in calendar_events table)
+  // Note: This will need a migration to add business_id to calendar_events if not present
+  if (params.businessId) q = q.eq("business_id", params.businessId);
+
+  // Add pagination
+  const page = params.page || 1;
+  const size = Math.min(params.size || 50, 100); // Max 100 items per page
+  const offset = (page - 1) * size;
+  q = q.range(offset, offset + size - 1);
+
+  const { data, error, count } = await q;
   if (error) throw error;
-  return data?.map((d) => CalendarEvent.parse(d)) ?? [];
+  
+  return {
+    data: data?.map((d) => CalendarEvent.parse(d)) ?? [],
+    pagination: {
+      page,
+      size,
+      total: count || 0,
+      totalPages: Math.ceil((count || 0) / size),
+      hasNext: (count || 0) > offset + size,
+      hasPrev: page > 1
+    }
+  };
 }
 
 export async function getEvent(id: string) {

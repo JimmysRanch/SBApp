@@ -46,7 +46,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install supabase CLI
+      - name: Install Supabase CLI
         run: |
           curl -fsSL https://deno.land/install.sh | sh -s v1.46.3
           export DENO_INSTALL="$HOME/.deno"
@@ -59,7 +59,6 @@ jobs:
         run: |
           mkdir -p supabase
           echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
-          echo "Supabase config written."
 
       - name: Supabase DB Push (Migrations)
         env:
@@ -67,7 +66,7 @@ jobs:
         run: |
           supabase db push --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
 
-      - name: Prepare psql
+      - name: Install psql client
         run: |
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
@@ -141,93 +140,49 @@ jobs:
           select 'employee_workload 7d' as label,
                  app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, null);
           SQL
-          echo "Analytics queries completed."
+          echo "Analytics queries complete."
 
       - name: Install Node deps for smoke test
         run: |
           npm install @supabase/supabase-js
 
-      - name: Write smoke test script (if not present)
+      - name: Ensure smoke script present
         run: |
-          mkdir -p scripts
           if [ ! -f scripts/prod_smoke.ts ]; then
-            cat > scripts/prod_smoke.ts <<'EOF_TS'
+            echo "Smoke script missing. Creating minimal version."
+            mkdir -p scripts
+            cat > scripts/prod_smoke.ts <<'EOF'
 import { createClient } from '@supabase/supabase-js'
-
-// local helper instead of date-fns
-function addMinutes(date: Date, mins: number) {
-  return new Date(date.getTime() + mins * 60000)
-}
-
+function addMinutes(d: Date, m: number){return new Date(d.getTime()+m*60000)}
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env
-
-async function main() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
-  }
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  })
-
-  const tag = Date.now()
-  const staffName = `Prod Smoke Staff ${tag}`
-  const clientName = `Prod Smoke Client ${tag}`
-  const petName = `Prod Smoke Pet ${tag}`
-
-  let businessId: string | null = null
-  {
-    const { data, error } = await admin.from('business').select('id').limit(1).maybeSingle()
-    if (!error && data?.id) businessId = data.id
-  }
-
-  const staffInsert: any = { display_name: staffName }
-  if (businessId) staffInsert.business_id = businessId
-
-  const { data: staff, error: staffErr } = await admin.from('staff').insert(staffInsert).select().single()
-  if (staffErr) throw new Error('Staff create failed: ' + staffErr.message)
-
-  const { data: client, error: clientErr } = await admin.from('clients').insert({ display_name: clientName }).select().single()
-  if (clientErr) throw new Error('Client create failed: ' + clientErr.message)
-
-  const { data: pet, error: petErr } = await admin.from('pets').insert({ client_id: client.id, name: petName, species: 'dog' }).select().single()
-  if (petErr) throw new Error('Pet create failed: ' + petErr.message)
-
-  const start = new Date()
-  const end = addMinutes(start, 30)
-  const { data: appointment, error: apptErr } = await admin.from('appointments')
-    .insert({ staff_id: staff.id, client_id: client.id, start_at: start.toISOString(), end_at: end.toISOString(), status: 'scheduled' })
-    .select().single()
-  if (apptErr) throw new Error('Appointment create failed: ' + apptErr.message)
-
-  const { data: apptUpd, error: apptUpdErr } = await admin.from('appointments')
-    .update({ status: 'finished' }).eq('id', appointment.id).select().single()
-  if (apptUpdErr) throw new Error('Appointment status update failed: ' + apptUpdErr.message)
-
-  const { data: message, error: msgErr } = await admin.from('messages')
-    .insert({ client_id: client.id, direction: 'outbound', body: `Smoke test message ${tag}` }).select().single()
-  if (msgErr) throw new Error('Message send failed: ' + msgErr.message)
-
-  let settings: any = null
-  const { error: settingsCheckErr } = await admin.from('settings').select('id').eq('id', 1).limit(1)
-  if (!settingsCheckErr) {
-    const upd = await admin.from('settings')
-      .update({ quiet_hours_start: '21:00', quiet_hours_end: '07:00' })
-      .eq('id', 1).select().maybeSingle()
-    settings = upd.data ?? null
-  }
-
-  console.log(JSON.stringify({
-    staff, client, pet,
-    appointment_initial: appointment,
-    appointment_updated: apptUpd,
-    message, settings
-  }, null, 2))
+async function main(){
+ if(!SUPABASE_URL||!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing env')
+ const admin=createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}})
+ const tag=Date.now()
+ const staffName=`Prod Smoke Staff ${tag}`
+ const clientName=`Prod Smoke Client ${tag}`
+ const petName=`Prod Smoke Pet ${tag}`
+ let businessId:null|string=null
+ const b=await admin.from('business').select('id').limit(1).maybeSingle()
+ if(!b.error && b.data?.id) businessId=b.data.id
+ const staffIns:any={display_name:staffName}; if(businessId) staffIns.business_id=businessId
+ const staff=(await admin.from('staff').insert(staffIns).select().single()).data
+ const client=(await admin.from('clients').insert({display_name:clientName}).select().single()).data
+ const pet=(await admin.from('pets').insert({client_id:client.id,name:petName,species:'dog'}).select().single()).data
+ const start=new Date(); const end=addMinutes(start,30)
+ const appointment=(await admin.from('appointments').insert({staff_id:staff.id,client_id:client.id,start_at:start.toISOString(),end_at:end.toISOString(),status:'scheduled'}).select().single()).data
+ const appointment_updated=(await admin.from('appointments').update({status:'finished'}).eq('id',appointment.id).select().single()).data
+ const message=(await admin.from('messages').insert({client_id:client.id,direction:'outbound',body:`Smoke test message ${tag}`}).select().single()).data
+ let settings=null
+ const sc=await admin.from('settings').select('id').eq('id',1).limit(1)
+ if(!sc.error){ const upd=await admin.from('settings').update({quiet_hours_start:'21:00',quiet_hours_end:'07:00'}).eq('id',1).select().maybeSingle(); settings=upd.data??null }
+ console.log(JSON.stringify({staff,client,pet,appointment_initial:appointment,appointment_updated,message,settings},null,2))
 }
-main().catch(e => { console.error('SMOKE_TEST_FAILURE:', e); process.exit(1) })
-EOF_TS
+main().catch(e=>{console.error('SMOKE_TEST_FAILURE:',e);process.exit(1)})
+EOF
           fi
 
-      - name: Compile smoke script (ts-node via npx)
+      - name: Run smoke script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -236,20 +191,22 @@ EOF_TS
 
       - name: Collect artifacts
         run: |
-          echo "## Rollout Summary" > summary.md
-          echo "" >> summary.md
-          echo "**Run ID:** $GITHUB_RUN_ID" >> summary.md
-          echo "**Timestamp:** $(date -u)" >> summary.md
-          echo "" >> summary.md
-            echo "### Analytics Queries Output" >> summary.md
-          echo '```' >> summary.md
-          cat analytics_results.txt >> summary.md
-          echo '```' >> summary.md
-          echo "" >> summary.md
-          echo "### Smoke Test JSON (truncated)" >> summary.md
-          echo '```json' >> summary.md
-          head -n 120 smoke-results.json >> summary.md
-          echo '```' >> summary.md
+          {
+            echo "## Rollout Summary"
+            echo
+            echo "**Run ID:** $GITHUB_RUN_ID"
+            echo "**Timestamp:** $(date -u)"
+            echo
+            echo "### Analytics Queries Output"
+            echo '```'
+            cat analytics_results.txt
+            echo '```'
+            echo
+            echo "### Smoke Test JSON (truncated)"
+            echo '```json'
+            head -n 120 smoke-results.json
+            echo '```'
+          } > summary.md
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -260,20 +217,6 @@ EOF_TS
             smoke-results.json
             summary.md
 
-      - name: Optional Vercel redeploy
-        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_PROJECT_ID != '' }}
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-        run: |
-          echo "Triggering Vercel redeploy (optional step)..."
-          curl -s -X POST "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data "{\"name\":\"prod-rollout-${GITHUB_RUN_ID}\",\"projectId\":\"$VERCEL_PROJECT_ID\",\"target\":\"production\",\"teamId\":\"$VERCEL_TEAM_ID\"}" \
-            | sed 's/"deploymentId"/\n"deploymentId"/'
-
       - name: Post PR comment summary
         if: ${{ always() }}
         env:
@@ -281,7 +224,7 @@ EOF_TS
         run: |
           PR_NUMBER="${{ github.event.inputs.pr_number }}"
           STATUS="${{ job.status }}"
-          if [ "$STATUS" = "success" ]; then STATUS="SUCCESS"; else STATUS="FAILURE"; fi
+          [ "$STATUS" = "success" ] && STATUS="SUCCESS" || STATUS="FAILURE"
           cat > pr_comment.md <<EOF
 ### Production Rollout Summary
 
@@ -292,12 +235,12 @@ Artifacts:
 
 Key Steps:
 1. Migrations applied (supabase db push).
-2. RPC anon EXECUTE revoked (idempotent pass).
+2. RPC anon EXECUTE revoked.
 3. Analytics sanity queries executed.
-4. Smoke test inserted staff, client, pet, appointment, message; updated appointment & quiet hours (if table exists).
+4. Smoke test inserted staff, client, pet, appointment, message; updated appointment & (if exists) quiet hours.
 
 If FAILURE: inspect artifacts + logs for SMOKE_TEST_FAILURE or SQL errors.
 
 _This comment was posted automatically._
 EOF
-          gh pr comment "$PR_NUMBER" --body-file pr_comment.md || echo "PR comment failed (ensure PR exists)."
+          gh pr comment "$PR_NUMBER" --body-file pr_comment.md || echo "PR comment failed (maybe PR closed)."

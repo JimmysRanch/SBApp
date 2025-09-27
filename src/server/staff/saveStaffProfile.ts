@@ -96,10 +96,13 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   // Permissions
   await supabase.from("app.staff_permissions").delete().eq("staff_id", newStaff.id);
   if (rest.permissions.length) {
+    const permissionsData = rest.permissions.map(p => ({ 
+      staff_id: newStaff.id, 
+      perm_key: p.perm_key, 
+      allowed: p.allowed 
+    }));
     // @ts-ignore
-    await supabase.from("app.staff_permissions").upsert(
-      rest.permissions.map(p => ({ staff_id: newStaff.id, ...p }))
-    );
+    await supabase.from("app.staff_permissions").upsert(permissionsData);
   }
 
   // Comp plan
@@ -119,19 +122,29 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   // Availability
   await supabase.from("app.staff_availability").delete().eq("staff_id", newStaff.id);
   if (rest.availability.length) {
+    const availabilityData = rest.availability.map(a => ({ 
+      staff_id: newStaff.id, 
+      dow: a.dow,
+      start_time: a.start_time,
+      end_time: a.end_time,
+      effective_from: a.effective_from,
+      effective_to: a.effective_to
+    }));
     // @ts-ignore
-    await supabase.from("app.staff_availability").upsert(
-      rest.availability.map(a => ({ staff_id: newStaff.id, ...a }))
-    );
+    await supabase.from("app.staff_availability").upsert(availabilityData);
   }
 
   // Services
   await supabase.from("app.staff_services").delete().eq("staff_id", newStaff.id);
   if (rest.services.length) {
+    const servicesData = rest.services.map(s => ({
+      staff_id: newStaff.id,
+      service_id: s.service_id,
+      price_override: s.price_override,
+      duration_override: s.duration_override
+    }));
     // @ts-ignore
-    await supabase.from("app.staff_services").upsert(
-      rest.services.map(s => ({ staff_id: newStaff.id, ...s }))
-    );
+    await supabase.from("app.staff_services").upsert(servicesData);
   }
 
   // Audit event

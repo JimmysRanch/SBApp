@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+
       - name: Validate inputs
         run: |
           set -e
@@ -60,17 +61,28 @@ jobs:
             sudo mv "$TMPDIR/supabase" /usr/local/bin/supabase
           else
             echo "Binary download failed; trying official install script..."
-            curl -fsSL https://supabase.com/cli/install | sh -s -- -b /usr/local/bin || {
+            if ! curl -fsSL https://supabase.com/cli/install | sh -s -- -b /usr/local/bin; then
               echo "Install script failed; falling back to npm."
               npm install -g supabase || { echo "All install methods failed"; exit 1; }
-            }
+            fi
           fi
           supabase --version || { echo "Supabase CLI not working after install"; exit 1; }
 
-      - name: Write Supabase config
+      - name: Prepare Supabase config (sanitize project ref)
         run: |
+          set -e
+          RAW="${{ secrets.SUPABASE_PROJECT_REF }}"
+          if [ -z "$RAW" ]; then
+            echo "SUPABASE_PROJECT_REF secret is empty"; exit 1
+          fi
+          CLEAN=$(printf "%s" "$RAW" | tr -d '\r\n\"\'"'"' ')
+          if ! echo "$CLEAN" | grep -Eq '^[a-z0-9]{15,30}$'; then
+            echo "Sanitized project ref '$CLEAN' looks invalid. Raw='$RAW'"; exit 1
+          fi
+          echo "Using project ref: $CLEAN"
           mkdir -p supabase
-          echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
+          printf 'project_id = "%s"\n' "$CLEAN" > supabase/config.toml
+          echo "supabase/config.toml:"
           cat supabase/config.toml
 
       - name: Apply migrations (supabase db push)
@@ -79,8 +91,9 @@ jobs:
         run: |
           set -e
           supabase --version
+          echo "Running migrations..."
           supabase db push
-          echo "Migrations applied (or already up to date)."
+          echo "Migrations done."
 
       - name: Install psql client (skip if no DB password)
         run: |
@@ -394,7 +407,7 @@ jobs:
             echo
             echo "_Automated comment._"
           } > pr_comment.md
-            gh pr comment "${{ github.event.inputs.pr_number }}" --body-file pr_comment.md || echo "PR comment failed."
+          gh pr comment "${{ github.event.inputs.pr_number }}" --body-file pr_comment.md || echo "PR comment failed."
 
       - name: Tag rollout (success only)
         if: success()

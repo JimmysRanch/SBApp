@@ -40,21 +40,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Supabase CLI (pinned binary, no build)
+      - name: Install Supabase CLI (robust)
         run: |
           set -e
           V="${SUPABASE_CLI_VERSION:-v1.191.2}"
+          echo "Installing Supabase CLI $V"
+          TMPDIR="$(mktemp -d)"
           ARCH=$(uname -m)
           case "$ARCH" in
             x86_64) ARCH=amd64 ;;
             aarch64|arm64) ARCH=arm64 ;;
           esac
-            OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-          URL="https://github.com/supabase/cli/releases/download/${V}/supabase_${OS}_${ARCH}.tar.gz"
-          echo "Downloading $URL"
-          curl -fsSL "$URL" | tar -xz supabase
-          sudo mv supabase /usr/local/bin/supabase
-          supabase --version || { echo "Supabase CLI failed to install"; exit 1; }
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          TARBALL="supabase_${OS}_${ARCH}.tar.gz"
+          URL="https://github.com/supabase/cli/releases/download/${V}/${TARBALL}"
+          echo "Download URL: $URL"
+          if curl -fsSL "$URL" -o "$TMPDIR/$TARBALL"; then
+            tar -xzf "$TMPDIR/$TARBALL" -C "$TMPDIR"
+            sudo mv "$TMPDIR/supabase" /usr/local/bin/supabase
+          else
+            echo "Binary download failed; trying official install script..."
+            curl -fsSL https://supabase.com/cli/install | sh -s -- -b /usr/local/bin || {
+              echo "Install script failed; falling back to npm."
+              npm install -g supabase || { echo "All install methods failed"; exit 1; }
+            }
+          fi
+          supabase --version || { echo "Supabase CLI not working after install"; exit 1; }
 
       - name: Write Supabase config
         run: |
@@ -299,7 +310,7 @@ jobs:
             out.meta.finished=new Date().toISOString()
             console.log(JSON.stringify(out,null,2))
           }
-            main().catch(e=>{ console.error('SMOKE_TEST_FAILURE:',e.message); process.exit(1) })
+          main().catch(e=>{ console.error('SMOKE_TEST_FAILURE:',e.message); process.exit(1) })
           EOF
 
       - name: Run smoke test
@@ -383,7 +394,7 @@ jobs:
             echo
             echo "_Automated comment._"
           } > pr_comment.md
-          gh pr comment "${{ github.event.inputs.pr_number }}" --body-file pr_comment.md || echo "PR comment failed."
+            gh pr comment "${{ github.event.inputs.pr_number }}" --body-file pr_comment.md || echo "PR comment failed."
 
       - name: Tag rollout (success only)
         if: success()

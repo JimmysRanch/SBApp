@@ -84,9 +84,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   };
   let staffResult;
   if (staffId) {
-    staffResult = await supabase.from("app.staff").update(staffObj).eq("id", staffId).select("*").single();
+    staffResult = await supabase.from("app.staff").update(staffObj as any).eq("id", staffId).select("*").single();
   } else {
-    staffResult = await supabase.from("app.staff").insert(staffObj).select("*").single();
+staffResult = await supabase.from("app.staff").insert(staffObj as any).select("*").single();
   }
   if (staffResult.error) throw staffResult.error;
   const newStaff = staffResult.data;

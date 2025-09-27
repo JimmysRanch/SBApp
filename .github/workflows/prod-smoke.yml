@@ -1,5 +1,8 @@
 name: Prod Smoke (Minimal)
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

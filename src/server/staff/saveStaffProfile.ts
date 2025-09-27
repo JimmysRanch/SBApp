@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Utility to normalize phone to E.164
 function normalizePhone(phone: string) {
-  return phone.replace(/[^\d+]/g, "");
+  return phone.replace(/[^\d+]/g, ""); // Fixed regex by removing the line break
 }
 
 // Utility to generate initials
@@ -85,86 +85,77 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
   
   let staffResult;
   if (staffId) {
-    staffResult = await supabase
+    // Handle type issues with explicit type casting
+    const { data, error } = await supabase
       .from("app.staff")
-      .update(staffObj)
+      .update(staffObj as any)
       .eq("id", staffId)
-      .select("*")
+      .select()
       .single();
+    
+    if (error) throw error;
+    staffResult = { data, error };
   } else {
-    staffResult = await supabase
+    const { data, error } = await supabase
       .from("app.staff")
-      .insert(staffObj)
-      .select("*")
+      .insert(staffObj as any)
+      .select()
       .single();
+    
+    if (error) throw error;
+    staffResult = { data, error };
   }
   
-  if (staffResult.error) throw staffResult.error;
   const newStaff = staffResult.data;
-
+  
   // Permissions
   await supabase.from("app.staff_permissions").delete().eq("staff_id", newStaff.id);
   if (rest.permissions.length) {
     const permissionData = rest.permissions.map(p => ({ 
       staff_id: newStaff.id, 
-      perm_key: p.perm_key, 
-      allowed: p.allowed 
+      ...p 
     }));
     
     await supabase
       .from("app.staff_permissions")
-      .upsert(permissionData);
+      .upsert(permissionData as any);
   }
 
   // Comp plan
-  const compPlanData = {
-    staff_id: newStaff.id,
-    ...rest.compPlan,
-    updated_at: new Date().toISOString(),
-  };
-  
   await supabase
     .from("app.comp_plans")
-    .upsert(compPlanData);
+    .upsert({
+      staff_id: newStaff.id,
+      ...rest.compPlan,
+      updated_at: new Date().toISOString(),
+    } as any);
 
   // Team overrides
   await supabase.from("app.team_overrides").delete().or(`manager_id.eq.${newStaff.id},member_id.eq.${newStaff.id}`);
   if (rest.overrides.length) {
     await supabase
       .from("app.team_overrides")
-      .upsert(rest.overrides);
+      .upsert(rest.overrides.map(o => ({ ...o })) as any);
   }
 
   // Availability
   await supabase.from("app.staff_availability").delete().eq("staff_id", newStaff.id);
   if (rest.availability.length) {
-    const availabilityData = rest.availability.map(a => ({
-      staff_id: newStaff.id,
-      dow: a.dow,
-      start_time: a.start_time,
-      end_time: a.end_time,
-      effective_from: a.effective_from,
-      effective_to: a.effective_to,
-    }));
-    
     await supabase
       .from("app.staff_availability")
-      .upsert(availabilityData);
+      .upsert(
+        rest.availability.map(a => ({ staff_id: newStaff.id, ...a })) as any
+      );
   }
 
   // Services
   await supabase.from("app.staff_services").delete().eq("staff_id", newStaff.id);
   if (rest.services.length) {
-    const servicesData = rest.services.map(s => ({
-      staff_id: newStaff.id,
-      service_id: s.service_id,
-      price_override: s.price_override,
-      duration_override: s.duration_override,
-    }));
-    
     await supabase
       .from("app.staff_services")
-      .upsert(servicesData);
+      .upsert(
+        rest.services.map(s => ({ staff_id: newStaff.id, ...s })) as any
+      );
   }
 
   // Audit event

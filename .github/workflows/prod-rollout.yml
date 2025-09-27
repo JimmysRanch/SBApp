@@ -40,7 +40,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go (for Supabase CLI build)
+      - name: Setup Go (build Supabase CLI)
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
@@ -67,7 +67,7 @@ jobs:
           set -e
           echo "Supabase CLI version:"
           supabase --version
-          echo "Pushing migrations (no --project-ref flag)..."
+          echo "Pushing migrations (no deprecated flags)..."
           supabase db push
           echo "Migrations applied (or already up to date)."
 

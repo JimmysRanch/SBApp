@@ -1,0 +1,39 @@
+### Summary
+
+Introduces unified pagination, analytics RPCs, and groundwork for future multi-tenant RLS.
+
+#### Key Changes
+- Pagination envelope (`{ data, total, limit, offset, next_offset }`) for:
+  - `list_recent_messages`
+  - `list_appointments_for_range`
+- Derived appointment status helper (Checked In / In Progress logic with 10‑minute grace).
+- Added nullable `business_id` columns (backfilled) on core tables (no RLS change yet). Ref #327
+- New paginated & searchable listing RPCs:
+  - `list_staff(p_search, p_limit, p_offset)`
+  - `list_clients(p_search, p_limit, p_offset)`
+- New analytics RPCs:
+  - `revenue_summary(p_start, p_end)` – finished appointments only
+  - `employee_workload(p_start, p_end, p_staff)` – full active roster, zeroes included
+- Server caller wrappers:
+  - `listStaff`
+  - `listClients`
+  - `revenueSummary`
+  - `employeeWorkload`
+- Migrations:
+  - `20251001_pagination_read_rpcs.sql`
+  - `20251001b_list_staff_clients_analytics_and_business_id.sql`
+- Regression pagination test patch
+- Permissions matrix doc updated (pagination note)
+
+#### Security
+All new RPCs are `SECURITY DEFINER`, authenticated-only. `business_id` columns present but not yet enforced by RLS. Future step (Ref #327) will:
+- Add RLS filtering using `business_id`
+- Convert read RPCs to `SECURITY INVOKER`
+- Add indexes / FKs
+
+#### Follow-Up
+- RLS + invoker conversion
+- UI adoption of staff/clients listings & analytics widgets
+- Additional analytics (trends, utilization)
+
+Ref #327

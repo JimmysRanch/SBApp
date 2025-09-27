@@ -13,14 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check confirmation
+      - name: Confirm
         run: |
           if [ "${{ github.event.inputs.confirm }}" != "YES" ]; then
             echo "Need YES"; exit 1;
           fi
           echo "Confirmed."
 
-      - name: Checkout (just to access script)
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -28,10 +28,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install deps for smoke script
+      - name: Install deps
         run: |
           npm init -y >/dev/null 2>&1
-          npm install @supabase/supabase-js ts-node typescript --no-audit --no-fund
+          npm install @supabase/supabase-js tsx --no-audit --no-fund
 
       - name: Run smoke test
         env:
@@ -41,11 +41,11 @@ jobs:
           if [ ! -f scripts/prod_smoke.ts ]; then
             echo "Missing scripts/prod_smoke.ts"; exit 1;
           fi
-          npx ts-node scripts/prod_smoke.ts > smoke-results.json
-          echo "Smoke test finished."
-          cat smoke-results.json | head -n 80
+          npx tsx scripts/prod_smoke.ts > smoke-results.json
+          echo "Smoke test output (first lines):"
+          head -n 40 smoke-results.json || true
 
-      - name: Upload smoke artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: smoke-${{ github.run_id }}

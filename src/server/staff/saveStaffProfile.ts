@@ -3,8 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Utility to normalize phone to E.164
 function normalizePhone(phone: string) {
-  return phone.replace(/[^
-\d+]/g, "");
+  return phone.replace(/[^\d+]/g, "");
 }
 
 // Utility to generate initials

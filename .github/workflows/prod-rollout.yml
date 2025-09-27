@@ -82,17 +82,36 @@ jobs:
           echo "Using project ref: $CLEAN"
           mkdir -p supabase
           printf 'project_id = "%s"\n' "$CLEAN" > supabase/config.toml
+          echo "PROJECT_REF=$CLEAN" >> $GITHUB_ENV
           echo "supabase/config.toml:"
           cat supabase/config.toml
 
-      - name: Apply migrations (supabase db push)
+      - name: Apply migrations (supports link or direct db-url)
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -e
           supabase --version
-          echo "Running migrations..."
-          supabase db push
+          echo "Mode selection:"
+          echo " - SUPABASE_ACCESS_TOKEN present?  $( [ -n "$SUPABASE_ACCESS_TOKEN" ] && echo yes || echo no )"
+          echo " - SUPABASE_DB_PASSWORD present?   $( [ -n "$SUPABASE_DB_PASSWORD" ] && echo yes || echo no )"
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "Linking project via access token..."
+            supabase link --project-ref "$PROJECT_REF"
+            echo "Running supabase db push (linked mode)..."
+            supabase db push
+          elif [ -n "$SUPABASE_DB_PASSWORD" ]; then
+            echo "No access token; using direct db-url fallback."
+            DB_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:6543/postgres"
+            # Percent-encode any special characters in password minimally (colon/@ already handled by structure if no weird chars).
+            echo "Running supabase db push with --db-url ..."
+            supabase db push --db-url "$DB_URL"
+          else
+            echo "Neither SUPABASE_ACCESS_TOKEN nor SUPABASE_DB_PASSWORD provided; cannot run migrations."
+            exit 1
+          fi
           echo "Migrations done."
 
       - name: Install psql client (skip if no DB password)
@@ -267,7 +286,7 @@ jobs:
             async function variantA(){
               const r=await admin.from('appointments').insert({
                 staff_id:staff?.id, client_id:client?.id,
-                start_at:start.toISOString(), end_at:end.toISOString(),
+                start_at:start.toISOString(), end_at=end.toISOString(),
                 status:'scheduled'
               }).select().single()
               if(r.error) throw r.error; return r.data
@@ -275,7 +294,7 @@ jobs:
             async function variantB(){
               const r=await admin.from('appointments').insert({
                 staff_id:staff?.id, client_id:client?.id,
-                starts_at:start.toISOString(), ends_at:end.toISOString(),
+                starts_at:start.toISOString(), ends_at=end.toISOString(),
                 price_service:0, status:'booked'
               }).select().single()
               if(r.error) throw r.error; return r.data
@@ -349,7 +368,7 @@ jobs:
             echo "UTC: $(date -u)"
             echo
             echo "### Migrations"
-            echo "Applied via supabase db push."
+            echo "Applied via supabase db push (link or db-url mode)."
             echo
             if [ -f revoke_output.txt ]; then
               echo "### Function Privilege Snapshot (first 60 lines)"

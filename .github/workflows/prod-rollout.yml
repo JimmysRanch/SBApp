@@ -8,7 +8,7 @@ on:
         required: true
         default: "production"
       confirm_prod:
-        description: 'Type YES to confirm live production rollout'
+        description: "Type YES to confirm live production rollout"
         required: true
         default: "NO"
       pr_number:
@@ -24,6 +24,7 @@ jobs:
     name: Run Production Rollout
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
       - name: Validate inputs
         run: |
@@ -49,14 +50,16 @@ jobs:
         run: |
           curl -fsSL https://deno.land/install.sh | sh -s v1.46.3
           export DENO_INSTALL="$HOME/.deno"
-            export PATH="$DENO_INSTALL/bin:$PATH"
+          export PATH="$DENO_INSTALL/bin:$PATH"
           curl -fsSL https://github.com/supabase/cli/releases/download/v1.189.6/supabase_1.189.6_linux_amd64.tar.gz \
             | tar -xz -C /usr/local/bin supabase
           supabase --version
 
       - name: Configure Supabase project ref
         run: |
+          mkdir -p supabase
           echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
+          echo "Supabase config written."
 
       - name: Supabase DB Push (Migrations)
         env:
@@ -138,11 +141,11 @@ jobs:
           select 'employee_workload 7d' as label,
                  app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, null);
           SQL
-          cat analytics_results.txt
+          echo "Analytics queries completed."
 
       - name: Install Node deps for smoke test
         run: |
-          npm install @supabase/supabase-js uuid date-fns
+          npm install @supabase/supabase-js
 
       - name: Write smoke test script (if not present)
         run: |
@@ -150,7 +153,11 @@ jobs:
           if [ ! -f scripts/prod_smoke.ts ]; then
             cat > scripts/prod_smoke.ts <<'EOF_TS'
 import { createClient } from '@supabase/supabase-js'
-import { addMinutes } from 'date-fns'
+
+// local helper instead of date-fns
+function addMinutes(date: Date, mins: number) {
+  return new Date(date.getTime() + mins * 60000)
+}
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env
 
@@ -158,7 +165,10 @@ async function main() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
   }
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+
   const tag = Date.now()
   const staffName = `Prod Smoke Staff ${tag}`
   const clientName = `Prod Smoke Client ${tag}`
@@ -172,6 +182,7 @@ async function main() {
 
   const staffInsert: any = { display_name: staffName }
   if (businessId) staffInsert.business_id = businessId
+
   const { data: staff, error: staffErr } = await admin.from('staff').insert(staffInsert).select().single()
   if (staffErr) throw new Error('Staff create failed: ' + staffErr.message)
 
@@ -181,7 +192,8 @@ async function main() {
   const { data: pet, error: petErr } = await admin.from('pets').insert({ client_id: client.id, name: petName, species: 'dog' }).select().single()
   if (petErr) throw new Error('Pet create failed: ' + petErr.message)
 
-  const start = new Date(); const end = addMinutes(start, 30)
+  const start = new Date()
+  const end = addMinutes(start, 30)
   const { data: appointment, error: apptErr } = await admin.from('appointments')
     .insert({ staff_id: staff.id, client_id: client.id, start_at: start.toISOString(), end_at: end.toISOString(), status: 'scheduled' })
     .select().single()
@@ -204,7 +216,12 @@ async function main() {
     settings = upd.data ?? null
   }
 
-  console.log(JSON.stringify({ staff, client, pet, appointment_initial: appointment, appointment_updated: apptUpd, message, settings }, null, 2))
+  console.log(JSON.stringify({
+    staff, client, pet,
+    appointment_initial: appointment,
+    appointment_updated: apptUpd,
+    message, settings
+  }, null, 2))
 }
 main().catch(e => { console.error('SMOKE_TEST_FAILURE:', e); process.exit(1) })
 EOF_TS
@@ -224,7 +241,7 @@ EOF_TS
           echo "**Run ID:** $GITHUB_RUN_ID" >> summary.md
           echo "**Timestamp:** $(date -u)" >> summary.md
           echo "" >> summary.md
-          echo "### Analytics Queries Output" >> summary.md
+            echo "### Analytics Queries Output" >> summary.md
           echo '```' >> summary.md
           cat analytics_results.txt >> summary.md
           echo '```' >> summary.md
@@ -255,7 +272,7 @@ EOF_TS
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             --data "{\"name\":\"prod-rollout-${GITHUB_RUN_ID}\",\"projectId\":\"$VERCEL_PROJECT_ID\",\"target\":\"production\",\"teamId\":\"$VERCEL_TEAM_ID\"}" \
-            | sed 's/\"deploymentId\"/\n\"deploymentId\"/'
+            | sed 's/"deploymentId"/\n"deploymentId"/'
 
       - name: Post PR comment summary
         if: ${{ always() }}
@@ -263,14 +280,12 @@ EOF_TS
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER="${{ github.event.inputs.pr_number }}"
-          STATUS="SUCCESS"
-          if [ "${{ job.status }}" != "success" ]; then
-            STATUS="FAILURE"
-          fi
-          body=$(cat <<'EOF'
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then STATUS="SUCCESS"; else STATUS="FAILURE"; fi
+          cat > pr_comment.md <<EOF
 ### Production Rollout Summary
 
-Status: PLACEHOLDER_STATUS
+Status: $STATUS
 
 Artifacts:
 - Rollout bundle (analytics + smoke JSON + summary.md) attached to workflow run.
@@ -285,7 +300,4 @@ If FAILURE: inspect artifacts + logs for SMOKE_TEST_FAILURE or SQL errors.
 
 _This comment was posted automatically._
 EOF
-)
-          body="${body/PLACEHOLDER_STATUS/${STATUS}}"
-          echo "$body" > pr_comment.md
           gh pr comment "$PR_NUMBER" --body-file pr_comment.md || echo "PR comment failed (ensure PR exists)."

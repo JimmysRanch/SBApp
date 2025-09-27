@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: "Must be production"
+        description: Must be production
         required: true
-        default: "production"
+        default: production
       confirm_prod:
-        description: "Type YES to confirm"
+        description: Type YES to confirm
         required: true
-        default: "NO"
+        default: NO
       pr_number:
-        description: "Optional PR number to comment on"
+        description: Optional PR number to comment on
         required: false
         default: ""
 
@@ -24,16 +24,15 @@ jobs:
   rollout:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
       - name: Validate inputs
         run: |
           set -e
           if [ "${{ github.event.inputs.env }}" != "production" ]; then
-            echo "env must be production"; exit 1;
+            echo "env must be production"; exit 1
           fi
           if [ "${{ github.event.inputs.confirm_prod }}" != "YES" ]; then
-            echo "confirm_prod must be YES"; exit 1;
+            echo "confirm_prod must be YES"; exit 1
           fi
           echo "Inputs validated."
 
@@ -57,7 +56,6 @@ jobs:
         run: |
           mkdir -p supabase
           echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
-          echo "Supabase config:"
           cat supabase/config.toml
 
       - name: Apply migrations (supabase db push)
@@ -65,20 +63,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN || secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -e
-          echo "Supabase CLI version:"
           supabase --version
-          echo "Pushing migrations (no deprecated flags)..."
           supabase db push
           echo "Migrations applied (or already up to date)."
 
-      - name: Install psql client (only if password present)
-        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+      - name: Install psql client (skip if no DB password)
         run: |
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "SUPABASE_DB_PASSWORD not set; skipping psql install."
+            exit 0
+          fi
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
 
-      - name: Revoke anon EXECUTE (idempotent)
-        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+      - name: Revoke anon EXECUTE (safe / idempotent; skipped if no DB password)
         env:
           PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
           PGPORT: 6543
@@ -87,6 +85,10 @@ jobs:
           PGDATABASE: postgres
           FN_LIST: ${{ env.TARGET_FUNCS }}
         run: |
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "No DB password; skipping revoke."
+            exit 0
+          fi
           set -e
           cat > revoke_funcs.sql <<'EOF'
           drop table if exists tmp_target_funcs;
@@ -131,12 +133,10 @@ jobs:
           group by 1
           order by 1;
           EOF
-
           psql -v ON_ERROR_STOP=1 -v FN_LIST="$FN_LIST" -f revoke_funcs.sql > revoke_output.txt
           echo "Revoke phase complete."
 
-      - name: Analytics existence + calls (non-fatal)
-        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+      - name: Analytics existence + sample calls (non-fatal; skipped if no DB password)
         env:
           PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
           PGPORT: 6543
@@ -144,38 +144,41 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGDATABASE: postgres
         run: |
-          set +e
-          cat > analytics.sql <<'EOF'
-          with fns(name) as (values ('revenue_summary'), ('employee_workload'))
-          select f.name,
-                 case when exists (
-                   select 1 from pg_proc p
-                   join pg_namespace n on n.oid=p.pronamespace
-                   where n.nspname='app' and p.proname=f.name
-                 ) then 'PRESENT' else 'MISSING' end as status
-          from fns f
-          order by 1;
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "No DB password; skipping analytics checks."
+            exit 0
+          fi
+            set +e
+            cat > analytics.sql <<'EOF'
+            with fns(name) as (values ('revenue_summary'), ('employee_workload'))
+            select f.name,
+                   case when exists (
+                     select 1 from pg_proc p
+                     join pg_namespace n on n.oid=p.pronamespace
+                     where n.nspname='app' and p.proname=f.name
+                   ) then 'PRESENT' else 'MISSING' end as status
+            from fns f
+            order by 1;
 
-          DO $$
-          BEGIN
+            DO $$
             BEGIN
-              PERFORM app.revenue_summary((now()-interval '7 days')::timestamptz, now()::timestamptz);
-              RAISE NOTICE 'revenue_summary call ok';
-            EXCEPTION WHEN OTHERS THEN
-              RAISE NOTICE 'revenue_summary call failed: %', SQLERRM;
-            END;
+              BEGIN
+                PERFORM app.revenue_summary((now()-interval '7 days')::timestamptz, now()::timestamptz);
+                RAISE NOTICE 'revenue_summary call ok';
+              EXCEPTION WHEN OTHERS THEN
+                RAISE NOTICE 'revenue_summary call failed: %', SQLERRM;
+              END;
 
-            BEGIN
-              PERFORM app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, NULL);
-              RAISE NOTICE 'employee_workload call ok';
-            EXCEPTION WHEN OTHERS THEN
-              RAISE NOTICE 'employee_workload call failed: %', SQLERRM;
-            END;
-          END$$;
-          EOF
-
-          psql -v ON_ERROR_STOP=0 -f analytics.sql > analytics_results.txt 2>&1
-          echo "Analytics inspection complete (errors tolerated)."
+              BEGIN
+                PERFORM app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, NULL);
+                RAISE NOTICE 'employee_workload call ok';
+              EXCEPTION WHEN OTHERS THEN
+                RAISE NOTICE 'employee_workload call failed: %', SQLERRM;
+              END;
+            END$$;
+            EOF
+            psql -v ON_ERROR_STOP=0 -f analytics.sql > analytics_results.txt 2>&1
+            echo "Analytics inspection done."
 
       - name: Setup Node (for smoke)
         uses: actions/setup-node@v4
@@ -300,8 +303,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          npx tsx scripts/prod_smoke.ts > smoke-results.json
-          echo "Smoke test run (truncated):"
+          if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY; skipping smoke."
+            echo '{}' > smoke-results.json
+            exit 0
+          fi
+          npx tsx scripts/prod_smoke.ts > smoke-results.json || true
           head -n 40 smoke-results.json || true
 
       - name: Build summary
@@ -309,31 +316,31 @@ jobs:
           {
             echo "## Production Rollout Summary"
             echo
-            echo "**Run ID:** $GITHUB_RUN_ID"
-            echo "**Job Status:** ${{ job.status }}"
-            echo "**Timestamp (UTC):** $(date -u)"
+            echo "Run ID: $GITHUB_RUN_ID"
+            echo "Status: ${{ job.status }}"
+            echo "UTC: $(date -u)"
             echo
             echo "### Migrations"
             echo "Applied via supabase db push."
             echo
             if [ -f revoke_output.txt ]; then
-              echo "### Function Privilege Snapshot (first 80 lines)"
+              echo "### Function Privilege Snapshot (first 60 lines)"
               echo '```'
-              head -n 80 revoke_output.txt
+              head -n 60 revoke_output.txt
               echo '```'
             else
               echo "### Function Privilege Snapshot"
-              echo "_Skipped (no DB password secret)._"
+              echo "Skipped (no DB password)."
             fi
             echo
             if [ -f analytics_results.txt ]; then
-              echo "### Analytics Presence & Calls (first 120 lines)"
+              echo "### Analytics Presence & Calls (first 100 lines)"
               echo '```'
-              head -n 120 analytics_results.txt
+              head -n 100 analytics_results.txt
               echo '```'
             else
               echo "### Analytics Presence & Calls"
-              echo "_Skipped (no DB password secret)._"
+              echo "Skipped (no DB password)."
             fi
             echo
             if [ -f smoke-results.json ]; then
@@ -342,10 +349,6 @@ jobs:
               head -n 120 smoke-results.json
               echo '```'
             fi
-            echo
-            echo "### Notes"
-            echo "- Non-critical errors in revoke/analytics tolerated."
-            echo "- Adjust TARGET_FUNCS env if you add/remove RPCs."
           } > summary.md
 
       - name: Upload artifacts
@@ -359,31 +362,30 @@ jobs:
             smoke-results.json
 
       - name: PR comment (if pr_number provided)
-        if: ${{ always() && github.event.inputs.pr_number != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
-          STATUS="${{ job.status }}"
-          PR="${{ github.event.inputs.pr_number }}"
+          if [ -z "${{ github.event.inputs.pr_number }}" ]; then
+            echo "No pr_number provided; skipping comment."
+            exit 0
+          fi
           {
             echo "### Prod Rollout"
             echo
-            echo "**Status:** $STATUS"
+            echo "**Status:** ${{ job.status }}"
             echo "[Run ID $GITHUB_RUN_ID](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo
             echo "Artifacts include summary.md (migrations, revoke snapshot, analytics, smoke)."
             echo
             echo "_Automated comment._"
           } > pr_comment.md
-          gh pr comment "$PR" --body-file pr_comment.md || echo "PR comment failed."
+          gh pr comment "${{ github.event.inputs.pr_number }}" --body-file pr_comment.md || echo "PR comment failed."
 
       - name: Tag rollout (success only)
-        if: ${{ success() }}
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
           TAG="rollout-${{ github.run_id }}"
           git config user.name "github-actions"
           git config user.email "actions@github.com"

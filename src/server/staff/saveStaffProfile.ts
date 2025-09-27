@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Utility to normalize phone to E.164
 function normalizePhone(phone: string) {
-  return phone.replace(/[^\d+]/g, ""); // Fixed regex by removing the line break
+  return phone.replace(/[^\d+]/g, "");
 }
 
 // Utility to generate initials
@@ -83,9 +83,9 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
     updated_at: new Date().toISOString(),
   };
   
-  let staffResult;
+  let newStaff;
   if (staffId) {
-    // Handle type issues with explicit type casting
+    // Use type casting to satisfy TypeScript
     const { data, error } = await supabase
       .from("app.staff")
       .update(staffObj as any)
@@ -94,68 +94,75 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
       .single();
     
     if (error) throw error;
-    staffResult = { data, error };
+    newStaff = data;
   } else {
     const { data, error } = await supabase
       .from("app.staff")
       .insert(staffObj as any)
       .select()
       .single();
-    
+      
     if (error) throw error;
-    staffResult = { data, error };
+    newStaff = data;
   }
-  
-  const newStaff = staffResult.data;
-  
+
   // Permissions
   await supabase.from("app.staff_permissions").delete().eq("staff_id", newStaff.id);
   if (rest.permissions.length) {
-    const permissionData = rest.permissions.map(p => ({ 
+    const permissionsData = rest.permissions.map(p => ({ 
       staff_id: newStaff.id, 
       ...p 
     }));
     
     await supabase
       .from("app.staff_permissions")
-      .upsert(permissionData as any);
+      .upsert(permissionsData as any);
   }
 
   // Comp plan
+  const compPlanData = {
+    staff_id: newStaff.id,
+    ...rest.compPlan,
+    updated_at: new Date().toISOString(),
+  };
+  
   await supabase
     .from("app.comp_plans")
-    .upsert({
-      staff_id: newStaff.id,
-      ...rest.compPlan,
-      updated_at: new Date().toISOString(),
-    } as any);
+    .upsert(compPlanData as any);
 
   // Team overrides
   await supabase.from("app.team_overrides").delete().or(`manager_id.eq.${newStaff.id},member_id.eq.${newStaff.id}`);
   if (rest.overrides.length) {
+    const overridesData = rest.overrides.map(o => ({ ...o }));
     await supabase
       .from("app.team_overrides")
-      .upsert(rest.overrides.map(o => ({ ...o })) as any);
+      .upsert(overridesData as any);
   }
 
   // Availability
   await supabase.from("app.staff_availability").delete().eq("staff_id", newStaff.id);
   if (rest.availability.length) {
+    const availabilityData = rest.availability.map(a => ({ 
+      staff_id: newStaff.id, 
+      ...a 
+    }));
+    
     await supabase
       .from("app.staff_availability")
-      .upsert(
-        rest.availability.map(a => ({ staff_id: newStaff.id, ...a })) as any
-      );
+      .upsert(availabilityData as any);
   }
 
   // Services
   await supabase.from("app.staff_services").delete().eq("staff_id", newStaff.id);
   if (rest.services.length) {
+    const servicesData = rest.services.map(s => ({ 
+      staff_id: newStaff.id, 
+      ...s 
+    }));
+    
     await supabase
       .from("app.staff_services")
-      .upsert(
-        rest.services.map(s => ({ staff_id: newStaff.id, ...s })) as any
-      );
+      .upsert(servicesData as any);
   }
 
   // Audit event
@@ -166,7 +173,7 @@ export async function saveStaffProfile(supabase: ReturnType<typeof createClient>
     new: newStaff,
     actor_profile_id: actor_profile_id,
     created_at: new Date().toISOString(),
-  });
+  } as any);
 
   return { success: true, staff: newStaff };
 }

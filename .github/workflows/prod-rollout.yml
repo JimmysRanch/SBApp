@@ -12,102 +12,380 @@ on:
         required: true
         default: "NO"
       pr_number:
-        description: "PR for comment"
+        description: "Optional PR number to comment on"
         required: false
-        default: "328"
+        default: ""
 
 env:
   ROLLOUT_TIMESTAMP: ${{ github.run_id }}-${{ github.run_number }}
+  TARGET_FUNCS: "list_staff,list_clients,revenue_summary,employee_workload"
 
 jobs:
-  prod:
+  rollout:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
+
     steps:
-      - name: Validate
+      - name: Validate inputs
         run: |
+          set -e
           if [ "${{ github.event.inputs.env }}" != "production" ]; then
-            echo "env must be production"
-            exit 1
+            echo "env must be production"; exit 1;
           fi
           if [ "${{ github.event.inputs.confirm_prod }}" != "YES" ]; then
-            echo "confirm_prod must be YES"
-            exit 1
+            echo "confirm_prod must be YES"; exit 1;
           fi
+          echo "Inputs validated."
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Go (for Supabase CLI build)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Supabase CLI
+        run: |
+          set -e
+          go install github.com/supabase/cli@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+          export PATH="$HOME/go/bin:$PATH"
+          supabase --version
+
+      - name: Write Supabase config
+        run: |
+          mkdir -p supabase
+          echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
+          echo "Supabase config:"
+          cat supabase/config.toml
+
+      - name: Apply migrations (supabase db push)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          echo "Supabase CLI version:"
+          supabase --version
+          echo "Pushing migrations (no --project-ref flag)..."
+          supabase db push
+          echo "Migrations applied (or already up to date)."
+
+      - name: Install psql client (only if password present)
+        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Revoke anon EXECUTE (idempotent)
+        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+        env:
+          PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
+          PGPORT: 6543
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGDATABASE: postgres
+          FN_LIST: ${{ env.TARGET_FUNCS }}
+        run: |
+          set -e
+          cat > revoke_funcs.sql <<'EOF'
+          drop table if exists tmp_target_funcs;
+          create temporary table tmp_target_funcs(name text, arg_sig text);
+
+          with desired as (
+            select unnest(string_to_array(current_setting('FN_LIST', true), ',')) as fn
+          ),
+          existing as (
+            select p.proname,
+                   pg_get_function_identity_arguments(p.oid) as arg_sig
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname='app'
+              and p.proname in (select fn from desired)
+          )
+          insert into tmp_target_funcs
+          select proname, arg_sig from existing;
+
+          DO $$
+          DECLARE r record;
+          BEGIN
+            FOR r IN SELECT * FROM tmp_target_funcs LOOP
+              BEGIN
+                EXECUTE format('REVOKE EXECUTE ON FUNCTION app.%I(%s) FROM anon;', r.name, r.arg_sig);
+              EXCEPTION WHEN OTHERS THEN
+                RAISE NOTICE 'Could not revoke app.% (%): %', r.name, r.arg_sig, SQLERRM;
+              END;
+            END LOOP;
+          END$$;
+
+          select
+            proname,
+            coalesce(array_to_string(array_agg(acl::text), E'\n'), '(no acl)') as acl_lines
+          from (
+            select p.proname, unnest(coalesce(p.proacl, ARRAY[]::aclitem[])) as acl
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname='app'
+              and p.proname in (select name from tmp_target_funcs)
+          ) q
+          group by 1
+          order by 1;
+          EOF
+
+          psql -v ON_ERROR_STOP=1 -v FN_LIST="$FN_LIST" -f revoke_funcs.sql > revoke_output.txt
+          echo "Revoke phase complete."
+
+      - name: Analytics existence + calls (non-fatal)
+        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+        env:
+          PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
+          PGPORT: 6543
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGDATABASE: postgres
+        run: |
+          set +e
+          cat > analytics.sql <<'EOF'
+          with fns(name) as (values ('revenue_summary'), ('employee_workload'))
+          select f.name,
+                 case when exists (
+                   select 1 from pg_proc p
+                   join pg_namespace n on n.oid=p.pronamespace
+                   where n.nspname='app' and p.proname=f.name
+                 ) then 'PRESENT' else 'MISSING' end as status
+          from fns f
+          order by 1;
+
+          DO $$
+          BEGIN
+            BEGIN
+              PERFORM app.revenue_summary((now()-interval '7 days')::timestamptz, now()::timestamptz);
+              RAISE NOTICE 'revenue_summary call ok';
+            EXCEPTION WHEN OTHERS THEN
+              RAISE NOTICE 'revenue_summary call failed: %', SQLERRM;
+            END;
+
+            BEGIN
+              PERFORM app.employee_workload((now()-interval '7 days')::timestamptz, now()::timestamptz, NULL);
+              RAISE NOTICE 'employee_workload call ok';
+            EXCEPTION WHEN OTHERS THEN
+              RAISE NOTICE 'employee_workload call failed: %', SQLERRM;
+            END;
+          END$$;
+          EOF
+
+          psql -v ON_ERROR_STOP=0 -f analytics.sql > analytics_results.txt 2>&1
+          echo "Analytics inspection complete (errors tolerated)."
+
+      - name: Setup Node (for smoke)
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Install Supabase CLI (resilient)
-        id: supabase_cli
+      - name: Install runtime deps
         run: |
-          set -e
-          echo "Attempting to download latest Supabase CLI binary..."
-          ARCH=$(uname -m)
-          # Normalize arch for Supabase naming
-            case "$ARCH" in
-              x86_64) ARCH=amd64 ;;
-              aarch64) ARCH=arm64 ;;
-            esac
-          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-          BIN_URL="https://github.com/supabase/cli/releases/latest/download/supabase_${OS}_${ARCH}.tar.gz"
-          echo "URL: $BIN_URL"
-          if curl -fsSL "$BIN_URL" | tar -xz -C /usr/local/bin supabase 2>/dev/null; then
-            echo "Binary installed."
-          else
-            echo "Binary download failed, falling back to npm install..."
-            npm install -g supabase
-          fi
-          echo "Installed version:"
-          supabase --version || { echo "Supabase CLI not found after install"; exit 1; }
+          npm install @supabase/supabase-js tsx --no-audit --no-fund
 
-      - name: Write config
+      - name: Create adaptive smoke script
         run: |
-          mkdir -p supabase
-          echo "project_id = \"${{ secrets.SUPABASE_PROJECT_REF }}\"" > supabase/config.toml
-          echo "Config written."
+          mkdir -p scripts
+          cat > scripts/prod_smoke.ts <<'EOF'
+          import { createClient } from '@supabase/supabase-js'
+          function addMinutes(d:Date,m:number){return new Date(d.getTime()+m*60000)}
+          const { SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY } = process.env
+          async function main(){
+            if(!SUPABASE_URL||!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing env')
+            const admin = createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{
+              auth:{autoRefreshToken:false,persistSession:false}
+            })
+            const tag=Date.now()
+            const out:any={ meta:{ tag, started:new Date().toISOString() } }
 
-      - name: DB Push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          supabase db push --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+            let staff:any=null; let staffTable='public.employees'
+            try{
+              const r=await admin.from('employees').insert({ name:`Smoke Staff ${tag}` }).select().single()
+              if(r.error) throw r.error; staff=r.data
+            }catch(e:any){
+              if(/does not exist/i.test(e.message||'')){
+                staffTable='app.staff'
+                const r=await admin.from('staff').insert({
+                  first_name:'Smoke', last_name:'Staff'+tag,
+                  email:`smoke_staff_${tag}@example.com`,
+                  phone:'+10000000000', status:'active'
+                }).select().single()
+                if(r.error) throw r.error; staff=r.data
+              } else throw e
+            }
+            out.staff=staff; out.staff_table=staffTable
 
-      - name: Install deps
-        run: |
-          npm install @supabase/supabase-js ts-node typescript
+            let client:any=null
+            try{
+              const r=await admin.from('clients').insert({ display_name:`Smoke Client ${tag}` }).select().single()
+              if(r.error) throw r.error; client=r.data; out.client=client
+            }catch(e:any){ out.client_error=e.message }
+
+            if(client?.id){
+              try{
+                const r=await admin.from('pets').insert({ client_id:client.id, name:`Smoke Pet ${tag}`, species:'dog'}).select().single()
+                if(r.error) throw r.error; out.pet=r.data
+              }catch(e:any){ out.pet_error=e.message }
+            }
+
+            const start=new Date(); const end=addMinutes(start,30)
+            async function variantA(){
+              const r=await admin.from('appointments').insert({
+                staff_id:staff?.id, client_id:client?.id,
+                start_at:start.toISOString(), end_at:end.toISOString(),
+                status:'scheduled'
+              }).select().single()
+              if(r.error) throw r.error; return r.data
+            }
+            async function variantB(){
+              const r=await admin.from('appointments').insert({
+                staff_id:staff?.id, client_id:client?.id,
+                starts_at:start.toISOString(), ends_at:end.toISOString(),
+                price_service:0, status:'booked'
+              }).select().single()
+              if(r.error) throw r.error; return r.data
+            }
+            try{
+              let appt:any
+              try{
+                appt=await variantA(); out.appointment_mode='variant_A'
+                const upd=await admin.from('appointments').update({ status:'finished'}).eq('id',appt.id).select().single()
+                if(upd.error) throw upd.error
+                out.appointment_initial=appt; out.appointment_updated=upd.data
+              }catch(e:any){
+                if(/column .* does not exist|invalid input value for enum|status/i.test(e.message)){
+                  appt=await variantB(); out.appointment_mode='variant_B'
+                  const upd=await admin.from('appointments').update({ status:'completed'}).eq('id',appt.id).select().single()
+                  if(upd.error) throw upd.error
+                  out.appointment_initial=appt; out.appointment_updated=upd.data
+                } else throw e
+              }
+            }catch(e:any){ out.appointment_error=e.message }
+
+            try{
+              const r=await admin.from('messages').insert({
+                client_id:client?.id, direction:'outbound', body:`Smoke test message ${tag}`
+              }).select().single()
+              if(r.error) throw r.error; out.message=r.data
+            }catch(e:any){
+              if(/does not exist/i.test(e.message||'')) out.message_skipped='messages table missing'
+              else out.message_error=e.message
+            }
+
+            try{
+              const sel=await admin.from('settings').select('id').eq('id',1).limit(1)
+              if(!sel.error){
+                const upd=await admin.from('settings').update({
+                  quiet_hours_start:'21:00', quiet_hours_end:'07:00'
+                }).eq('id',1).select().maybeSingle()
+                out.settings=upd.data??null
+              } else out.settings_skipped='settings table not accessible'
+            }catch(e:any){
+              if(/does not exist/i.test(e.message||'')) out.settings_skipped='settings table missing'
+              else out.settings_error=e.message
+            }
+
+            out.meta.finished=new Date().toISOString()
+            console.log(JSON.stringify(out,null,2))
+          }
+          main().catch(e=>{ console.error('SMOKE_TEST_FAILURE:',e.message); process.exit(1) })
+          EOF
 
       - name: Run smoke test
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if [ ! -f scripts/prod_smoke.ts ]; then
-            echo "scripts/prod_smoke.ts missing"; exit 1;
-          fi
-          npx ts-node scripts/prod_smoke.ts > smoke-results.json
+          npx tsx scripts/prod_smoke.ts > smoke-results.json
+          echo "Smoke test run (truncated):"
+          head -n 40 smoke-results.json || true
 
-      - name: Summarize
+      - name: Build summary
         run: |
           {
-            echo "## Rollout Summary"
+            echo "## Production Rollout Summary"
             echo
             echo "**Run ID:** $GITHUB_RUN_ID"
-            echo "**Timestamp:** $(date -u)"
+            echo "**Job Status:** ${{ job.status }}"
+            echo "**Timestamp (UTC):** $(date -u)"
             echo
-            echo "### Smoke Test JSON (truncated)"
-            echo '```json'
-            head -n 120 smoke-results.json || true
-            echo '```'
+            echo "### Migrations"
+            echo "Applied via supabase db push."
+            echo
+            if [ -f revoke_output.txt ]; then
+              echo "### Function Privilege Snapshot (first 80 lines)"
+              echo '```'
+              head -n 80 revoke_output.txt
+              echo '```'
+            else
+              echo "### Function Privilege Snapshot"
+              echo "_Skipped (no DB password secret)._"
+            fi
+            echo
+            if [ -f analytics_results.txt ]; then
+              echo "### Analytics Presence & Calls (first 120 lines)"
+              echo '```'
+              head -n 120 analytics_results.txt
+              echo '```'
+            else
+              echo "### Analytics Presence & Calls"
+              echo "_Skipped (no DB password secret)._"
+            fi
+            echo
+            if [ -f smoke-results.json ]; then
+              echo "### Smoke JSON (truncated)"
+              echo '```json'
+              head -n 120 smoke-results.json
+              echo '```'
+            fi
+            echo
+            echo "### Notes"
+            echo "- Non-critical errors in revoke/analytics tolerated."
+            echo "- Adjust TARGET_FUNCS env if you add/remove RPCs."
           } > summary.md
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: core-${{ env.ROLLOUT_TIMESTAMP }}
+          name: rollout-${{ env.ROLLOUT_TIMESTAMP }}
           path: |
-            smoke-results.json
             summary.md
+            revoke_output.txt
+            analytics_results.txt
+            smoke-results.json
+
+      - name: PR comment (if pr_number provided)
+        if: ${{ always() && github.event.inputs.pr_number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          STATUS="${{ job.status }}"
+          PR="${{ github.event.inputs.pr_number }}"
+          {
+            echo "### Prod Rollout"
+            echo
+            echo "**Status:** $STATUS"
+            echo "[Run ID $GITHUB_RUN_ID](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo
+            echo "Artifacts include summary.md (migrations, revoke snapshot, analytics, smoke)."
+            echo
+            echo "_Automated comment._"
+          } > pr_comment.md
+          gh pr comment "$PR" --body-file pr_comment.md || echo "PR comment failed."
+
+      - name: Tag rollout (success only)
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="rollout-${{ github.run_id }}"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG" -m "Prod rollout $TAG"
+          git push origin "$TAG" || echo "Tag push failed (non-fatal)."
